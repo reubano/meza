@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# -*- coding: utf-8 -*-
+
+# create a wheel package
+
+./clean-build
+./clean-pyc
+python setup.py bdist_wheel
+ls -l dist

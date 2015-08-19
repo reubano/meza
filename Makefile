@@ -31,7 +31,7 @@ require:
 	pip freeze -l | grep -vxFf dev-requirements.txt > requirements.txt
 
 lint:
-	flake8 tabutils.py tests
+	flake8 tabutils tests
 
 test:
 	nosetests -xv

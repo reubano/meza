@@ -31,7 +31,7 @@ def check():
 @manager.command
 def lint():
     """Check style with flake8"""
-    call('flake8 tabutils.py tests', shell=True)
+    call('flake8 tabutils tests', shell=True)
 
 
 @manager.command

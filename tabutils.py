@@ -6,7 +6,7 @@
 tabutils
 ~~~~~~~~
 
-Provides miscellaneous utility methods
+Provides methods for reading and processing data from tabular formatted files
 
 Examples:
     literal blocks::
@@ -21,7 +21,6 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
-import sys
 import xlrd
 import itertools as it
 import unicodecsv as csv
@@ -29,6 +28,7 @@ import unicodecsv as csv
 from StringIO import StringIO
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 from dbfread import DBF
+from decimal import Decimal, InvalidOperation
 from dateutil.parser import parse
 from functools import partial
 from xlrd.xldate import xldate_as_datetime as xl2dt
@@ -40,15 +40,28 @@ from chardet.universaldetector import UniversalDetector
 from slugify import slugify
 
 ENCODING = 'utf-8'
+CURRENCIES = ('$', '£', '€')
+
+__title__ = 'tabutils'
+__package_name__ = 'tabutils'
+__author__ = 'Reuben Cummings'
+__description__ = 'tabular data utility methods'
+__email__ = 'reubano@gmail.com'
+__version__ = '0.6.0'
+__license__ = 'MIT'
+__copyright__ = 'Copyright 2015 Reuben Cummings'
+
 underscorify = lambda fields: [slugify(f, separator='_') for f in fields]
 
 
-def _read_csv(f, encoding, names):
+def _read_csv(f, encoding, names=('field_0',)):
     """Helps read a csv file.
 
     Args:
         f (obj): The csv file like object.
         encoding (str): File encoding.
+
+    Kwargs:
         names (List[str]): The header names.
 
     Yields:
@@ -56,8 +69,8 @@ def _read_csv(f, encoding, names):
 
     Examples:
         >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test.csv')
+        >>> parent_dir = p.abspath(p.dirname(__file__))
+        >>> filepath = p.join(parent_dir, 'testdata', 'test.csv')
         >>> f = open(filepath, 'rU')
         >>> names = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
         >>> records = _read_csv(f, 'utf-8', names)
@@ -91,14 +104,17 @@ def _sanitize_sheet(sheet, mode, date_format):
 
     Examples:
         >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test.xls')
+        >>> parent_dir = p.abspath(p.dirname(__file__))
+        >>> filepath = p.join(parent_dir, 'testdata', 'test.xls')
         >>> book = xlrd.open_workbook(filepath)
         >>> sheet = book.sheet_by_index(0)
-        >>> sheet.row_values(5)
+        >>> sheet.row_values(1) == [\
+30075.0, u'Iñtërnâtiônàližætiøn', 234.0, u'Ādam', u' ']
+        True
         >>> sanitized = _sanitize_sheet(sheet, book.datemode, '%Y-%m-%d')
-        >>> it.islice(sanitized, 5, 6).next()
-        (1, '1982-05-04')
+        >>> [v for i, v in sanitized if i == 1] == [\
+'1982-05-04', u'Iñtërnâtiônàližætiøn', u'234.0', u'Ādam', u' ']
+        True
     """
     switch = {
         XL_CELL_DATE: lambda v: xl2dt(v, mode).strftime(date_format),
@@ -113,9 +129,8 @@ def _sanitize_sheet(sheet, mode, date_format):
             yield (i, switch.get(ctype, lambda v: v)(value))
 
 
-
-def _make_float(value):
-    """Parses and formats numbers.
+def make_float(value):
+    """Parses and formats numbers into floats.
 
     Args:
         value (str): The number to parse.
@@ -128,15 +143,129 @@ def _make_float(value):
         1.0
         >>> make_float('1f')
     """
-    try:
-        if value and value.strip():
+    if value and value.strip():
+        try:
             value = float(value.replace(',', ''))
-        else:
+        except ValueError:
             value = None
-    except ValueError:
+    else:
         value = None
 
     return value
+
+
+def decimalize(string, thousand_sep=',', decimal_sep='.', precision=2):
+    """Parses and formats currency values into decimals
+    >>> decimalize('$123.45')
+    Decimal('123.45')
+    >>> decimalize('123€')
+    Decimal('123')
+    >>> decimalize('2,123.45')
+    Decimal('2123.45')
+    >>> decimalize('2.123,45', '.', ',')
+    Decimal('2123.45')
+    >>> decimalize('spam')
+    """
+    currencies = it.izip(CURRENCIES, it.repeat(''))
+    seperators = [(thousand_sep, ''), (decimal_sep, '.')]
+    stripped = mreplace(string, it.chain(currencies, seperators))
+    try:
+        value = Decimal(stripped)
+    except InvalidOperation:
+        value = None
+
+    return value
+
+
+def is_numeric_like(string, seperators=('.', ',')):
+    """
+    >>> is_numeric_like('$123.45')
+    True
+    >>> is_numeric_like('123€')
+    True
+    >>> is_numeric_like('2,123.45')
+    True
+    >>> is_numeric_like('2.123,45')
+    True
+    >>> is_numeric_like('10e5')
+    True
+    >>> is_numeric_like('spam')
+    False
+    """
+    replacements = it.izip(it.chain(CURRENCIES, seperators), it.repeat(''))
+    stripped = mreplace(string, replacements)
+
+    try:
+        float(stripped)
+    except (ValueError, TypeError):
+        return False
+    else:
+        return True
+
+
+def afterish(string, char=',', exclude=None):
+    """Number of digits after a given character.
+
+    >>> afterish('123.45', '.')
+    2
+    >>> afterish('1001.', '.')
+    0
+    >>> afterish('1001', '.')
+    -1
+    >>> afterish('1,001')
+    3
+    >>> afterish('2,100,001.00')
+    6
+    >>> afterish('2,100,001.00', exclude='.')
+    3
+    >>> afterish('1,000.00', '.', ',')
+    2
+    >>> afterish('eggs', '.')
+    Traceback (most recent call last):
+    TypeError: Not able to convert eggs to a number
+    """
+    numeric_like = is_numeric_like(string)
+
+    if numeric_like and char in string:
+        excluded = [s for s in string.split(exclude) if char in s][0]
+        after = len(excluded) - excluded.rfind(char) - 1
+    elif numeric_like:
+        after = -1
+    else:
+        raise TypeError('Not able to convert %s to a number' % string)
+
+    return after
+
+
+def mreplace(string, replacements):
+    func = lambda x, y: x.replace(y[0], y[1])
+    return reduce(func, replacements, string)
+
+
+def xmlize(content):
+    """ Recursively makes elements of an array xml compliant
+
+    Args:
+        content (List[str]): the content to clean
+
+    Yields:
+        (str): the cleaned element
+
+    Examples:
+        >>> list(xmlize(['&', '<']))
+        [u'&amp', u'&lt']
+    """
+    replacements = [
+        ('&', '&amp'), ('>', '&gt'), ('<', '&lt'), ('\n', ' '), ('\r\n', ' ')]
+
+    for item in content:
+        if hasattr(item, 'upper'):
+            yield mreplace(item, replacements)
+        else:
+            try:
+                yield list(xmlize(item))
+            except TypeError:
+                yield mreplace(item, replacements)
 
 
 def _make_date(value, date_format):
@@ -147,7 +276,7 @@ def _make_date(value, date_format):
         date_format (str): Date format passed to `strftime()`.
 
     Returns:
-        str: The formatted date string.
+        [tuple(str, bool)]: Tuple of the formatted date string and retry value.
 
     Examples:
         >>> _make_date('5/4/82', '%Y-%m-%d')
@@ -219,8 +348,8 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
 
     Examples:
         >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> csv_filepath = p.join(parent_dir, 'data', 'test.csv')
+        >>> parent_dir = p.abspath(p.dirname(__file__))
+        >>> csv_filepath = p.join(parent_dir, 'testdata', 'test.csv')
         >>> csv_records = read_csv(csv_filepath, sanitize=True)
         >>> csv_header = sorted(csv_records.next().keys())
         >>> csv_fields = gen_fields(csv_header, True)
@@ -229,7 +358,7 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
         >>> casted_csv_row = gen_type_cast(csv_records, csv_fields).next()
         >>> casted_csv_values = [casted_csv_row[h] for h in csv_header]
         >>>
-        >>> xls_filepath = p.join(parent_dir, 'data', 'test.xls')
+        >>> xls_filepath = p.join(parent_dir, 'testdata', 'test.xls')
         >>> xls_records = read_xls(xls_filepath, sanitize=True)
         >>> xls_header = sorted(xls_records.next().keys())
         >>> xls_fields = gen_fields(xls_header, True)
@@ -285,8 +414,8 @@ def detect_encoding(f):
 
     Examples:
         >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test.csv')
+        >>> parent_dir = p.abspath(p.dirname(__file__))
+        >>> filepath = p.join(parent_dir, 'testdata', 'test.csv')
         >>> f = open(filepath, 'rU')
         >>> result = detect_encoding(f)
         >>> f.close()
@@ -328,47 +457,50 @@ def read_mdb(filepath, table=None, **kwargs):
 
     Examples:
         >>> from os import path as p
-        >>> from tempfile import NamedTemporaryFile
-        >>> tmpfile = NamedTemporaryFile()
-        >>> filepath = tmpfile.name
-        >>> read_dbf(filepath).next()
-        Traceback (most recent call last):
-        StopIteration
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test.dbf')
-        >>> records = read_dbf(filepath, sanitize=True)
+        >>> parent_dir = p.abspath(p.dirname(__file__))
+        >>> filepath = p.join(parent_dir, 'testdata', 'test.mdb')
+        >>> records = read_mdb(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
-        [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
+        [u'date_of_order_of_court', u'forenames', \
+u'freedom', u'how_admitted', u'id_no', u'livery', u'notes', u'remarks', \
+u'source_ref', u'surname', u'surname_master_or_father']
         >>> row = records.next()
-        >>> [row[h] for h in header] == [ \
-u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
-        True
-        >>> [r['some_date'] for r in records]
-        [u'01-Jan-15', u'December 31, 1995']
+        >>> [row[h] for h in header]
+        [u'', u'Richard', u'', u'05/11/01 00:00:00', u'Redn.', u'2', u'', \
+u'', u'', u'MF 324', u'Abbey', u'']
+        >>> [r['surname'] for r in records]
+        [u'Abbis', u'Abbis', u'Abbis', u'Abbot', u'Abbot', u'Abbott', \
+u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', \
+u'Abbott', u'Abbott', u'Abbott', u'Abbott', u"'"]
     """
+    args = ['mdb-tables', '-1', filepath]
+
     try:
-        check_call(['mdb-export', filepath])
+        check_call(args)
     except OSError:
         raise OSError(
-            'You must install [mdbtools]' \
-            '(http://sourceforge.net/projects/mdbtools/) in order to use ' \
+            'You must install [mdbtools]'
+            '(http://sourceforge.net/projects/mdbtools/) in order to use '
             'this function')
     except CalledProcessError:
         raise TypeError('%s is not readable by mdbtools' % filepath)
 
-    args = ['mdb-tables', '-1', filepath]
     table = table or check_output(args).splitlines()[0]
-    kwargs = {'stdout': PIPE, 'bufsize': 1, 'universal_newlines': True}
+    pkwargs = {'stdout': PIPE, 'bufsize': 1, 'universal_newlines': True}
 
     # http://stackoverflow.com/a/2813530/408556
     # http://stackoverflow.com/a/17698359/408556
-    with Popen(['mdb-export', filepath, table], **kwargs).stdout as pipe:
-        header = pipe.readline()
+    with Popen(['mdb-export', filepath, table], **pkwargs).stdout as pipe:
+        sanitize = kwargs.pop('sanitize', None)
+        first_line = pipe.readline()
+        # print('first_line', first_line)
+        header = csv.reader(StringIO(first_line), **kwargs).next()
+        names = underscorify(header) if sanitize else header
 
         for line in iter(pipe.readline, b''):
-            values = csv.reader(StringIO('%s\n' % line))
-            yield dict(zip(header, values))
+            values = csv.reader(StringIO(line), **kwargs).next()
+            yield dict(zip(names, values))
 
 
 def read_dbf(filepath, **kwargs):
@@ -376,7 +508,7 @@ def read_dbf(filepath, **kwargs):
 
     Args:
         filepath (str): The dbf file path.
-        **kwargs: Keyword arguments that are passed to the csv reader.
+        **kwargs: Keyword arguments that are passed to the DBF reader.
 
     Kwargs:
         load (bool): Load all records into memory (default: false).
@@ -397,24 +529,22 @@ def read_dbf(filepath, **kwargs):
 
     Examples:
         >>> from os import path as p
-        >>> from tempfile import NamedTemporaryFile
-        >>> tmpfile = NamedTemporaryFile()
-        >>> filepath = tmpfile.name
-        >>> read_dbf(filepath).next()
-        Traceback (most recent call last):
-        StopIteration
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test.dbf')
+        >>> parent_dir = p.abspath(p.dirname(__file__))
+        >>> filepath = p.join(parent_dir, 'testdata', 'test.dbf')
         >>> records = read_dbf(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
-        [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
+        [u'aland10', u'awater10', u'cd111fp', u'cdsessn', u'funcstat10', \
+u'geoid10', u'intptlat10', u'intptlon10', u'lsad10', u'mtfcc10', \
+u'namelsad10', u'statefp10']
         >>> row = records.next()
-        >>> [row[h] for h in header] == [ \
-u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
-        True
-        >>> [r['some_date'] for r in records]
-        [u'01-Jan-15', u'December 31, 1995']
+        >>> [row[h] for h in header]
+        [320220379, 15485125, u'05', u'111', u'N', u'2705', u'+44.9781144', \
+u'-093.2928317', u'C2', u'G5200', u'Congressional District 5', u'27']
+        >>> [r['namelsad10'] for r in records]
+        [u'Congressional District 4', u'Congressional District 2', \
+u'Congressional District 1', u'Congressional District 6', u'Congressional \
+District 7', u'Congressional District 3']
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
 
@@ -426,7 +556,7 @@ def read_csv(filepath, mode='rU', **kwargs):
     """Reads a csv file.
 
     Args:
-        filepath (str): The csv file path.
+        filepath (str): The csv file path or file like object.
         mode (Optional[str]): The file open mode (default: 'rU').
         **kwargs: Keyword arguments that are passed to the csv reader.
 
@@ -434,6 +564,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         delimiter (str): Field delimiter (default: ',').
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
+        has_header (bool): Has header row (default: True).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -451,8 +582,8 @@ def read_csv(filepath, mode='rU', **kwargs):
         >>> read_csv(filepath).next()
         Traceback (most recent call last):
         StopIteration
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test.csv')
+        >>> parent_dir = p.abspath(p.dirname(__file__))
+        >>> filepath = p.join(parent_dir, 'testdata', 'test.csv')
         >>> records = read_csv(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
@@ -464,16 +595,17 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
         >>> [r['some_date'] for r in records]
         [u'01-Jan-15', u'December 31, 1995']
     """
-    with open(filepath, mode) as f:
+    def func(f):
         encoding = kwargs.pop('encoding', ENCODING)
         sanitize = kwargs.pop('sanitize', False)
-        header = csv.reader(f, encoding=encoding, **kwargs).next()
 
-        # Remove empty columns
-        names = [name for name in header if name.strip()]
-
-        # Underscorify field names
-        names = underscorify(names) if sanitize else names
+        if kwargs.pop('has_header', True):
+            # Remove empty columns and underscorify field names
+            header = csv.reader(f, encoding=encoding, **kwargs).next()
+            names = [name for name in header if name.strip()]
+            names = underscorify(names) if sanitize else names
+        else:
+            names = None
 
         try:
             records = _read_csv(f, encoding, names)
@@ -484,6 +616,14 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
 
         for row in records:
             yield row
+
+    if hasattr(filepath, 'read'):
+        for row in func(filepath):
+            yield row
+    else:
+        with open(filepath, mode) as f:
+            for row in func(f):
+                yield row
 
 
 def read_xls(filepath, **kwargs):
@@ -525,8 +665,8 @@ def read_xls(filepath, **kwargs):
         >>> read_xls(filepath).next()
         Traceback (most recent call last):
         XLRDError: File size is 0 bytes
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test.xls')
+        >>> parent_dir = p.abspath(p.dirname(__file__))
+        >>> filepath = p.join(parent_dir, 'testdata', 'test.xls')
         >>> records = read_xls(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
@@ -537,7 +677,7 @@ def read_xls(filepath, **kwargs):
         True
         >>> [r['some_date'] for r in records]
         ['2015-01-01', '1995-12-31']
-        >>> filepath = p.join(parent_dir, 'data', 'test.xlsx')
+        >>> filepath = p.join(parent_dir, 'testdata', 'test.xlsx')
         >>> records = read_xls(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header

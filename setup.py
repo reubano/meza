@@ -47,8 +47,7 @@ sys.dont_write_bytecode = True
 requirements = list(parse_requirements('requirements.txt'))
 dev_requirements = list(parse_requirements('dev-requirements.txt'))
 dependencies = list(parse_requirements('requirements.txt', dep=True))
-readme = read('README.rst')
-changes = read('CHANGES.rst').replace('.. :changelog:', '')
+readme = read('README.md')
 license = tabutils.__license__
 classifier = {'GPL': 'GNU General Public', 'MIT': 'The MIT', 'BSD': 'The BSD'}
 
@@ -56,14 +55,14 @@ setup(
     name=tabutils.__title__,
     version=tabutils.__version__,
     description=tabutils.__description__,
-    long_description=readme + '\n\n' + changes,
+    long_description=readme,
     author=tabutils.__author__,
     author_email=tabutils.__email__,
     url='https://github.com/reubano/tabutils',
     packages=find_packages(exclude=['docs', 'tests']),
     include_package_data=True,
     install_requires=requirements,
-    # dependency_links=dependencies,
+    dependency_links=dependencies,
     tests_require=dev_requirements,
     license=license,
     zip_safe=False,
@@ -82,5 +81,4 @@ setup(
         'Operating System :: POSIX :: Linux',
     ],
     platforms=['MacOS X', 'Windows', 'Linux'],
-    scripts=[p.join('bin', 'ckanny')],
 )

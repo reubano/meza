@@ -31,7 +31,7 @@ def check():
 @manager.command
 def lint():
     """Check style with flake8"""
-    call('flake8 tabutils tests', shell=True)
+    call('flake8 tabutils.py tests', shell=True)
 
 
 @manager.command
@@ -50,7 +50,7 @@ def require():
 @manager.command
 def test():
     """Run nose and script tests"""
-    call('nosetests -xv', shell=True)
+    call('nosetests -v tabutils', shell=True)
 
 
 @manager.command

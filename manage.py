@@ -50,7 +50,7 @@ def require():
 @manager.command
 def test():
     """Run nose and script tests"""
-    call('nosetests -xv', shell=True)
+    call('nosetests -v tabutils', shell=True)
 
 
 @manager.command

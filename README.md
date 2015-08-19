@@ -38,6 +38,8 @@ The tabutils library may be used directly from Python.
 *Read a csv file*
 
 ```python
+from tabutils import read_csv
+
 csv_records = read_csv('path/to/file.csv')
 csv_header = csv_records.next().keys()
 csv_records.next()
@@ -46,6 +48,8 @@ csv_records.next()
 *Read an xls/xlsx file*
 
 ```python
+from tabutils import read_xls
+
 xls_records = read_xls('path/to/file.xls')
 xls_header = xls_records.next().keys()
 xls_records.next()

@@ -6,7 +6,7 @@
 tabutils
 ~~~~~~~~
 
-Provides miscellaneous utility methods
+Provides methods for reading and processing data from tabular formatted files
 
 Examples:
     literal blocks::
@@ -21,7 +21,6 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
-import sys
 import xlrd
 import itertools as it
 import unicodecsv as csv
@@ -53,6 +52,7 @@ __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 
 underscorify = lambda fields: [slugify(f, separator='_') for f in fields]
+
 
 def _read_csv(f, encoding, names=('field_0',)):
     """Helps read a csv file.
@@ -127,7 +127,6 @@ def _sanitize_sheet(sheet, mode, date_format):
     for i in xrange(sheet.nrows):
         for ctype, value in it.izip(sheet.row_types(i), sheet.row_values(i)):
             yield (i, switch.get(ctype, lambda v: v)(value))
-
 
 
 def make_float(value):
@@ -463,12 +462,17 @@ def read_mdb(filepath, table=None, **kwargs):
         >>> records = read_mdb(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
-        [u'date_of_order_of_court', u'forenames', u'forenames_master_or_father', u'freedom', u'how_admitted', u'id_no', u'livery', u'notes', u'remarks', u'source_ref', u'surname', u'surname_master_or_father']
+        [u'date_of_order_of_court', u'forenames', \
+u'freedom', u'how_admitted', u'id_no', u'livery', u'notes', u'remarks', \
+u'source_ref', u'surname', u'surname_master_or_father']
         >>> row = records.next()
         >>> [row[h] for h in header]
-        [u'', u'Richard', u'', u'05/11/01 00:00:00', u'Redn.', u'2', u'', u'', u'', u'MF 324', u'Abbey', u'']
+        [u'', u'Richard', u'', u'05/11/01 00:00:00', u'Redn.', u'2', u'', \
+u'', u'', u'MF 324', u'Abbey', u'']
         >>> [r['surname'] for r in records]
-        [u'Abbis', u'Abbis', u'Abbis', u'Abbot', u'Abbot', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u"'"]
+        [u'Abbis', u'Abbis', u'Abbis', u'Abbot', u'Abbot', u'Abbott', \
+u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', \
+u'Abbott', u'Abbott', u'Abbott', u'Abbott', u"'"]
     """
     args = ['mdb-tables', '-1', filepath]
 
@@ -476,8 +480,8 @@ def read_mdb(filepath, table=None, **kwargs):
         check_call(args)
     except OSError:
         raise OSError(
-            'You must install [mdbtools]' \
-            '(http://sourceforge.net/projects/mdbtools/) in order to use ' \
+            'You must install [mdbtools]'
+            '(http://sourceforge.net/projects/mdbtools/) in order to use '
             'this function')
     except CalledProcessError:
         raise TypeError('%s is not readable by mdbtools' % filepath)
@@ -530,12 +534,17 @@ def read_dbf(filepath, **kwargs):
         >>> records = read_dbf(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
-        [u'aland10', u'awater10', u'cd111fp', u'cdsessn', u'funcstat10', u'geoid10', u'intptlat10', u'intptlon10', u'lsad10', u'mtfcc10', u'namelsad10', u'statefp10']
+        [u'aland10', u'awater10', u'cd111fp', u'cdsessn', u'funcstat10', \
+u'geoid10', u'intptlat10', u'intptlon10', u'lsad10', u'mtfcc10', \
+u'namelsad10', u'statefp10']
         >>> row = records.next()
         >>> [row[h] for h in header]
-        [320220379, 15485125, u'05', u'111', u'N', u'2705', u'+44.9781144', u'-093.2928317', u'C2', u'G5200', u'Congressional District 5', u'27']
+        [320220379, 15485125, u'05', u'111', u'N', u'2705', u'+44.9781144', \
+u'-093.2928317', u'C2', u'G5200', u'Congressional District 5', u'27']
         >>> [r['namelsad10'] for r in records]
-        [u'Congressional District 4', u'Congressional District 2', u'Congressional District 1', u'Congressional District 6', u'Congressional District 7', u'Congressional District 3']
+        [u'Congressional District 4', u'Congressional District 2', \
+u'Congressional District 1', u'Congressional District 6', u'Congressional \
+District 7', u'Congressional District 3']
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
 

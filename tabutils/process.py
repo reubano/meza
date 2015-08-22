@@ -258,7 +258,7 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
         >>> from os import path as p
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> csv_filepath = p.join(parent_dir, 'testdata', 'test.csv')
+        >>> csv_filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> csv_records = io.read_csv(csv_filepath, sanitize=True)
         >>> csv_header = sorted(csv_records.next().keys())
         >>> csv_fields = gen_fields(csv_header, True)
@@ -267,7 +267,7 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
         >>> casted_csv_row = gen_type_cast(csv_records, csv_fields).next()
         >>> casted_csv_values = [casted_csv_row[h] for h in csv_header]
         >>>
-        >>> xls_filepath = p.join(parent_dir, 'testdata', 'test.xls')
+        >>> xls_filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
         >>> xls_records = io.read_xls(xls_filepath, sanitize=True)
         >>> xls_header = sorted(xls_records.next().keys())
         >>> xls_fields = gen_fields(xls_header, True)

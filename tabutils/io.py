@@ -60,7 +60,7 @@ def _read_csv(f, encoding, names=('field_0',)):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.csv')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> f = open(filepath, 'rU')
         >>> names = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
         >>> records = _read_csv(f, 'utf-8', names)
@@ -95,7 +95,7 @@ def _sanitize_sheet(sheet, mode, date_format):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.xls')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
         >>> book = xlrd.open_workbook(filepath)
         >>> sheet = book.sheet_by_index(0)
         >>> sheet.row_values(1) == [\
@@ -131,7 +131,7 @@ def detect_encoding(f):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.csv')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> f = open(filepath, 'rU')
         >>> result = detect_encoding(f)
         >>> f.close()
@@ -174,7 +174,7 @@ def read_mdb(filepath, table=None, **kwargs):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.mdb')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.mdb')
         >>> records = read_mdb(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
@@ -247,7 +247,7 @@ def read_dbf(filepath, **kwargs):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.dbf')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.dbf')
         >>> records = read_dbf(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
@@ -300,7 +300,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         Traceback (most recent call last):
         StopIteration
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.csv')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> records = read_csv(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
@@ -383,7 +383,7 @@ def read_xls(filepath, **kwargs):
         Traceback (most recent call last):
         XLRDError: File size is 0 bytes
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.xls')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
         >>> records = read_xls(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
@@ -394,7 +394,7 @@ def read_xls(filepath, **kwargs):
         True
         >>> [r['some_date'] for r in records]
         ['2015-01-01', '1995-12-31']
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.xlsx')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xlsx')
         >>> records = read_xls(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header

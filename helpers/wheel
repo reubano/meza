@@ -3,7 +3,6 @@
 
 # create a wheel package
 
-./clean-build
-./clean-pyc
+./clean
 python setup.py bdist_wheel
-ls -l dist
+gpg --detach-sign -a dist/*.whl

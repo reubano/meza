@@ -49,7 +49,12 @@ dev_requirements = list(parse_requirements('dev-requirements.txt'))
 dependencies = list(parse_requirements('requirements.txt', dep=True))
 readme = read('README.md')
 license = tabutils.__license__
-classifier = {'GPL': 'GNU General Public', 'MIT': 'The MIT', 'BSD': 'The BSD'}
+
+classifier = {
+    'GPL': 'GNU General Public License (GPL)',
+    'MIT': 'MIT License',
+    'BSD': 'BSD License'
+}
 
 setup(
     name=tabutils.__title__,
@@ -69,7 +74,7 @@ setup(
     keywords=tabutils.__title__,
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
-        'License :: OSI Approved :: %s License (%s)' % (classifier[license], license),
+        'License :: OSI Approved :: %s' % classifier[license],
         'Natural Language :: English',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',

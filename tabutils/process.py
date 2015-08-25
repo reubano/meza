@@ -473,11 +473,11 @@ def write_file(filepath, fileobj, mode='wb', **kwargs):
         progress = 0
 
         try:
-            # To read entire file use chunksize of None
+            # To read entire file, use chunksize of None
             readsize = chunksize or None
             chunks = (chunk for chunk in fileobj.read(readsize))
         except AttributeError:
-            # To read entire file use chunksize as large as the file
+            # To read entire file, use chunksize as large as the file
             readsize = chunksize or pow(10, 10)
             chunks = (chunk for chunk in fileobj(readsize))
 

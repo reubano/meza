@@ -310,7 +310,7 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
         >>> [r['some_date'] for r in records]
         [u'01-Jan-15', u'December 31, 1995']
     """
-    def func(f):
+    def read_file(f):
         encoding = kwargs.pop('encoding', ENCODING)
         sanitize = kwargs.pop('sanitize', False)
 
@@ -333,11 +333,11 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
             yield row
 
     if hasattr(filepath, 'read'):
-        for row in func(filepath):
+        for row in read_file(filepath):
             yield row
     else:
         with open(filepath, mode) as f:
-            for row in func(f):
+            for row in read_file(f):
                 yield row
 
 

@@ -27,7 +27,8 @@ from __future__ import (
 
 import itertools as it
 
-from decimal import Decimal, InvalidOperation
+from os import path as p
+from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
 from dateutil.parser import parse
 from functools import partial
 from slugify import slugify
@@ -62,27 +63,43 @@ def make_float(value):
     return value
 
 
-def decimalize(string, thousand_sep=',', decimal_sep='.', precision=2):
+def decimalize(value, **kwargs):
     """Parses and formats currency values into decimals
     >>> decimalize('$123.45')
     Decimal('123.45')
     >>> decimalize('123€')
-    Decimal('123')
+    Decimal('123.00')
     >>> decimalize('2,123.45')
     Decimal('2123.45')
-    >>> decimalize('2.123,45', '.', ',')
+    >>> decimalize('2.123,45', thousand_sep='.', decimal_sep=',')
     Decimal('2123.45')
     >>> decimalize('spam')
     """
+    thousand_sep = kwargs.get('thousand_sep', ',')
+    decimal_sep = kwargs.get('decimal_sep', '.')
+    places = kwargs.get('places', 2)
+    roundup = kwargs.get('roundup', True)
+
+    rounding = ROUND_UP if roundup else ROUND_DOWN
+    precision = '.%s1' % ''.join(it.repeat('0', places - 1))
+
     currencies = it.izip(CURRENCIES, it.repeat(''))
     seperators = [(thousand_sep, ''), (decimal_sep, '.')]
-    stripped = mreplace(string, it.chain(currencies, seperators))
-    try:
-        value = Decimal(stripped)
-    except InvalidOperation:
-        value = None
 
-    return value
+    try:
+        stripped = mreplace(value, it.chain(currencies, seperators))
+    except AttributeError:
+        # We don't have a string
+        stripped = value
+
+    try:
+        decimalized = Decimal(stripped)
+    except InvalidOperation:
+        quantized = None
+    else:
+        quantized = decimalized.quantize(Decimal(precision), rounding=rounding)
+
+    return quantized
 
 
 def is_numeric_like(string, seperators=('.', ',')):
@@ -173,7 +190,7 @@ def xmlize(content):
             try:
                 yield list(xmlize(item))
             except TypeError:
-                yield mreplace(item, replacements)
+                yield mreplace(item, replacements) if item else ''
 
 
 def _make_date(value, date_format):
@@ -231,8 +248,8 @@ def make_date(value, date_format):
         bad_num = [x for x in ['29', '30', '31', '32'] if x in value][0]
         possibilities = [value.replace(bad_num, x) for x in ['30', '29', '28']]
 
-        for p in possibilities:
-            value, retry = _make_date(p, date_format)
+        for possible in possibilities:
+            value, retry = _make_date(possible, date_format)
 
             if retry:
                 continue
@@ -255,7 +272,6 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
         dict: The type casted record entry.
 
     Examples:
-        >>> from os import path as p
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> csv_filepath = p.join(parent_dir, 'data', 'test', 'test.csv')

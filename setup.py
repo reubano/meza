@@ -5,12 +5,12 @@ import sys
 import re
 import tabutils
 
-from os import system, path as p
+from os import path as p
 
 try:
-    from setuptools import setup, find_packages
+    from setuptools import setup
 except ImportError:
-    from distutils.core import setup, find_packages
+    from distutils.core import setup
 
 
 def read(filename, parent=None):
@@ -32,7 +32,9 @@ def parse_requirements(filename, parent=None, dep=False):
         candidate = line.strip()
 
         if candidate.startswith('-r'):
-            for item in parse_requirements(candidate[2:].strip(), filepath, dep):
+            args = [candidate[2:].strip(), filepath, dep]
+
+            for item in parse_requirements(*args):
                 yield item
         elif not dep and '#egg=' in candidate:
             yield re.sub('.*#egg=(.*)-(.*)', r'\1==\2', candidate)

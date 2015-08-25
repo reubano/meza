@@ -293,10 +293,8 @@ def read_csv(filepath, mode='rU', **kwargs):
 
     Examples:
         >>> from os import path as p
-        >>> from tempfile import NamedTemporaryFile
-        >>> tmpfile = NamedTemporaryFile()
-        >>> filepath = tmpfile.name
-        >>> read_csv(filepath).next()
+        >>> from tempfile import TemporaryFile
+        >>> read_csv(TemporaryFile()).next()
         Traceback (most recent call last):
         StopIteration
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
@@ -347,10 +345,11 @@ def read_xls(filepath, **kwargs):
     """Reads an xls/xlsx file.
 
     Args:
-        filepath (str): The xls/xlsx file path.
+        filepath (str): The xls/xlsx file path or file like object.
         **kwargs: Keyword arguments that are passed to the xls reader.
 
     Kwargs:
+        sheet (int): Zero indexed sheet to open (default: 0)
         date_format (str): Date format passed to `strftime()` (default:
             '%Y-%m-%d', i.e, 'YYYY-MM-DD').
 
@@ -376,12 +375,10 @@ def read_xls(filepath, **kwargs):
 
     Examples:
         >>> from os import path as p
-        >>> from tempfile import NamedTemporaryFile
-        >>> tmpfile = NamedTemporaryFile()
-        >>> filepath = tmpfile.name
-        >>> read_xls(filepath).next()
+        >>> from tempfile import TemporaryFile
+        >>> read_xls(TemporaryFile()).next()
         Traceback (most recent call last):
-        XLRDError: File size is 0 bytes
+        ValueError: cannot mmap an empty file
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
         >>> records = read_xls(filepath, sanitize=True)
@@ -406,16 +403,23 @@ def read_xls(filepath, **kwargs):
         >>> [r['some_date'] for r in records]
         ['2015-01-01', '1995-12-31']
     """
-    date_format = kwargs.get('date_format', '%Y-%m-%d')
-
     xlrd_kwargs = {
         'on_demand': kwargs.get('on_demand'),
         'ragged_rows': not kwargs.get('pad_rows'),
         'encoding_override': kwargs.get('encoding', True)
     }
 
-    book = xlrd.open_workbook(filepath, **xlrd_kwargs)
-    sheet = book.sheet_by_index(0)
+    date_format = kwargs.get('date_format', '%Y-%m-%d')
+
+    if hasattr(filepath, 'read'):
+        from mmap import mmap
+
+        mm = mmap(filepath.fileno(), 0)
+        book = xlrd.open_workbook(file_contents=mm, **xlrd_kwargs)
+    else:
+        book = xlrd.open_workbook(filepath, **xlrd_kwargs)
+
+    sheet = book.sheet_by_index(kwargs.get('sheet', 0))
     header = sheet.row_values(0)
 
     # Remove empty columns

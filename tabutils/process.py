@@ -458,13 +458,13 @@ def write_file(filepath, fileobj, mode='wb', **kwargs):
         bar_len (Optional[int]): Length of progress bar (default: 50).
 
     Returns:
-        int: bytes written if chunksize else 0
+        int: bytes written if chunksize else 1
 
     Examples:
         >>> from tempfile import TemporaryFile
         >>> from StringIO import StringIO
         >>> write_file(TemporaryFile(), StringIO('http://google.com'))
-        0
+        1
     """
     def write(f, **kwargs):
         chunksize = kwargs.get('chunksize')
@@ -490,7 +490,7 @@ def write_file(filepath, fileobj, mode='wb', **kwargs):
                 print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
                 sys.stdout.flush()
 
-        return progress
+        return progress or 1
 
     if hasattr(filepath, 'read'):
         progress = write(filepath, **kwargs)

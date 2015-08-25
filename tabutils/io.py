@@ -28,6 +28,7 @@ from __future__ import (
 import xlrd
 import itertools as it
 import unicodecsv as csv
+import httplib
 
 from StringIO import StringIO
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
@@ -42,6 +43,22 @@ from slugify import slugify
 from . import process
 
 ENCODING = 'utf-8'
+
+
+def patch_http_response_read(func):
+    """Patches httplib to read poorly encoded chunked data.
+
+    http://stackoverflow.com/a/14206036/408556
+    """
+    def inner(*args):
+        try:
+            return func(*args)
+        except httplib.IncompleteRead, e:
+            return e.partial
+
+    return inner
+
+httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 
 def _read_csv(f, encoding, names=('field_0',)):
@@ -60,7 +77,7 @@ def _read_csv(f, encoding, names=('field_0',)):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.csv')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> f = open(filepath, 'rU')
         >>> names = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
         >>> records = _read_csv(f, 'utf-8', names)
@@ -95,7 +112,7 @@ def _sanitize_sheet(sheet, mode, date_format):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.xls')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
         >>> book = xlrd.open_workbook(filepath)
         >>> sheet = book.sheet_by_index(0)
         >>> sheet.row_values(1) == [\
@@ -131,7 +148,7 @@ def detect_encoding(f):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.csv')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> f = open(filepath, 'rU')
         >>> result = detect_encoding(f)
         >>> f.close()
@@ -174,7 +191,7 @@ def read_mdb(filepath, table=None, **kwargs):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.mdb')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.mdb')
         >>> records = read_mdb(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
@@ -247,7 +264,7 @@ def read_dbf(filepath, **kwargs):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.dbf')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.dbf')
         >>> records = read_dbf(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
@@ -293,14 +310,12 @@ def read_csv(filepath, mode='rU', **kwargs):
 
     Examples:
         >>> from os import path as p
-        >>> from tempfile import NamedTemporaryFile
-        >>> tmpfile = NamedTemporaryFile()
-        >>> filepath = tmpfile.name
-        >>> read_csv(filepath).next()
+        >>> from tempfile import TemporaryFile
+        >>> read_csv(TemporaryFile()).next()
         Traceback (most recent call last):
         StopIteration
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.csv')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> records = read_csv(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
@@ -312,7 +327,7 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
         >>> [r['some_date'] for r in records]
         [u'01-Jan-15', u'December 31, 1995']
     """
-    def func(f):
+    def read_file(f):
         encoding = kwargs.pop('encoding', ENCODING)
         sanitize = kwargs.pop('sanitize', False)
 
@@ -335,11 +350,11 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
             yield row
 
     if hasattr(filepath, 'read'):
-        for row in func(filepath):
+        for row in read_file(filepath):
             yield row
     else:
         with open(filepath, mode) as f:
-            for row in func(f):
+            for row in read_file(f):
                 yield row
 
 
@@ -347,10 +362,11 @@ def read_xls(filepath, **kwargs):
     """Reads an xls/xlsx file.
 
     Args:
-        filepath (str): The xls/xlsx file path.
+        filepath (str): The xls/xlsx file path or file like object.
         **kwargs: Keyword arguments that are passed to the xls reader.
 
     Kwargs:
+        sheet (int): Zero indexed sheet to open (default: 0)
         date_format (str): Date format passed to `strftime()` (default:
             '%Y-%m-%d', i.e, 'YYYY-MM-DD').
 
@@ -376,14 +392,12 @@ def read_xls(filepath, **kwargs):
 
     Examples:
         >>> from os import path as p
-        >>> from tempfile import NamedTemporaryFile
-        >>> tmpfile = NamedTemporaryFile()
-        >>> filepath = tmpfile.name
-        >>> read_xls(filepath).next()
+        >>> from tempfile import TemporaryFile
+        >>> read_xls(TemporaryFile()).next()
         Traceback (most recent call last):
-        XLRDError: File size is 0 bytes
+        ValueError: cannot mmap an empty file
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.xls')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
         >>> records = read_xls(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
@@ -394,7 +408,7 @@ def read_xls(filepath, **kwargs):
         True
         >>> [r['some_date'] for r in records]
         ['2015-01-01', '1995-12-31']
-        >>> filepath = p.join(parent_dir, 'testdata', 'test.xlsx')
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xlsx')
         >>> records = read_xls(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
@@ -406,16 +420,23 @@ def read_xls(filepath, **kwargs):
         >>> [r['some_date'] for r in records]
         ['2015-01-01', '1995-12-31']
     """
-    date_format = kwargs.get('date_format', '%Y-%m-%d')
-
     xlrd_kwargs = {
         'on_demand': kwargs.get('on_demand'),
         'ragged_rows': not kwargs.get('pad_rows'),
         'encoding_override': kwargs.get('encoding', True)
     }
 
-    book = xlrd.open_workbook(filepath, **xlrd_kwargs)
-    sheet = book.sheet_by_index(0)
+    date_format = kwargs.get('date_format', '%Y-%m-%d')
+
+    if hasattr(filepath, 'read'):
+        from mmap import mmap
+
+        mm = mmap(filepath.fileno(), 0)
+        book = xlrd.open_workbook(file_contents=mm, **xlrd_kwargs)
+    else:
+        book = xlrd.open_workbook(filepath, **xlrd_kwargs)
+
+    sheet = book.sheet_by_index(kwargs.get('sheet', 0))
     header = sheet.row_values(0)
 
     # Remove empty columns

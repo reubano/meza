@@ -28,10 +28,11 @@ def check():
     call(p.join(_basedir, 'helpers', 'check-stage'), shell=True)
 
 
+@manager.arg('where', 'w', help='Requirement file')
 @manager.command
-def lint():
+def lint(where=None):
     """Check style with flake8"""
-    call('flake8 tabutils tests', shell=True)
+    call('flake8 %s' % (where if where else ''), shell=True)
 
 
 @manager.command
@@ -47,10 +48,11 @@ def require():
     call(cmd, shell=True)
 
 
+@manager.arg('stop', 'x', help='Stop after first error', type=bool)
 @manager.command
-def test():
+def test(stop=False):
     """Run nose and script tests"""
-    call('nosetests -v tabutils', shell=True)
+    call('nosetests -v%s tabutils' % ('x' if stop else ''), shell=True)
 
 
 @manager.command

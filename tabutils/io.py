@@ -28,6 +28,7 @@ from __future__ import (
 import xlrd
 import itertools as it
 import unicodecsv as csv
+import httplib
 
 from StringIO import StringIO
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
@@ -42,6 +43,22 @@ from slugify import slugify
 from . import process
 
 ENCODING = 'utf-8'
+
+
+def patch_http_response_read(func):
+    """Patches httplib to read poorly encoded chunked data.
+
+    http://stackoverflow.com/a/14206036/408556
+    """
+    def inner(*args):
+        try:
+            return func(*args)
+        except httplib.IncompleteRead, e:
+            return e.partial
+
+    return inner
+
+httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 
 def _read_csv(f, encoding, names=('field_0',)):

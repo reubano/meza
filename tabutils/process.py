@@ -26,6 +26,8 @@ from __future__ import (
     unicode_literals)
 
 import itertools as it
+import hashlib
+import sys
 
 from os import path as p
 from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
@@ -326,3 +328,227 @@ def gen_fields(names, type_cast=False):
             yield {'id': name, 'type': 'float'}
         else:
             yield {'id': name, 'type': 'text'}
+
+
+def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
+    """Hashes a file.
+    http://stackoverflow.com/a/1131255/408556
+
+    Args:
+        filepath (str): The file path or file like object to write to.
+        hasher (str): The hashlib hashing algorithm to use.
+        chunksize (Optional[int]): Number of bytes to write at a time (default:
+            0, i.e., all).
+        verbose (Optional[bool]): Print debug statements (default: False).
+
+    Returns:
+        str: File hash.
+
+    Examples:
+        >>> from tempfile import TemporaryFile
+        >>> hash_file(TemporaryFile())
+        'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+    """
+    def read_file(f, hasher):
+        if chunksize:
+            while True:
+                data = f.read(chunksize)
+                if not data:
+                    break
+
+                hasher.update(data)
+        else:
+            hasher.update(f.read())
+
+        return hasher.hexdigest()
+
+    hasher = getattr(hashlib, hasher)()
+
+    if hasattr(filepath, 'read'):
+        file_hash = read_file(filepath, hasher)
+    else:
+        with open(filepath, 'rb') as f:
+            file_hash = read_file(f, hasher)
+
+    if verbose:
+        print('File %s hash is %s.' % (filepath, file_hash))
+
+    return file_hash
+
+
+def make_filepath(filepath, **kwargs):
+    """Creates a filepath from an online resource, i.e., linked file or
+    google sheets export.
+
+    Args:
+        filepath (str): Output file path or directory.
+        **kwargs: Keyword arguments.
+
+    Kwargs:
+        headers (dict): HTTP response headers, e.g., `r.headers`.
+        name_from_id (bool): Overwrite filename with resource id.
+        resource_id (str): The resource id (required if `name_from_id` is True
+            or filepath is a google sheets export)
+
+    Returns:
+        str: filepath
+
+    Examples:
+        >>> make_filepath('file.csv')
+        u'file.csv'
+        >>> make_filepath('.', resource_id='rid')
+        Content-Type None not found in dictionary. Using default value.
+        u'./rid.csv'
+    """
+    isdir = p.isdir(filepath)
+    headers = kwargs.get('headers') or {}
+    name_from_id = kwargs.get('name_from_id')
+    resource_id = kwargs.get('resource_id')
+
+    if isdir and not name_from_id:
+        try:
+            disposition = headers.get('content-disposition', '')
+            filename = disposition.split('=')[1].split('"')[1]
+        except (KeyError, IndexError):
+            filename = resource_id
+    elif isdir or name_from_id:
+        filename = resource_id
+
+    if isdir and filename.startswith('export?format='):
+        filename = '%s.%s' % (resource_id, filename.split('=')[1])
+    elif isdir and '.' not in filename:
+        ctype = headers.get('content-type')
+        filename = '%s.%s' % (filename, ctype2ext(ctype))
+
+    return p.join(filepath, filename) if isdir else filepath
+
+
+def ctype2ext(content_type=None):
+    try:
+        ctype = content_type.split('/')[1].split(';')[0]
+    except (AttributeError, IndexError):
+        ctype = None
+
+    xlsx_type = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    switch = {'xls': 'xls', 'csv': 'csv'}
+    switch[xlsx_type] = 'xlsx'
+
+    if ctype not in switch:
+        print(
+            'Content-Type %s not found in dictionary. Using default value.'
+            % ctype)
+
+    return switch.get(ctype, 'csv')
+
+
+def write_file(filepath, fileobj, mode='wb', **kwargs):
+    """Writes content to a file or file like object.
+
+    Args:
+        filepath (str): The file path or file like object to write to.
+        fileobj (obj): File like object or iterable response data.
+        **kwargs: Keyword arguments.
+
+    Kwargs:
+        mode (Optional[str]): The file open mode (default: 'wb').
+        chunksize (Optional[int]): Number of bytes to write at a time (default:
+            None, i.e., all).
+        length (Optional[int]): Length of content (default: 0).
+        bar_len (Optional[int]): Length of progress bar (default: 50).
+
+    Returns:
+        int: bytes written if chunksize else 0
+
+    Examples:
+        >>> from tempfile import TemporaryFile
+        >>> from StringIO import StringIO
+        >>> write_file(TemporaryFile(), StringIO('http://google.com'))
+        0
+    """
+    def write(f, **kwargs):
+        chunksize = kwargs.get('chunksize')
+        length = int(kwargs.get('length') or 0)
+        bar_len = kwargs.get('bar_len', 50)
+        progress = 0
+
+        try:
+            # To read entire file use chunksize of None
+            readsize = chunksize or None
+            chunks = (chunk for chunk in fileobj.read(readsize))
+        except AttributeError:
+            # To read entire file use chunksize as large as the file
+            readsize = chunksize or pow(10, 10)
+            chunks = (chunk for chunk in fileobj(readsize))
+
+        for chunk in chunks:
+            f.write(chunk)
+            progress += chunksize or 0
+
+            if length and progress:
+                bars = min(int(bar_len * progress / length), bar_len)
+                print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
+                sys.stdout.flush()
+
+        return progress
+
+    if hasattr(filepath, 'read'):
+        progress = write(filepath, **kwargs)
+    else:
+        with open(filepath, mode) as f:
+            progress = write(f, **kwargs)
+
+    return progress
+
+
+def chunk(iterable, chunksize=0, start=0, stop=None):
+    """Groups data into fixed-length chunks.
+    http://stackoverflow.com/a/22919323/408556
+
+    Args:
+        iterable (iterable): Content to group into chunks.
+        chunksize (Optional[int]): Number of chunks to include in a group (
+            default: 0, i.e., all).
+
+        start (Optional[int]): Starting item (zero indexed, default: 0).
+        stop (Optional[int]): Ending item (zero indexed).
+
+    Returns:
+        Iter[List]: Chunked content.
+
+    Examples:
+        >>> chunk([1, 2, 3, 4, 5, 6], 2, 1).next()
+        [2, 3]
+    """
+    i = it.islice(iter(iterable), start, stop)
+
+    if chunksize:
+        generator = (list(it.islice(i, chunksize)) for _ in it.count())
+        chunked = it.takewhile(bool, generator)
+    else:
+        chunked = [list(i)]
+
+    return chunked
+
+
+def fuzzy_match(items, possibilities, **kwargs):
+    for i in items:
+        for p in possibilities:
+            if p in i.lower():
+                yield i
+
+
+def exact_match(*args, **kwargs):
+    sets = (set(i.lower() for i in arg) for arg in args)
+    return iter(reduce(lambda x, y: x.intersection(y), sets))
+
+
+def find(*args, **kwargs):
+    method = kwargs.pop('method', 'exact')
+    default = kwargs.pop('default', '')
+    funcs = {'exact': exact_match, 'fuzzy': fuzzy_match}
+    func = funcs.get('method', method)
+
+    try:
+        return func(*args, **kwargs).next()
+    except StopIteration:
+        return default

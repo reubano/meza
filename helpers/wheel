@@ -3,6 +3,6 @@
 
 # create a wheel package
 
-./clean
+helpers/clean
 python setup.py bdist_wheel
 gpg --detach-sign -a dist/*.whl

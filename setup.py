@@ -8,9 +8,9 @@ import tabutils
 from os import path as p
 
 try:
-    from setuptools import setup
+    from setuptools import setup, find_packages
 except ImportError:
-    from distutils.core import setup
+    from distutils.core import setup, find_packages
 
 
 def read(filename, parent=None):

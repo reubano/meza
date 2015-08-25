@@ -33,6 +33,7 @@ from os import path as p
 from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
 from dateutil.parser import parse
 from functools import partial
+
 from slugify import slugify
 
 CURRENCIES = ('$', '£', '€')

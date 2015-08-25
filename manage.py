@@ -57,7 +57,7 @@ def test(stop=False):
 @manager.command
 def register():
     """Register package with PyPI"""
-    call('python setup.py register')
+    call('python %s register' % p.join(_basedir, 'setup.py'), shell=True)
 
 
 @manager.command

@@ -29,6 +29,7 @@ import xlrd
 import itertools as it
 import unicodecsv as csv
 import httplib
+import sys
 
 from StringIO import StringIO
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
@@ -455,3 +456,62 @@ def read_xls(filepath, **kwargs):
         # Remove empty rows
         if any(v and v.strip() for v in values):
             yield dict(zip(names, values))
+
+
+def write_file(filepath, fileobj, mode='wb', **kwargs):
+    """Writes content to a file or file like object.
+
+    Args:
+        filepath (str): The file path or file like object to write to.
+        fileobj (obj): File like object or iterable response data.
+        **kwargs: Keyword arguments.
+
+    Kwargs:
+        mode (Optional[str]): The file open mode (default: 'wb').
+        chunksize (Optional[int]): Number of bytes to write at a time (default:
+            None, i.e., all).
+        length (Optional[int]): Length of content (default: 0).
+        bar_len (Optional[int]): Length of progress bar (default: 50).
+
+    Returns:
+        int: bytes written if chunksize else 1
+
+    Examples:
+        >>> from tempfile import TemporaryFile
+        >>> from StringIO import StringIO
+        >>> write_file(TemporaryFile(), StringIO('http://google.com'))
+        1
+    """
+    def write(f, **kwargs):
+        chunksize = kwargs.get('chunksize')
+        length = int(kwargs.get('length') or 0)
+        bar_len = kwargs.get('bar_len', 50)
+        progress = 0
+
+        try:
+            # To read entire file, use chunksize of None
+            readsize = chunksize or None
+            chunks = (chunk for chunk in fileobj.read(readsize))
+        except AttributeError:
+            # To read entire file, use chunksize as large as the file
+            readsize = chunksize or pow(10, 10)
+            chunks = (chunk for chunk in fileobj(readsize))
+
+        for chunk in chunks:
+            f.write(chunk)
+            progress += chunksize or 0
+
+            if length and progress:
+                bars = min(int(bar_len * progress / length), bar_len)
+                print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
+                sys.stdout.flush()
+
+        return progress or 1
+
+    if hasattr(filepath, 'read'):
+        progress = write(filepath, **kwargs)
+    else:
+        with open(filepath, mode) as f:
+            progress = write(f, **kwargs)
+
+    return progress

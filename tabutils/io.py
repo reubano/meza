@@ -285,7 +285,6 @@ u'Abbott', u'Abbott', u'Abbott', u'Abbott', u"'"]
     with Popen(['mdb-export', filepath, table], **pkwargs).stdout as pipe:
         sanitize = kwargs.pop('sanitize', None)
         first_line = pipe.readline()
-        # print('first_line', first_line)
         header = csv.reader(StringIO(first_line), **kwargs).next()
         names = process.underscorify(header) if sanitize else header
 

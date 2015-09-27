@@ -608,6 +608,27 @@ def merge_dicts(*dicts, **kwargs):
         >>> items = merge_dicts(*dicts, cfunc=cfunc, op=sum).items()
         >>> sorted(items)
         [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
+        >>>
+        >>> # This will reliably work for any number of dicts
+        >>> from collections import defaultdict
+        >>>
+        >>> counted = defaultdict(int)
+        >>> dicts = [{'a': 1, 'b': 4, 'c': 0}, {'a': 2, 'b': 5, 'c': 2}, \
+{'a': 3, 'b': 6, 'd': 7}]
+        >>> for d in dicts:
+        ...     for k in d.keys():
+        ...         counted[k] += 1
+        ...
+        >>> sorted(counted.items())
+        [(u'a', 3), (u'b', 3), (u'c', 2), (u'd', 1)]
+        >>> cfunc = lambda x: True
+        >>> divide = lambda x: x[0] / x[1]
+        >>> summed = merge_dicts(*dicts, cfunc=cfunc, op=sum)
+        >>> sorted(summed.items())
+        [(u'a', 6), (u'b', 15), (u'c', 2), (u'd', 7)]
+        >>> items = merge_dicts(summed, counted, cfunc=cfunc, op=divide).items()
+        >>> sorted(items)
+        [(u'a', 2.0), (u'b', 5.0), (u'c', 1.0), (u'd', 7.0)]
     """
     cfunc = kwargs.get('cfunc')
     op = kwargs.get('op')

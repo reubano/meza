@@ -429,12 +429,12 @@ def read_xls(filepath, **kwargs):
 
     date_format = kwargs.get('date_format', '%Y-%m-%d')
 
-    if hasattr(filepath, 'read'):
+    try:
         from mmap import mmap
 
         mm = mmap(filepath.fileno(), 0)
         book = xlrd.open_workbook(file_contents=mm, **xlrd_kwargs)
-    else:
+    except AttributeError:
         book = xlrd.open_workbook(filepath, **xlrd_kwargs)
 
     sheet = book.sheet_by_index(kwargs.get('sheet', 0))
@@ -458,12 +458,12 @@ def read_xls(filepath, **kwargs):
             yield dict(zip(names, values))
 
 
-def write_file(filepath, fileobj, mode='wb', **kwargs):
+def write_file(filepath, content, mode='wb', **kwargs):
     """Writes content to a file or file like object.
 
     Args:
         filepath (str): The file path or file like object to write to.
-        fileobj (obj): File like object or iterable response data.
+        content (obj): File like object or iterable response data.
         **kwargs: Keyword arguments.
 
     Kwargs:
@@ -482,7 +482,7 @@ def write_file(filepath, fileobj, mode='wb', **kwargs):
         >>> write_file(TemporaryFile(), StringIO('http://google.com'))
         1
     """
-    def write(f, **kwargs):
+    def write(f, content, **kwargs):
         chunksize = kwargs.get('chunksize')
         length = int(kwargs.get('length') or 0)
         bar_len = kwargs.get('bar_len', 50)
@@ -491,11 +491,11 @@ def write_file(filepath, fileobj, mode='wb', **kwargs):
         try:
             # To read entire file, use chunksize of None
             readsize = chunksize or None
-            chunks = (chunk for chunk in fileobj.read(readsize))
+            chunks = (chunk for chunk in content.read(readsize))
         except AttributeError:
             # To read entire file, use chunksize as large as the file
             readsize = chunksize or pow(10, 10)
-            chunks = (chunk for chunk in fileobj(readsize))
+            chunks = (chunk for chunk in content(readsize))
 
         for chunk in chunks:
             f.write(chunk)
@@ -509,9 +509,7 @@ def write_file(filepath, fileobj, mode='wb', **kwargs):
         return progress or 1
 
     if hasattr(filepath, 'read'):
-        progress = write(filepath, **kwargs)
+        return write(filepath, content, **kwargs)
     else:
         with open(filepath, mode) as f:
-            progress = write(f, **kwargs)
-
-    return progress
+            return write(f, content, **kwargs)

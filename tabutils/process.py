@@ -471,14 +471,14 @@ def chunk(iterable, chunksize=0, start=0, stop=None):
     return chunked
 
 
-def fuzzy_match(items, possibilities, **kwargs):
+def _fuzzy_match(items, possibilities, **kwargs):
     for i in items:
         for p in possibilities:
             if p in i.lower():
                 yield i
 
 
-def exact_match(*args, **kwargs):
+def _exact_match(*args, **kwargs):
     sets = (set(i.lower() for i in arg) for arg in args)
     return iter(reduce(lambda x, y: x.intersection(y), sets))
 
@@ -486,7 +486,7 @@ def exact_match(*args, **kwargs):
 def find(*args, **kwargs):
     method = kwargs.pop('method', 'exact')
     default = kwargs.pop('default', '')
-    funcs = {'exact': exact_match, 'fuzzy': fuzzy_match}
+    funcs = {'exact': _exact_match, 'fuzzy': _fuzzy_match}
     func = funcs.get('method', method)
 
     try:

@@ -336,6 +336,15 @@ u'-093.2928317', u'C2', u'G5200', u'Congressional District 5', u'27']
         [u'Congressional District 4', u'Congressional District 2', \
 u'Congressional District 1', u'Congressional District 6', u'Congressional \
 District 7', u'Congressional District 3']
+        >>> f = open(filepath, 'rb')
+        >>> read_dbf(f, sanitize=True, recfactory=dict).next() == {\
+u'awater10': 12416573076, u'aland10': 71546663636, u'intptlat10': \
+u'+47.2400052', u'lsad10': u'C2', u'cd111fp': u'08', u'namelsad10': \
+u'Congressional District 8', u'funcstat10': u'N', u'statefp10': u'27', \
+u'cdsessn': u'111', u'mtfcc10': u'G5200', u'geoid10': u'2708', u'intptlon10': \
+u'-092.9323194'}
+        True
+        >>> f.close()
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
 
@@ -383,6 +392,12 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
         True
         >>> [r['some_date'] for r in records]
         [u'01-Jan-15', u'December 31, 1995']
+        >>> f = open(filepath, 'rU')
+        >>> read_csv(f, sanitize=True).next() == {u'sparse_data': u'Sparse \
+Data', u'some_date': u'Some Date', u'some_value': u'Some Value', \
+u'unicode_test': u'Unicode Test'}
+        True
+        >>> f.close()
     """
     def read_file(f):
         encoding = kwargs.pop('encoding', ENCODING)
@@ -476,6 +491,12 @@ def read_xls(filepath, **kwargs):
         True
         >>> [r['some_date'] for r in records]
         ['2015-01-01', '1995-12-31']
+        >>> f = open(filepath, 'r+b')
+        >>> read_xls(f, sanitize=True).next() == {u'some_value': \
+u'Some Value', u'some_date': u'Some Date', u'sparse_data': u'Sparse Data', \
+u'unicode_test': u'Unicode Test'}
+        True
+        >>> f.close()
     """
     xlrd_kwargs = {
         'on_demand': kwargs.get('on_demand'),

@@ -32,8 +32,9 @@ import httplib
 import sys
 
 from StringIO import StringIO
+from io import TextIOBase
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
-from dbfread import DBF
+
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
@@ -41,9 +42,63 @@ from xlrd import (
 
 from chardet.universaldetector import UniversalDetector
 from slugify import slugify
-from . import process
+from . import process, dbf
 
 ENCODING = 'utf-8'
+
+
+class IterStringIO(TextIOBase):
+    """A lazy StringIO that lets you writes a generator of strings. And reads
+    bytearrays
+
+    http://stackoverflow.com/a/32020108/408556
+    """
+
+    def __init__(self, iterable=None):
+        """ IterStringIO constructor
+        Args:
+            iterable (dict): bank mapper (see csv2vcard.mappings)
+
+        Examples:
+            >>> iter_content = iter('Hello World')
+            >>> StringIO(iter_content).read(5)
+            '<iter'
+            >>> iter_sio = IterStringIO(iter_content)
+            >>> iter_sio.read(5)
+            bytearray(b'Hello')
+            >>> iter_sio.write(iter('ly person'))
+            >>> iter_sio.read(8)
+            bytearray(b' Worldly')
+            >>> iter_sio.write(': Iñtërnâtiônàližætiøn')
+            >>> iter_sio.read() == bytearray(b' person: Iñtërnâtiônàližætiøn')
+            True
+        """
+        iterable = iterable or []
+        not_newline = lambda s: s not in {'\n', '\r', '\r\n'}
+        chained = self._chain(iterable)
+        self.iter = self._encode(chained)
+        self.next_line = it.takewhile(not_newline, self.iter)
+
+    def _encode(self, iterable):
+        return (s.encode('utf-8') for s in iterable)
+
+    def _chain(self, iterable):
+        iterable = iterable or []
+        return it.chain.from_iterable(it.ifilter(None, iterable))
+
+    def _read(self, iterable, n):
+        sliced = list(it.islice(iterable, None, n))
+        return process.to_bytearray(sliced)
+
+    def write(self, iterable):
+        chained = self._chain(iterable)
+        self.iter = self._chain([self.iter, self._encode(chained)])
+
+    def read(self, n=pow(2, 34)):
+        return self._read(self.iter, n)
+
+    def readline(self, n=pow(2, 34)):
+        return self._read(self.next_line, n)
 
 
 def patch_http_response_read(func):
@@ -229,7 +284,6 @@ u'Abbott', u'Abbott', u'Abbott', u'Abbott', u"'"]
     with Popen(['mdb-export', filepath, table], **pkwargs).stdout as pipe:
         sanitize = kwargs.pop('sanitize', None)
         first_line = pipe.readline()
-        # print('first_line', first_line)
         header = csv.reader(StringIO(first_line), **kwargs).next()
         names = process.underscorify(header) if sanitize else header
 
@@ -242,7 +296,7 @@ def read_dbf(filepath, **kwargs):
     """Reads a dBase, Visual FoxPro, or FoxBase+ file
 
     Args:
-        filepath (str): The dbf file path.
+        filepath (str): The dbf file path or file like object.
         **kwargs: Keyword arguments that are passed to the DBF reader.
 
     Kwargs:
@@ -280,10 +334,19 @@ u'-093.2928317', u'C2', u'G5200', u'Congressional District 5', u'27']
         [u'Congressional District 4', u'Congressional District 2', \
 u'Congressional District 1', u'Congressional District 6', u'Congressional \
 District 7', u'Congressional District 3']
+        >>> f = open(filepath, 'rb')
+        >>> read_dbf(f, sanitize=True, recfactory=dict).next() == {\
+u'awater10': 12416573076, u'aland10': 71546663636, u'intptlat10': \
+u'+47.2400052', u'lsad10': u'C2', u'cd111fp': u'08', u'namelsad10': \
+u'Congressional District 8', u'funcstat10': u'N', u'statefp10': u'27', \
+u'cdsessn': u'111', u'mtfcc10': u'G5200', u'geoid10': u'2708', u'intptlon10': \
+u'-092.9323194'}
+        True
+        >>> f.close()
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
 
-    for record in DBF(filepath, **kwargs):
+    for record in dbf.DBF2(filepath, **kwargs):
         yield record
 
 
@@ -327,6 +390,12 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
         True
         >>> [r['some_date'] for r in records]
         [u'01-Jan-15', u'December 31, 1995']
+        >>> f = open(filepath, 'rU')
+        >>> read_csv(f, sanitize=True).next() == {u'sparse_data': u'Sparse \
+Data', u'some_date': u'Some Date', u'some_value': u'Some Value', \
+u'unicode_test': u'Unicode Test'}
+        True
+        >>> f.close()
     """
     def read_file(f):
         encoding = kwargs.pop('encoding', ENCODING)
@@ -420,6 +489,12 @@ def read_xls(filepath, **kwargs):
         True
         >>> [r['some_date'] for r in records]
         ['2015-01-01', '1995-12-31']
+        >>> f = open(filepath, 'r+b')
+        >>> read_xls(f, sanitize=True).next() == {u'some_value': \
+u'Some Value', u'some_date': u'Some Date', u'sparse_data': u'Sparse Data', \
+u'unicode_test': u'Unicode Test'}
+        True
+        >>> f.close()
     """
     xlrd_kwargs = {
         'on_demand': kwargs.get('on_demand'),
@@ -429,12 +504,12 @@ def read_xls(filepath, **kwargs):
 
     date_format = kwargs.get('date_format', '%Y-%m-%d')
 
-    if hasattr(filepath, 'read'):
+    try:
         from mmap import mmap
 
         mm = mmap(filepath.fileno(), 0)
         book = xlrd.open_workbook(file_contents=mm, **xlrd_kwargs)
-    else:
+    except AttributeError:
         book = xlrd.open_workbook(filepath, **xlrd_kwargs)
 
     sheet = book.sheet_by_index(kwargs.get('sheet', 0))
@@ -458,13 +533,13 @@ def read_xls(filepath, **kwargs):
             yield dict(zip(names, values))
 
 
-def write_file(filepath, fileobj, mode='wb', **kwargs):
+def write_file(filepath, content, mode='wb', **kwargs):
     """Writes content to a file or file like object.
 
     Args:
-        filepath (str): The file path or file like object to write to.
-        fileobj (obj): File like object or iterable response data.
-        **kwargs: Keyword arguments.
+        filepath (str): The path of the file or file like object to write to.
+        content (obj): File like object, iterable response, or iterable.
+        kwargs: Keyword arguments.
 
     Kwargs:
         mode (Optional[str]): The file open mode (default: 'wb').
@@ -474,44 +549,45 @@ def write_file(filepath, fileobj, mode='wb', **kwargs):
         bar_len (Optional[int]): Length of progress bar (default: 50).
 
     Returns:
-        int: bytes written if chunksize else 1
+        int: bytes written
 
     Examples:
-        >>> from tempfile import TemporaryFile
-        >>> from StringIO import StringIO
+        >>> import requests
+        >>> from tempfile import TemporaryFile, NamedTemporaryFile
+        >>> tmpfile = NamedTemporaryFile(delete='True')
+        >>> write_file(tmpfile.name, StringIO('Hello World'))
+        11
+        >>> tmpfile = NamedTemporaryFile(delete='True')
+        >>> write_file(tmpfile.name, IterStringIO(iter('Hello World')))
+        11
+        >>> write_file(tmpfile.name, IterStringIO(iter('Hello World')), \
+chunksize=2)
+        12
         >>> write_file(TemporaryFile(), StringIO('http://google.com'))
-        1
+        17
+        >>> r = requests.get('http://google.com', stream=True)
+        >>> write_file(TemporaryFile(), r.iter_content) > 10000
+        True
     """
-    def write(f, **kwargs):
+    def write(f, content, **kwargs):
         chunksize = kwargs.get('chunksize')
         length = int(kwargs.get('length') or 0)
         bar_len = kwargs.get('bar_len', 50)
         progress = 0
 
-        try:
-            # To read entire file, use chunksize of None
-            readsize = chunksize or None
-            chunks = (chunk for chunk in fileobj.read(readsize))
-        except AttributeError:
-            # To read entire file, use chunksize as large as the file
-            readsize = chunksize or pow(10, 10)
-            chunks = (chunk for chunk in fileobj(readsize))
+        for c in process.chunk(content, chunksize):
+            f.write(c)
+            progress += chunksize or len(c)
 
-        for chunk in chunks:
-            f.write(chunk)
-            progress += chunksize or 0
-
-            if length and progress:
+            if length:
                 bars = min(int(bar_len * progress / length), bar_len)
                 print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
                 sys.stdout.flush()
 
-        return progress or 1
+        return progress
 
     if hasattr(filepath, 'read'):
-        progress = write(filepath, **kwargs)
+        return write(filepath, content, **kwargs)
     else:
         with open(filepath, mode) as f:
-            progress = write(f, **kwargs)
-
-    return progress
+            return write(f, content, **kwargs)

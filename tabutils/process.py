@@ -441,6 +441,13 @@ def ctype2ext(content_type=None):
     return switch.get(ctype, 'csv')
 
 
+def to_bytearray(content):
+    try:
+        return bytearray(content)
+    except ValueError:  # has unicode chars
+        return reduce(lambda x, y: x + y, it.imap(bytearray, content))
+
+
 def chunk(iterable, chunksize=0, start=0, stop=None):
     """Groups data into fixed-length chunks.
     http://stackoverflow.com/a/22919323/408556

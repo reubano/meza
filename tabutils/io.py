@@ -32,6 +32,7 @@ import httplib
 import sys
 
 from StringIO import StringIO
+from io import TextIOBase
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 from dbfread import DBF
 from xlrd.xldate import xldate_as_datetime as xl2dt
@@ -44,6 +45,61 @@ from slugify import slugify
 from . import process
 
 ENCODING = 'utf-8'
+
+
+class IterStringIO(TextIOBase):
+    """A lazy StringIO that lets you writes a generator of strings. And reads
+    bytearrays
+
+    http://stackoverflow.com/a/32020108/408556
+    """
+
+    def __init__(self, iterable=None):
+        """ IterStringIO constructor
+        Args:
+            iterable (dict): bank mapper (see csv2vcard.mappings)
+
+        Examples:
+            >>> from StringIO import StringIO
+            >>> iter_content = iter('Hello World')
+            >>> StringIO(iter_content).read(5)
+            '<iter'
+            >>> iter_sio = IterStringIO(iter_content)
+            >>> iter_sio.read(5)
+            bytearray(b'Hello')
+            >>> iter_sio.write(iter('ly person'))
+            >>> iter_sio.read(8)
+            bytearray(b' Worldly')
+            >>> iter_sio.write(': Iñtërnâtiônàližætiøn')
+            >>> iter_sio.read() == bytearray(b' person: Iñtërnâtiônàližætiøn')
+            True
+        """
+        iterable = iterable or []
+        not_newline = lambda s: s not in {'\n', '\r', '\r\n'}
+        chained = self._chain(iterable)
+        self.iter = self._encode(chained)
+        self.next_line = it.takewhile(not_newline, self.iter)
+
+    def _encode(self, iterable):
+        return (s.encode('utf-8') for s in iterable)
+
+    def _chain(self, iterable):
+        iterable = iterable or []
+        return it.chain.from_iterable(it.ifilter(None, iterable))
+
+    def _read(self, iterable, n):
+        sliced = list(it.islice(iterable, None, n))
+        return process.to_bytearray(sliced)
+
+    def write(self, iterable):
+        chained = self._chain(iterable)
+        self.iter = self._chain([self.iter, self._encode(chained)])
+
+    def read(self, n=pow(2, 34)):
+        return self._read(self.iter, n)
+
+    def readline(self, n=pow(2, 34)):
+        return self._read(self.next_line, n)
 
 
 def patch_http_response_read(func):

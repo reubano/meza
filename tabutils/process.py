@@ -32,6 +32,7 @@ from os import path as p
 from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
 from dateutil.parser import parse
 from functools import partial
+from operator import itemgetter
 
 from slugify import slugify
 
@@ -533,3 +534,52 @@ def find(*args, **kwargs):
         return func(*args, **kwargs).next()
     except StopIteration:
         return default
+
+
+def merge_dicts(*dicts, **kwargs):
+    """Merges a list of dicts by a specified binary operator on the specified
+       key.
+
+    # http://codereview.stackexchange.com/a/85822/71049
+    # http://stackoverflow.com/a/31812635/408556
+    # http://stackoverflow.com/a/3936548/408556
+    Args:
+        keyfunc (func): function used to determine if a dict value should be
+            combined. If a key occurs in multiple dicts and isn't
+
+        op (func): operator to apply to the list of overlapping keys. This
+            function will receive a list of values as the argument. Common
+            operators are `sum`, `min`, `max`, etc.
+
+        dicts Iter[dict]: dicts to merge
+
+    Returns:
+        (List[str]): collapsed content
+
+    Examples:
+        >>> splits = [{'account': 'Accounts Receivable', 'amount': 200}, \
+{'account': 'Accounts Receivable', 'amount': 300}, {'account': 'Accounts \
+Receivable', 'amount': 400}]
+        >>> merge_dicts(*splits, keyfunc=itemgetter('amount'), op=sum)
+        {u'account': u'Accounts Receivable', u'amount': 900}
+        >>> merge_dicts(*splits)
+        {u'account': u'Accounts Receivable', u'amount': 400}
+        >>> merge_dicts({'a':1, 'b': 2}, {'b':10, 'c': 11}) == {u'a': 1, \
+u'b': 10, u'c': 11}
+        True
+    """
+    keyfunc = kwargs.get('keyfunc', None)
+    op = kwargs.get('op', None)
+    combo = lambda x: dict(it.chain.from_iterable(it.imap(dict.iteritems, x)))
+
+    def reducer(x, y):
+        merge = lambda k, v: op([x[k], y.get(k, 0)]) if keyfunc(x) == v else x[k]
+        new_x = ([k, merge(k, v)] for k, v in x.iteritems())
+        return dict(it.chain(y.iteritems(), new_x))
+
+    if keyfunc and op:
+        new_dict = reduce(reducer, dicts)
+    else:
+        new_dict = combo(dicts)
+
+    return new_dict

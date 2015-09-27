@@ -518,9 +518,9 @@ def write_file(filepath, content, mode='wb', **kwargs):
     """Writes content to a file or file like object.
 
     Args:
-        filepath (str): The file path or file like object to write to.
-        content (obj): File like object or iterable response data.
-        **kwargs: Keyword arguments.
+        filepath (str): The path of the file or file like object to write to.
+        content (obj): File like object, iterable response, or iterable.
+        kwargs: Keyword arguments.
 
     Kwargs:
         mode (Optional[str]): The file open mode (default: 'wb').
@@ -530,13 +530,26 @@ def write_file(filepath, content, mode='wb', **kwargs):
         bar_len (Optional[int]): Length of progress bar (default: 50).
 
     Returns:
-        int: bytes written if chunksize else 1
+        int: bytes written
 
     Examples:
-        >>> from tempfile import TemporaryFile
+        >>> import requests
         >>> from StringIO import StringIO
+        >>> from tempfile import TemporaryFile, NamedTemporaryFile
+        >>> tmpfile = NamedTemporaryFile(delete='True')
+        >>> write_file(tmpfile.name, StringIO('Hello World'))
+        11
+        >>> tmpfile = NamedTemporaryFile(delete='True')
+        >>> write_file(tmpfile.name, IterStringIO(iter('Hello World')))
+        11
+        >>> write_file(tmpfile.name, IterStringIO(iter('Hello World')), \
+chunksize=2)
+        12
         >>> write_file(TemporaryFile(), StringIO('http://google.com'))
-        1
+        17
+        >>> r = requests.get('http://google.com', stream=True)
+        >>> write_file(TemporaryFile(), r.iter_content) > 10000
+        True
     """
     def write(f, content, **kwargs):
         chunksize = kwargs.get('chunksize')
@@ -544,25 +557,16 @@ def write_file(filepath, content, mode='wb', **kwargs):
         bar_len = kwargs.get('bar_len', 50)
         progress = 0
 
-        try:
-            # To read entire file, use chunksize of None
-            readsize = chunksize or None
-            chunks = (chunk for chunk in content.read(readsize))
-        except AttributeError:
-            # To read entire file, use chunksize as large as the file
-            readsize = chunksize or pow(10, 10)
-            chunks = (chunk for chunk in content(readsize))
+        for c in process.chunk(content, chunksize):
+            f.write(c)
+            progress += chunksize or len(c)
 
-        for chunk in chunks:
-            f.write(chunk)
-            progress += chunksize or 0
-
-            if length and progress:
+            if length:
                 bars = min(int(bar_len * progress / length), bar_len)
                 print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
                 sys.stdout.flush()
 
-        return progress or 1
+        return progress
 
     if hasattr(filepath, 'read'):
         return write(filepath, content, **kwargs)

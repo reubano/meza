@@ -448,34 +448,67 @@ def to_bytearray(content):
         return reduce(lambda x, y: x + y, it.imap(bytearray, content))
 
 
-def chunk(iterable, chunksize=0, start=0, stop=None):
-    """Groups data into fixed-length chunks.
+def chunk(content, chunksize=None, start=0, stop=None):
+    """Groups data into fixed-sized chunks.
     http://stackoverflow.com/a/22919323/408556
 
     Args:
-        iterable (iterable): Content to group into chunks.
-        chunksize (Optional[int]): Number of chunks to include in a group (
-            default: 0, i.e., all).
+        content (obj): File like object, iterable response, or iterable.
+        chunksize (Optional[int]): Number of bytes per chunk (default: 0,
+            i.e., all).
 
-        start (Optional[int]): Starting item (zero indexed, default: 0).
-        stop (Optional[int]): Ending item (zero indexed).
+        start (Optional[int]): Starting location (zero indexed, default: 0).
+        stop (Optional[int]): Ending location (zero indexed).
 
     Returns:
         Iter[List]: Chunked content.
 
     Examples:
-        >>> chunk([1, 2, 3, 4, 5, 6], 2, 1).next()
-        [2, 3]
+        >>> import requests
+        >>> from StringIO import StringIO
+        >>> from . import io
+        >>> chunk([1, 2, 3, 4, 5, 6]).next()
+        [1, 2, 3, 4, 5, 6]
+        >>> chunk([1, 2, 3, 4, 5, 6], 2).next()
+        [1, 2]
+        >>> chunk(StringIO('Hello World'), 5).next()
+        u'Hello'
+        >>> chunk(io.IterStringIO('Hello World'), 5).next()
+        bytearray(b'Hello')
+        >>> chunk(io.IterStringIO('Hello World')).next()
+        bytearray(b'Hello World')
+        >>> r = requests.get('http://google.com', stream=True)
+        >>> len(chunk(r.iter_content, 20, 29, 200).next())
+        20
+        >>> len(chunk(r.iter_content).next()) > 10000
+        True
     """
-    i = it.islice(iter(iterable), start, stop)
+    if hasattr(content, 'read') :
+        content.seek(start) if start else None
+        content.truncate(stop) if stop else None
 
-    if chunksize:
-        generator = (list(it.islice(i, chunksize)) for _ in it.count())
-        chunked = it.takewhile(bool, generator)
+        if chunksize:
+            generator = (content.read(chunksize) for _ in it.count())
+        else:
+            generator = iter([content.read()])
+    elif callable(content):
+        chunksize = chunksize or pow(2, 34)
+
+        if start or stop:
+            i = it.islice(content(), start, stop)
+            generator = (
+                to_bytearray(it.islice(i, chunksize)) for _ in it.count())
+        else:
+            generator = content(chunksize)
     else:
-        chunked = [list(i)]
+        i = it.islice(iter(content), start, stop)
 
-    return chunked
+        if chunksize:
+            generator = (list(it.islice(i, chunksize)) for _ in it.count())
+        else:
+            generator = iter([list(i)])
+
+    return it.takewhile(bool, generator)
 
 
 def _fuzzy_match(items, possibilities, **kwargs):

@@ -34,7 +34,7 @@ import sys
 from StringIO import StringIO
 from io import TextIOBase
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
-from dbfread import DBF
+
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
@@ -42,7 +42,7 @@ from xlrd import (
 
 from chardet.universaldetector import UniversalDetector
 from slugify import slugify
-from . import process
+from . import process, dbf
 
 ENCODING = 'utf-8'
 
@@ -298,7 +298,7 @@ def read_dbf(filepath, **kwargs):
     """Reads a dBase, Visual FoxPro, or FoxBase+ file
 
     Args:
-        filepath (str): The dbf file path.
+        filepath (str): The dbf file path or file like object.
         **kwargs: Keyword arguments that are passed to the DBF reader.
 
     Kwargs:
@@ -339,7 +339,7 @@ District 7', u'Congressional District 3']
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
 
-    for record in DBF(filepath, **kwargs):
+    for record in dbf.DBF2(filepath, **kwargs):
         yield record
 
 

@@ -50,10 +50,12 @@ class DBF2(DBF):
             encoding (bool): Character encoding (default: None, parsed from
                 the `language_driver`).
 
-            sanitize (bool): Convert field names to lower case (default: False).
-            ignorecase (bool): Treat file name as case insensitive (default: true).
-            ignore_missing_memofile (bool): Suppress `MissingMemoFile` exceptions
+            sanitize (bool): Convert field names to lower case
                 (default: False).
+            ignorecase (bool): Treat file name as case insensitive
+                (default: true).
+            ignore_missing_memofile (bool): Suppress `MissingMemoFile`
+                exceptions (default: False).
         """
         try:
             return super(DBF2, self).__init__(filepath, **kwargs)

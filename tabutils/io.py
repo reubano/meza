@@ -60,7 +60,6 @@ class IterStringIO(TextIOBase):
             iterable (dict): bank mapper (see csv2vcard.mappings)
 
         Examples:
-            >>> from StringIO import StringIO
             >>> iter_content = iter('Hello World')
             >>> StringIO(iter_content).read(5)
             '<iter'
@@ -554,7 +553,6 @@ def write_file(filepath, content, mode='wb', **kwargs):
 
     Examples:
         >>> import requests
-        >>> from StringIO import StringIO
         >>> from tempfile import TemporaryFile, NamedTemporaryFile
         >>> tmpfile = NamedTemporaryFile(delete='True')
         >>> write_file(tmpfile.name, StringIO('Hello World'))

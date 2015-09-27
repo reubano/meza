@@ -32,7 +32,6 @@ from os import path as p
 from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
 from dateutil.parser import parse
 from functools import partial
-from operator import itemgetter
 
 from slugify import slugify
 
@@ -484,7 +483,7 @@ def chunk(content, chunksize=None, start=0, stop=None):
         >>> len(chunk(r.iter_content).next()) > 10000
         True
     """
-    if hasattr(content, 'read') :
+    if hasattr(content, 'read'):  # it's a file
         content.seek(start) if start else None
         content.truncate(stop) if stop else None
 
@@ -492,7 +491,7 @@ def chunk(content, chunksize=None, start=0, stop=None):
             generator = (content.read(chunksize) for _ in it.count())
         else:
             generator = iter([content.read()])
-    elif callable(content):
+    elif callable(content):  # it's an r.iter_content
         chunksize = chunksize or pow(2, 34)
 
         if start or stop:
@@ -501,7 +500,7 @@ def chunk(content, chunksize=None, start=0, stop=None):
                 to_bytearray(it.islice(i, chunksize)) for _ in it.count())
         else:
             generator = content(chunksize)
-    else:
+    else:  # it's a regular iterable
         i = it.islice(iter(content), start, stop)
 
         if chunksize:

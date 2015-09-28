@@ -30,7 +30,6 @@ import itertools as it
 from . import CURRENCIES
 
 isempty = lambda x: x is None or x == ''
-isntempty = lambda x: not isempty(x)
 
 
 def mreplace(content, replacements):
@@ -98,16 +97,16 @@ def merge_dicts(*dicts, **kwargs):
         kwargs (dict): keyword arguments
 
     Kwargs:
-        cfunc (func): Receives a key and should return `True`
+        predicate (func): Receives a key and should return `True`
             if overlapping values should be combined. If a key occurs in
             multiple dicts and isn't combined, it will be overwritten
             by the last dict. Requires that `op` is set.
 
         op (func): Receives a list of 2 values from overlapping keys and should
             return the combined value. Common operators are `sum`, `min`,
-            `max`, etc. Requires that `cfunc` is set. If a key is not present
-            in all dicts, the value from `default` will be used. Note, since
-            `op` applied inside of `reduce`, it may not perform as
+            `max`, etc. Requires that `predicate` is set. If a key is not
+            present in all dicts, the value from `default` will be used. Note,
+            since `op` applied inside of `reduce`, it may not perform as
             expected for all functions for more than 2 dicts. E.g. an average
             function will be applied as follows:
 
@@ -127,8 +126,8 @@ def merge_dicts(*dicts, **kwargs):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> cfunc = lambda k: k == 'amount'
-        >>> merge_dicts(*dicts, cfunc=cfunc, op=sum)
+        >>> predicate = lambda k: k == 'amount'
+        >>> merge_dicts(*dicts, predicate=predicate, op=sum)
         {u'a': u'item', u'amount': 900}
         >>> merge_dicts(*dicts)
         {u'a': u'item', u'amount': 400}
@@ -138,27 +137,27 @@ def merge_dicts(*dicts, **kwargs):
         >>> dicts = [{'a':1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
         >>>
         >>> # Combine all keys
-        >>> cfunc = lambda x: True
-        >>> items = merge_dicts(*dicts, cfunc=cfunc, op=sum).items()
+        >>> predicate = lambda x: True
+        >>> items = merge_dicts(*dicts, predicate=predicate, op=sum).items()
         >>> sorted(items)
         [(u'a', 1), (u'b', 6), (u'c', 8), (u'd', 6)]
         >>> fltrer = lambda x: x is not None
         >>> first = lambda x: filter(fltrer, x)[0]
-        >>> kwargs = {'cfunc': cfunc, 'op': first, 'default': None}
+        >>> kwargs = {'predicate': predicate, 'op': first, 'default': None}
         >>> items = merge_dicts(*dicts, **kwargs).items()
         >>> sorted(items)
         [(u'a', 1), (u'b', 2), (u'c', 3), (u'd', 6)]
         >>>
         >>> # This will only reliably give the expected result for 2 dicts
         >>> average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
-        >>> kwargs = {'cfunc': cfunc, 'op': average, 'default': None}
+        >>> kwargs = {'predicate': predicate, 'op': average, 'default': None}
         >>> items = merge_dicts(*dicts, **kwargs).items()
         >>> sorted(items)
         [(u'a', 1), (u'b', 3.0), (u'c', 4.0), (u'd', 6.0)]
         >>>
         >>> # Only combine key 'b'
-        >>> cfunc = lambda k: k == 'b'
-        >>> items = merge_dicts(*dicts, cfunc=cfunc, op=sum).items()
+        >>> predicate = lambda k: k == 'b'
+        >>> items = merge_dicts(*dicts, predicate=predicate, op=sum).items()
         >>> sorted(items)
         [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
         >>>
@@ -177,25 +176,26 @@ def merge_dicts(*dicts, **kwargs):
         ...
         >>> sorted(counted.items())
         [(u'a', 3), (u'b', 3), (u'c', 2), (u'd', 1)]
-        >>> cfunc = lambda x: True
+        >>> predicate = lambda x: True
         >>> divide = lambda x: x[0] / x[1]
-        >>> summed = merge_dicts(*dicts, cfunc=cfunc, op=sum)
+        >>> summed = merge_dicts(*dicts, predicate=predicate, op=sum)
         >>> sorted(summed.items())
         [(u'a', 6), (u'b', 15), (u'c', 2), (u'd', 7)]
-        >>> items = merge_dicts(summed, counted, cfunc=cfunc, op=divide).items()
+        >>> kwargs = {'predicate': predicate, 'op': divide}
+        >>> items = merge_dicts(summed, counted, **kwargs).items()
         >>> sorted(items)
         [(u'a', 2.0), (u'b', 5.0), (u'c', 1.0), (u'd', 7.0)]
     """
-    cfunc = kwargs.get('cfunc')
+    predicate = kwargs.get('predicate')
     op = kwargs.get('op')
     default = kwargs.get('default', 0)
 
     def reducer(x, y):
-        merge = lambda k, v: op([x.get(k, default), v]) if cfunc(k) else v
+        merge = lambda k, v: op([x.get(k, default), v]) if predicate(k) else v
         new_y = ([k, merge(k, v)] for k, v in y.iteritems())
         return dict(it.chain(x.iteritems(), new_y))
 
-    if cfunc and op:
+    if predicate and op:
         new_dict = reduce(reducer, dicts)
     else:
         new_dict = dict(it.chain.from_iterable(it.imap(dict.iteritems, dicts)))
@@ -283,6 +283,9 @@ def fill(prev_row, cur_row, **kwargs):
         kwargs (dict): Keyword arguments
 
     Kwargs:
+        predicate (func): Receives a value and should return `True`
+            if the value should be filled. If predicate is None, it returns
+            `True` for empty values (default: None).
         value (str): Value to use to fill holes (default: None).
         fill_key (str): The column name of the current row to use for filling
             missing data.
@@ -343,6 +346,7 @@ def fill(prev_row, cur_row, **kwargs):
         ... }
         True
     """
+    predicate = kwargs.get('predicate', isempty)
     value = kwargs.get('value')
     limit = kwargs.get('limit')
     cols = kwargs.get('cols')
@@ -353,10 +357,10 @@ def fill(prev_row, cur_row, **kwargs):
     for key, entry in cur_row.items():
         key_count = count.get(key, 0)
         within_limit = key_count < limit if limit else True
-        can_fill = (key in whitelist) and isempty(entry)
+        can_fill = (key in whitelist) and predicate(entry)
         count[key] = key_count + 1
 
-        if can_fill and within_limit and isntempty(value):
+        if can_fill and within_limit and value is not None:
             new_value = value
         elif can_fill and within_limit and fill_key:
             new_value = cur_row[fill_key]

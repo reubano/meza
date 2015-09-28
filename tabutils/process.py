@@ -572,8 +572,11 @@ def merge_dicts(*dicts, **kwargs):
         (List[str]): collapsed content
 
     Examples:
-        >>> dicts = [{'a': 'item', 'amount': 200}, \
-{'a': 'item', 'amount': 300}, {'a': 'item', 'amount': 400}]
+        >>> dicts = [
+        ...     {'a': 'item', 'amount': 200},
+        ...     {'a': 'item', 'amount': 300},
+        ...     {'a': 'item', 'amount': 400}]
+        ...
         >>> cfunc = lambda k: k == 'amount'
         >>> merge_dicts(*dicts, cfunc=cfunc, op=sum)
         {u'a': u'item', u'amount': 900}
@@ -613,8 +616,11 @@ def merge_dicts(*dicts, **kwargs):
         >>> from collections import defaultdict
         >>>
         >>> counted = defaultdict(int)
-        >>> dicts = [{'a': 1, 'b': 4, 'c': 0}, {'a': 2, 'b': 5, 'c': 2}, \
-{'a': 3, 'b': 6, 'd': 7}]
+        >>> dicts = [
+        ...    {'a': 1, 'b': 4, 'c': 0},
+        ...    {'a': 2, 'b': 5, 'c': 2},
+        ...    {'a': 3, 'b': 6, 'd': 7}]
+        ...
         >>> for d in dicts:
         ...     for k in d.keys():
         ...         counted[k] += 1

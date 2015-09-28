@@ -202,8 +202,13 @@ def chunk(content, chunksize=None, start=0, stop=None):
         >>> chunk(io.IterStringIO('Hello World')).next()
         bytearray(b'Hello World')
         >>> r = requests.get('http://google.com', stream=True)
-        >>> len(chunk(r.iter_content, 20, 29, 200).next())
-        20
+        >>>
+        >>> # http://docs.python-requests.org/en/latest/api/
+        >>> # The chunk size is the number of bytes it should read into
+        >>> # memory. This is not necessarily the length of each item returned
+        >>> # as decoding can take place.
+        >>> len(chunk(r.iter_content, 20, 29, 200).next()) > 0
+        True
         >>> len(chunk(r.iter_content).next()) > 10000
         True
     """

@@ -48,6 +48,32 @@ def mreplace(content, replacements):
     return reduce(func, replacements, content)
 
 
+def is_numeric_like(string, seperators=('.', ',')):
+    """
+    >>> is_numeric_like('$123.45')
+    True
+    >>> is_numeric_like('123€')
+    True
+    >>> is_numeric_like('2,123.45')
+    True
+    >>> is_numeric_like('2.123,45')
+    True
+    >>> is_numeric_like('10e5')
+    True
+    >>> is_numeric_like('spam')
+    False
+    """
+    replacements = it.izip(it.chain(CURRENCIES, seperators), it.repeat(''))
+    stripped = mreplace(string, replacements)
+
+    try:
+        float(stripped)
+    except (ValueError, TypeError):
+        return False
+    else:
+        return True
+
+
 def byte(content):
     try:
         return bytearray(content)

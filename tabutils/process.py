@@ -45,32 +45,6 @@ from xlrd import (
 underscorify = lambda fields: [slugify(f, separator='_') for f in fields]
 
 
-def is_numeric_like(string, seperators=('.', ',')):
-    """
-    >>> is_numeric_like('$123.45')
-    True
-    >>> is_numeric_like('123€')
-    True
-    >>> is_numeric_like('2,123.45')
-    True
-    >>> is_numeric_like('2.123,45')
-    True
-    >>> is_numeric_like('10e5')
-    True
-    >>> is_numeric_like('spam')
-    False
-    """
-    replacements = it.izip(it.chain(cv.CURRENCIES, seperators), it.repeat(''))
-    stripped = ft.mreplace(string, replacements)
-
-    try:
-        float(stripped)
-    except (ValueError, TypeError):
-        return False
-    else:
-        return True
-
-
 def afterish(string, char=',', exclude=None):
     """Number of digits after a given character.
 
@@ -92,7 +66,7 @@ def afterish(string, char=',', exclude=None):
     Traceback (most recent call last):
     TypeError: Not able to convert eggs to a number
     """
-    numeric_like = is_numeric_like(string)
+    numeric_like = ft.is_numeric_like(string)
 
     if numeric_like and char in string:
         excluded = [s for s in string.split(exclude) if char in s][0]

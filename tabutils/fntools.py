@@ -29,6 +29,10 @@ import itertools as it
 
 from . import CURRENCIES
 
+isempty = lambda x: x is None or x == ''
+isntempty = lambda x: not isempty(x)
+
+
 def mreplace(content, replacements):
     """ Performs multiple string replacements on content
 
@@ -264,3 +268,104 @@ def chunk(content, chunksize=None, start=0, stop=None):
             generator = iter([list(i)])
 
     return it.takewhile(bool, generator)
+
+
+def fill(prev_row, cur_row, **kwargs):
+    """Fills in missing data from the current row with either the value of the previous row or a different column of the current row.
+
+    Args:
+        prev_row (dict): The previous row of data whose keys are the field
+            names.
+
+        cur_row (dict): The current row of data whose keys are the field names.
+        kwargs (dict): Keyword arguments
+
+    Kwargs:
+        value (str): Value to use to fill holes (default: None).
+        fill_key (str): The column name of the current row to use for filling
+            missing data.
+
+        limit (int): Max number of consecutive rows to fill (default: None).
+        cols (List[str]): Names of the columns to fill (default: None, i.e.,
+            all).
+
+        count (dict): The number of consecutive rows of missing data that have
+            filled for each column.
+
+    Yields:
+        Tuple[str, str]: A tuple of (key, value).
+        dict: The updated count.
+
+    Examples:
+        >>> from os import path as p
+        >>> from . import io
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'bad.csv')
+        >>> records = io.read_csv(filepath, remove_header=True)
+        >>> prev_row = {}
+        >>> cur_row = records.next()
+        >>> cur_row == {
+        ...     u'column_a': u'1',
+        ...     u'column_b': u'27',
+        ...     u'column_c': u'',
+        ... }
+        True
+        >>> length = len(cur_row)
+        >>> filled = fill(prev_row, cur_row, value=0)
+        >>> prev_row = dict(it.islice(filled, length))
+        >>> count = filled.next()
+        >>> count == {u'column_a': 0, u'column_b': 0, u'column_c': 1}
+        True
+        >>> prev_row == {
+        ...     u'column_a': u'1',
+        ...     u'column_b': u'27',
+        ...     u'column_c': 0,
+        ... }
+        True
+        >>> cur_row = records.next()
+        >>> cur_row == {
+        ...     u'column_a': u'',
+        ...     u'column_b': u"I'm too short!",
+        ...     u'column_c': None,
+        ... }
+        True
+        >>> filled = fill(prev_row, cur_row, fill_key='column_b', count=count)
+        >>> prev_row = dict(it.islice(filled, length))
+        >>> count = filled.next()
+        >>> count == {u'column_a': 1, u'column_b': 0, u'column_c': 2}
+        True
+        >>> prev_row == {
+        ...     u'column_a': u"I'm too short!",
+        ...     u'column_b': u"I'm too short!",
+        ...     u'column_c': u"I'm too short!",
+        ... }
+        True
+    """
+    value = kwargs.get('value')
+    limit = kwargs.get('limit')
+    cols = kwargs.get('cols')
+    count = kwargs.get('count', {})
+    fill_key = kwargs.get('fill_key')
+    whitelist = set(cols or cur_row.keys())
+
+    for key, entry in cur_row.items():
+        key_count = count.get(key, 0)
+        within_limit = key_count < limit if limit else True
+        can_fill = (key in whitelist) and isempty(entry)
+        count[key] = key_count + 1
+
+        if can_fill and within_limit and isntempty(value):
+            new_value = value
+        elif can_fill and within_limit and fill_key:
+            new_value = cur_row[fill_key]
+        elif can_fill and within_limit:
+            new_value = prev_row.get(key, entry)
+        else:
+            new_value = entry
+
+        if not can_fill:
+            count[key] = 0
+
+        yield (key, new_value)
+
+    yield count

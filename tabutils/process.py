@@ -326,3 +326,175 @@ def sanitize_sheet(sheet, mode, date_format):
             yield (i, switch.get(ctype, lambda v: v)(value))
 
 
+def fillempty(records, value=None, method=None, limit=None, cols=None):
+    """Fills in missing data with either a single value or front/back/side
+    filled.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+    Kwargs:
+        value (str): Value to use to fill holes (default: None).
+        method (str): Fill method, one of either {'front', 'back'} or a column
+            name (default: None). `front` propagates the last valid
+            value forward. `back` propagates the next valid value
+            backwards. If given a column name, that column's current value
+            will be used. Note: if `back` is selected, the entire content will
+            be read into memory. Use with caution.
+
+        limit (int): Max number of consecutive rows to fill (default: None).
+        cols (List[str]): Names of the columns to fill (default: None, i.e.,
+            all).
+
+    Yields:
+        dict: A row of data whose keys are the field names.
+
+    Examples:
+        >>> from os import path as p
+        >>> from . import io
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'bad.csv')
+        >>> records = list(io.read_csv(filepath, remove_header=True))
+        >>> records == [
+        ...    {
+        ...        u'column_a': u'1',
+        ...        u'column_b': u'27',
+        ...        u'column_c': u'',
+        ...    }, {
+        ...        u'column_a': u'',
+        ...        u'column_b': u"I'm too short!",
+        ...        u'column_c': None,
+        ...    }, {
+        ...        u'column_a': u'0',
+        ...        u'column_b': u'mixed types.... uh oh',
+        ...        u'column_c': u'17',
+        ...    }]
+        True
+        >>> list(fillempty(records, 0)) == [
+        ...    {
+        ...        u'column_a': u'1',
+        ...        u'column_b': u'27',
+        ...        u'column_c': 0,
+        ...    }, {
+        ...        u'column_a': 0,
+        ...        u'column_b': u"I'm too short!",
+        ...        u'column_c': 0,
+        ...    }, {
+        ...        u'column_a': u'0',
+        ...        u'column_b': u'mixed types.... uh oh',
+        ...        u'column_c': u'17',
+        ...    }]
+        True
+        >>> list(fillempty(records, 0, cols=['column_a'])) == [
+        ...    {
+        ...        u'column_a': u'1',
+        ...        u'column_b': u'27',
+        ...        u'column_c': u'',
+        ...    }, {
+        ...        u'column_a': 0,
+        ...        u'column_b': u"I'm too short!",
+        ...        u'column_c': None,
+        ...    }, {
+        ...        u'column_a': u'0',
+        ...        u'column_b': u'mixed types.... uh oh',
+        ...        u'column_c': u'17',
+        ...    }]
+        True
+        >>> list(fillempty(records, method='front')) == [
+        ...    {
+        ...        u'column_a': u'1',
+        ...        u'column_b': u'27',
+        ...        u'column_c': u'',
+        ...    }, {
+        ...        u'column_a': u'1',
+        ...        u'column_b': u"I'm too short!",
+        ...        u'column_c': u'',
+        ...    }, {
+        ...        u'column_a': u'0',
+        ...        u'column_b': u'mixed types.... uh oh',
+        ...        u'column_c': u'17',
+        ...    }]
+        True
+        >>> list(fillempty(records, method='back')) == [
+        ...    {
+        ...        u'column_a': u'1',
+        ...        u'column_b': u'27',
+        ...        u'column_c': u'17',
+        ...    }, {
+        ...        u'column_a': u'0',
+        ...        u'column_b': u"I'm too short!",
+        ...        u'column_c': u'17',
+        ...    }, {
+        ...        u'column_a': u'0',
+        ...        u'column_b': u'mixed types.... uh oh',
+        ...        u'column_c': u'17',
+        ...    }]
+        True
+        >>> list(fillempty(records, method='back', limit=1)) == [
+        ...    {
+        ...        u'column_a': u'1',
+        ...        u'column_b': u'27',
+        ...        u'column_c': u'',
+        ...    }, {
+        ...        u'column_a': u'0',
+        ...        u'column_b': u"I'm too short!",
+        ...        u'column_c': u'17',
+        ...    }, {
+        ...        u'column_a': u'0',
+        ...        u'column_b': u'mixed types.... uh oh',
+        ...        u'column_c': u'17',
+        ...    }]
+        True
+        >>> kwargs = {'method': 'column_b', 'cols': ['column_a']}
+        >>> list(fillempty(records, **kwargs)) == [
+        ...    {
+        ...        u'column_a': u'1',
+        ...        u'column_b': u'27',
+        ...        u'column_c': u'',
+        ...    }, {
+        ...        u'column_a': u"I'm too short!",
+        ...        u'column_b': u"I'm too short!",
+        ...        u'column_c': None,
+        ...    }, {
+        ...        u'column_a': u'0',
+        ...        u'column_b': u'mixed types.... uh oh',
+        ...        u'column_c': u'17',
+        ...    }]
+        True
+    """
+    if method and value is not None:
+        raise Exception('You can not specify both a `value` and `method`.')
+    elif not method and value is None:
+        raise Exception('You must specify either a `value` or `method`.')
+    elif method == 'back':
+        content = reversed(records)
+    else:
+        content = records
+
+    kwargs = {
+        'value': value,
+        'limit': limit,
+        'cols': cols,
+        'fill_key': method if method not in {'front', 'back'} else None
+    }
+
+    prev_row = {}
+    count = {}
+    length = 0
+    result = []
+
+    for row in content:
+        length = length or len(row)
+        filled = ft.fill(prev_row, row, count=count, **kwargs)
+        prev_row = dict(it.islice(filled, length))
+        count = filled.next()
+
+        if method == 'back':
+            result.append(prev_row)
+        else:
+            yield prev_row
+
+    if method == 'back':
+        for row in reversed(result):
+            yield row

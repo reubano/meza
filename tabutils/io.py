@@ -363,6 +363,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
+        remove_header (bool): Remove header record from result (default: False).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -400,6 +401,7 @@ u'unicode_test': u'Unicode Test'}
     def read_file(f):
         encoding = kwargs.pop('encoding', ENCODING)
         sanitize = kwargs.pop('sanitize', False)
+        remove_header = kwargs.pop('remove_header', False)
 
         if kwargs.pop('has_header', True):
             # Remove empty columns and underscorify field names
@@ -415,6 +417,9 @@ u'unicode_test': u'Unicode Test'}
             # Try to detect the encoding
             result = detect_encoding(f)
             records = _read_csv(f, result['encoding'], names)
+
+        if remove_header:
+            records.next()  # remove redundant header row
 
         for row in records:
             yield row

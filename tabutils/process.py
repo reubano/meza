@@ -29,7 +29,6 @@ import itertools as it
 import hashlib
 import xlrd
 
-from os import path as p
 from functools import partial
 
 from . import convert as cv, fntools as ft
@@ -120,6 +119,7 @@ def type_cast(records, fields, date_format='%Y-%m-%d'):
         dict: The type casted record entry.
 
     Examples:
+        >>> from os import path as p
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> csv_filepath = p.join(parent_dir, 'data', 'test', 'test.csv')

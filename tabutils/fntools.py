@@ -271,7 +271,9 @@ def chunk(content, chunksize=None, start=0, stop=None):
 
 
 def fill(prev_row, cur_row, **kwargs):
-    """Fills in missing data from the current row with either the value of the previous row or a different column of the current row.
+    """Fills in data of the current row with data from either a given
+    value, the value of the same column in the previous row, or the value of a
+    given column in the current row.
 
     Args:
         prev_row (dict): The previous row of data whose keys are the field

@@ -327,8 +327,8 @@ def sanitize_sheet(sheet, mode, date_format):
 
 
 def fillempty(records, value=None, method=None, limit=None, cols=None):
-    """Fills in missing data with either a single value or front/back/side
-    filled.
+    """Replaces missing data with either a single value or by front/back/side
+    filling.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.

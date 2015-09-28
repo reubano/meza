@@ -16,9 +16,6 @@ Examples:
         csv_records = read_csv('path/to/file.csv')
         csv_header = csv_records.next().keys()
         csv_records.next()
-
-Attributes:
-    ENCODING (str): Default file encoding.
 """
 
 from __future__ import (
@@ -36,9 +33,7 @@ from io import TextIOBase
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 
 from slugify import slugify
-from . import process as pr, fntools as ft, dbf
-
-ENCODING = 'utf-8'
+from . import process as pr, fntools as ft, dbf, ENCODING
 
 
 class IterStringIO(TextIOBase):

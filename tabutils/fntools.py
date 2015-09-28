@@ -27,6 +27,7 @@ from __future__ import (
 
 import itertools as it
 
+from . import CURRENCIES
 
 def mreplace(content, replacements):
     """ Performs multiple string replacements on content

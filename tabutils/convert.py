@@ -30,11 +30,9 @@ import itertools as it
 from os import path as p
 from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
 
-from . import fntools as ft
+from . import fntools as ft, CURRENCIES
 
 from dateutil.parser import parse
-
-CURRENCIES = ('$', '£', '€')
 
 
 def to_decimal(value, **kwargs):

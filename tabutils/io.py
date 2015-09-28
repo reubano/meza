@@ -35,14 +35,8 @@ from StringIO import StringIO
 from io import TextIOBase
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 
-from xlrd.xldate import xldate_as_datetime as xl2dt
-from xlrd import (
-    XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
-    XL_CELL_ERROR)
-
-from chardet.universaldetector import UniversalDetector
 from slugify import slugify
-from . import process, dbf
+from . import process as pr, fntools as ft, dbf
 
 ENCODING = 'utf-8'
 
@@ -88,7 +82,7 @@ class IterStringIO(TextIOBase):
 
     def _read(self, iterable, n):
         sliced = list(it.islice(iterable, None, n))
-        return process.to_bytearray(sliced)
+        return ft.byte(sliced)
 
     def write(self, iterable):
         chained = self._chain(iterable)
@@ -154,77 +148,6 @@ def _read_csv(f, encoding, names=('field_0',)):
             yield row
 
 
-def _sanitize_sheet(sheet, mode, date_format):
-    """Formats xlrd cell types (from xls/xslx file) as strings.
-
-    Args:
-        book (obj): `xlrd` workbook object.
-        mode (str): `xlrd` workbook datemode property.
-        date_format (str): `strftime()` date format.
-
-    Yields:
-        Tuple[int, str]: A tuple of (row_number, value).
-
-    Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
-        >>> book = xlrd.open_workbook(filepath)
-        >>> sheet = book.sheet_by_index(0)
-        >>> sheet.row_values(1) == [\
-30075.0, u'Iñtërnâtiônàližætiøn', 234.0, u'Ādam', u' ']
-        True
-        >>> sanitized = _sanitize_sheet(sheet, book.datemode, '%Y-%m-%d')
-        >>> [v for i, v in sanitized if i == 1] == [\
-'1982-05-04', u'Iñtërnâtiônàližætiøn', u'234.0', u'Ādam', u' ']
-        True
-    """
-    switch = {
-        XL_CELL_DATE: lambda v: xl2dt(v, mode).strftime(date_format),
-        XL_CELL_EMPTY: lambda v: None,
-        XL_CELL_NUMBER: lambda v: unicode(v),
-        XL_CELL_BOOLEAN: lambda v: unicode(bool(v)),
-        XL_CELL_ERROR: lambda v: xlrd.error_text_from_code[v],
-    }
-
-    for i in xrange(sheet.nrows):
-        for ctype, value in it.izip(sheet.row_types(i), sheet.row_values(i)):
-            yield (i, switch.get(ctype, lambda v: v)(value))
-
-
-def detect_encoding(f):
-    """Detects a file's encoding.
-
-    Args:
-        f (obj): The file like object to detect.
-
-    Returns:
-        dict: The encoding result
-
-    Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
-        >>> f = open(filepath, 'rU')
-        >>> result = detect_encoding(f)
-        >>> f.close()
-        >>> result
-        {'confidence': 0.99, 'encoding': 'utf-8'}
-    """
-    f.seek(0)
-    detector = UniversalDetector()
-
-    for line in f:
-        detector.feed(line)
-
-        if detector.done:
-            break
-
-    detector.close()
-    # print('detector.result', detector.result)
-    return detector.result
-
-
 def read_mdb(filepath, table=None, **kwargs):
     """Reads an MS Access file
 
@@ -285,7 +208,7 @@ u'Abbott', u'Abbott', u'Abbott', u'Abbott', u"'"]
         sanitize = kwargs.pop('sanitize', None)
         first_line = pipe.readline()
         header = csv.reader(StringIO(first_line), **kwargs).next()
-        names = process.underscorify(header) if sanitize else header
+        names = pr.underscorify(header) if sanitize else header
 
         for line in iter(pipe.readline, b''):
             values = csv.reader(StringIO(line), **kwargs).next()
@@ -402,24 +325,22 @@ u'unicode_test': u'Unicode Test'}
         encoding = kwargs.pop('encoding', ENCODING)
         sanitize = kwargs.pop('sanitize', False)
         remove_header = kwargs.pop('remove_header', False)
+        names = None
 
         if kwargs.pop('has_header', True):
             # Remove empty columns and underscorify field names
             header = csv.reader(f, encoding=encoding, **kwargs).next()
             names = [name for name in header if name.strip()]
-            names = process.underscorify(names) if sanitize else names
-        else:
-            names = None
+            names = pr.underscorify(names) if sanitize else names
 
         try:
             records = _read_csv(f, encoding, names)
         except UnicodeDecodeError:
             # Try to detect the encoding
-            result = detect_encoding(f)
-            records = _read_csv(f, result['encoding'], names)
+            encoding = pr.detect_encoding(f)['encoding']
+            records = _read_csv(f, encoding, names)
 
-        if remove_header:
-            records.next()  # remove redundant header row
+        records.next() if remove_header else None
 
         for row in records:
             yield row
@@ -528,7 +449,7 @@ u'unicode_test': u'Unicode Test'}
         names = [slugify(name, separator='_') for name in names]
 
     # Convert to strings
-    sanitized = _sanitize_sheet(sheet, book.datemode, date_format)
+    sanitized = pr.sanitize_sheet(sheet, book.datemode, date_format)
 
     for key, group in it.groupby(sanitized, lambda v: v[0]):
         values = [g[1] for g in group]
@@ -538,7 +459,7 @@ u'unicode_test': u'Unicode Test'}
             yield dict(zip(names, values))
 
 
-def write_file(filepath, content, mode='wb', **kwargs):
+def write(filepath, content, mode='wb', **kwargs):
     """Writes content to a file or file like object.
 
     Args:
@@ -560,27 +481,27 @@ def write_file(filepath, content, mode='wb', **kwargs):
         >>> import requests
         >>> from tempfile import TemporaryFile, NamedTemporaryFile
         >>> tmpfile = NamedTemporaryFile(delete='True')
-        >>> write_file(tmpfile.name, StringIO('Hello World'))
+        >>> write(tmpfile.name, StringIO('Hello World'))
         11
         >>> tmpfile = NamedTemporaryFile(delete='True')
-        >>> write_file(tmpfile.name, IterStringIO(iter('Hello World')))
+        >>> write(tmpfile.name, IterStringIO(iter('Hello World')))
         11
-        >>> write_file(tmpfile.name, IterStringIO(iter('Hello World')), \
+        >>> write(tmpfile.name, IterStringIO(iter('Hello World')), \
 chunksize=2)
         12
-        >>> write_file(TemporaryFile(), StringIO('http://google.com'))
+        >>> write(TemporaryFile(), StringIO('http://google.com'))
         17
         >>> r = requests.get('http://google.com', stream=True)
-        >>> write_file(TemporaryFile(), r.iter_content) > 10000
+        >>> write(TemporaryFile(), r.iter_content) > 10000
         True
     """
-    def write(f, content, **kwargs):
+    def _write(f, content, **kwargs):
         chunksize = kwargs.get('chunksize')
         length = int(kwargs.get('length') or 0)
         bar_len = kwargs.get('bar_len', 50)
         progress = 0
 
-        for c in process.chunk(content, chunksize):
+        for c in ft.chunk(content, chunksize):
             f.write(c)
             progress += chunksize or len(c)
 
@@ -592,7 +513,7 @@ chunksize=2)
         return progress
 
     if hasattr(filepath, 'read'):
-        return write(filepath, content, **kwargs)
+        return _write(filepath, content, **kwargs)
     else:
         with open(filepath, mode) as f:
-            return write(f, content, **kwargs)
+            return _write(f, content, **kwargs)

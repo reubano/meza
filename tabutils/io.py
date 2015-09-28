@@ -144,7 +144,7 @@ def _read_csv(f, encoding, names=('field_0',)):
 
     # Remove empty rows
     for row in records:
-        if any(v.strip() for v in row.values()):
+        if any(v.strip() for v in row.values() if v):
             yield row
 
 

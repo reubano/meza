@@ -104,7 +104,7 @@ def xmlize(content):
                 yield ft.mreplace(item, replacements) if item else ''
 
 
-def type_cast(records, fields, date_format='%Y-%m-%d'):
+def type_cast(records, fields):
     """Casts record entries based on field types.
 
     Args:
@@ -112,8 +112,6 @@ def type_cast(records, fields, date_format='%Y-%m-%d'):
             E.g., output from any `tabutils.io` read function.
 
         fields (Iter[dicts]): Field types (`guess_field_types` output).
-        date_format (str): Date format passed to `strftime()` (default:
-            '%Y-%m-%d', i.e, 'YYYY-MM-DD').
 
     Yields:
         dict: The type casted record entry.
@@ -143,7 +141,7 @@ def type_cast(records, fields, date_format='%Y-%m-%d'):
         >>> casted_csv_values == casted_xls_values
         True
         >>> casted_csv_values
-        ['2015-01-01', 100.0, None, None]
+        [datetime.datetime(2015, 1, 1, 0, 0), 100.0, None, None]
     """
     to_date_p = partial(cv.to_date, date_format=date_format)
     to_unicode = lambda v: unicode(v) if v and v.strip() else None

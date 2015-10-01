@@ -117,7 +117,7 @@ def to_float(value):
     return value
 
 
-def _to_date(value, date_format):
+def _to_date(value, date_format=None):
     """Parses and formats date strings.
 
     Args:
@@ -128,14 +128,18 @@ def _to_date(value, date_format):
         [tuple(str, bool)]: Tuple of the formatted date string and retry value.
 
     Examples:
+        >>> _to_date('5/4/82')
+        (datetime.datetime(1982, 5, 4, 0, 0), False)
         >>> _to_date('5/4/82', '%Y-%m-%d')
         ('1982-05-04', False)
         >>> _to_date('2/32/82', '%Y-%m-%d')
         (u'2/32/82', True)
     """
     try:
-        if value and value.strip():
+        if value and value.strip() and date_format:
             value = parse(value).strftime(date_format)
+        elif value and value.strip():
+            value = parse(value)
 
         retry = False
     # impossible date, e.g., 2/31/15
@@ -149,7 +153,7 @@ def _to_date(value, date_format):
     return (value, retry)
 
 
-def to_date(value, date_format):
+def to_date(value, date_format=None):
     """Parses and formats date strings.
 
     Args:
@@ -160,6 +164,8 @@ def to_date(value, date_format):
         str: The formatted date string.
 
     Examples:
+        >>> to_date('5/4/82')
+        datetime.datetime(1982, 5, 4, 0, 0)
         >>> to_date('5/4/82', '%Y-%m-%d')
         '1982-05-04'
         >>> to_date('2/32/82', '%Y-%m-%d')

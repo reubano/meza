@@ -27,7 +27,7 @@ from __future__ import (
 
 import itertools as it
 
-from . import CURRENCIES
+from . import CURRENCIES, ENCODING
 
 isempty = lambda x: x is None or x == ''
 
@@ -78,10 +78,41 @@ def is_numeric_like(content, separators=('.', ',')):
 
 
 def byte(content):
+    """ Creates a bytearray from a string or iterable of characters
+
+    Args:
+        content (Iter[str]): An iterable of characters
+
+    Returns:
+        (str): the replaced content
+
+    Examples:
+        >>> content = 'Hello World!'
+        >>> byte(content)
+        bytearray(b'Hello World!')
+        >>> byte(list(content))
+        bytearray(b'Hello World!')
+        >>> content = 'Iñtërnâtiônàližætiøn'
+        >>> byte(content) == bytearray(b'Iñtërnâtiônàližætiøn')
+        True
+        >>> byte(list(content)) == bytearray(b'Iñtërnâtiônàližætiøn')
+        True
+    """
     try:
-        return bytearray(content)
-    except ValueError:  # has unicode chars
-        return reduce(lambda x, y: x + y, it.imap(bytearray, content))
+        # like ['H', 'e', 'l', 'l', 'o']
+        value = bytearray(content)
+    except ValueError:
+        # like ['I', '\xc3\xb1', 't', '\xc3\xab', 'r', 'n', '\xc3\xa2']
+        value = reduce(lambda x, y: x + y, it.imap(bytearray, content))
+    except TypeError:
+        # like Hello
+        # or [u'I', u'\xf1', u't', u'\xeb', u'r', u'n', u'\xe2']
+        # or [u'H', u'e', u'l', u'l', u'o']
+        value = reduce(
+            lambda x, y: x + y,
+            (bytearray(c, encoding=ENCODING) for c in content))
+
+    return value
 
 
 def merge_dicts(*dicts, **kwargs):
@@ -226,6 +257,8 @@ def chunk(content, chunksize=None, start=0, stop=None):
         [1, 2, 3, 4, 5, 6]
         >>> chunk([1, 2, 3, 4, 5, 6], 2).next()
         [1, 2]
+        >>> chunk(StringIO('Iñtërnâtiônàližætiøn'), 5).next() == u'Iñtër'
+        True
         >>> chunk(StringIO('Hello World'), 5).next()
         u'Hello'
         >>> chunk(io.IterStringIO('Hello World'), 5).next()

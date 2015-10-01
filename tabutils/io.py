@@ -480,6 +480,8 @@ def write(filepath, content, mode='wb', **kwargs):
         11
         >>> tmpfile = NamedTemporaryFile(delete='True')
         >>> write(tmpfile.name, IterStringIO(iter('Hello World')))
+        >>> write(TemporaryFile(), StringIO('Iñtërnâtiônàližætiøn'))
+        20
         11
         >>> write(tmpfile.name, IterStringIO(iter('Hello World')), \
 chunksize=2)
@@ -497,7 +499,7 @@ chunksize=2)
         progress = 0
 
         for c in ft.chunk(content, chunksize):
-            f.write(c)
+            f.write(c.encode(ENCODING) if hasattr(c, 'encode') else c)
             progress += chunksize or len(c)
 
             if length:

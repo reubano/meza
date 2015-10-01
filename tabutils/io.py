@@ -478,10 +478,9 @@ def write(filepath, content, mode='wb', **kwargs):
         >>> tmpfile = NamedTemporaryFile(delete='True')
         >>> write(tmpfile.name, StringIO('Hello World'))
         11
-        >>> tmpfile = NamedTemporaryFile(delete='True')
-        >>> write(tmpfile.name, IterStringIO(iter('Hello World')))
         >>> write(TemporaryFile(), StringIO('Iñtërnâtiônàližætiøn'))
         20
+        >>> write(TemporaryFile(), IterStringIO(iter('Hello World')))
         11
         >>> write(tmpfile.name, IterStringIO(iter('Hello World')), \
 chunksize=2)

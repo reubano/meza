@@ -482,7 +482,7 @@ def write(filepath, content, mode='wb', **kwargs):
         20
         >>> write(TemporaryFile(), IterStringIO(iter('Hello World')))
         11
-        >>> write(tmpfile.name, IterStringIO(iter('Hello World')), \
+        >>> write(TemporaryFile(), IterStringIO(iter('Hello World')), \
 chunksize=2)
         12
         >>> write(TemporaryFile(), StringIO('http://google.com'))

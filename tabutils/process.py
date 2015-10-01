@@ -292,7 +292,7 @@ def sanitize_sheet(sheet, mode, date_format):
     type.
 
     Args:
-        book (obj): `xlrd` workbook object.
+        sheet (obj): `xlrd` sheet object.
         mode (str): `xlrd` workbook datemode property.
         date_format (str): `strftime()` date format.
 
@@ -326,7 +326,7 @@ def sanitize_sheet(sheet, mode, date_format):
             yield (i, switch.get(ctype, lambda v: v)(value))
 
 
-def fillempty(records, value=None, method=None, limit=None, cols=None):
+def fillempty(records, value=None, method=None, limit=None, fields=None):
     """Replaces missing data with either a single value or by front/back/side
     filling.
 
@@ -344,7 +344,7 @@ def fillempty(records, value=None, method=None, limit=None, cols=None):
             be read into memory. Use with caution.
 
         limit (int): Max number of consecutive rows to fill (default: None).
-        cols (List[str]): Names of the columns to fill (default: None, i.e.,
+        fields (List[str]): Names of the columns to fill (default: None, i.e.,
             all).
 
     Yields:
@@ -386,7 +386,7 @@ def fillempty(records, value=None, method=None, limit=None, cols=None):
         ...        u'column_c': u'17',
         ...    }]
         True
-        >>> list(fillempty(records, 0, cols=['column_a'])) == [
+        >>> list(fillempty(records, 0, fields=['column_a'])) == [
         ...    {
         ...        u'column_a': u'1',
         ...        u'column_b': u'27',
@@ -446,7 +446,7 @@ def fillempty(records, value=None, method=None, limit=None, cols=None):
         ...        u'column_c': u'17',
         ...    }]
         True
-        >>> kwargs = {'method': 'column_b', 'cols': ['column_a']}
+        >>> kwargs = {'method': 'column_b', 'fields': ['column_a']}
         >>> list(fillempty(records, **kwargs)) == [
         ...    {
         ...        u'column_a': u'1',
@@ -475,7 +475,7 @@ def fillempty(records, value=None, method=None, limit=None, cols=None):
     kwargs = {
         'value': value,
         'limit': limit,
-        'cols': cols,
+        'fields': fields,
         'fill_key': method if method not in {'front', 'back'} else None
     }
 

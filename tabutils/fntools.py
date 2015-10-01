@@ -51,8 +51,8 @@ def mreplace(content, replacements):
     return reduce(func, replacements, content)
 
 
-def is_numeric_like(string, seperators=('.', ',')):
-    """
+def is_numeric_like(content, separators=('.', ',')):
+    """ Determines whether or not content can be converted into a number
     >>> is_numeric_like('$123.45')
     True
     >>> is_numeric_like('123€')
@@ -66,8 +66,8 @@ def is_numeric_like(string, seperators=('.', ',')):
     >>> is_numeric_like('spam')
     False
     """
-    replacements = it.izip(it.chain(CURRENCIES, seperators), it.repeat(''))
-    stripped = mreplace(string, replacements)
+    replacements = it.izip(it.chain(CURRENCIES, separators), it.repeat(''))
+    stripped = mreplace(content, replacements)
 
     try:
         float(stripped)
@@ -291,7 +291,7 @@ def fill(prev_row, cur_row, **kwargs):
             missing data.
 
         limit (int): Max number of consecutive rows to fill (default: None).
-        cols (List[str]): Names of the columns to fill (default: None, i.e.,
+        fields (List[str]): Names of the columns to fill (default: None, i.e.,
             all).
 
         count (dict): The number of consecutive rows of missing data that have
@@ -349,10 +349,10 @@ def fill(prev_row, cur_row, **kwargs):
     predicate = kwargs.get('predicate', isempty)
     value = kwargs.get('value')
     limit = kwargs.get('limit')
-    cols = kwargs.get('cols')
+    fields = kwargs.get('fields')
     count = kwargs.get('count', {})
     fill_key = kwargs.get('fill_key')
-    whitelist = set(cols or cur_row.keys())
+    whitelist = set(fields or cur_row.keys())
 
     for key, entry in cur_row.items():
         key_count = count.get(key, 0)

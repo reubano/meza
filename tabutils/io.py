@@ -69,7 +69,7 @@ class IterStringIO(TextIOBase):
         self.next_line = it.takewhile(not_newline, self.iter)
 
     def _encode(self, iterable):
-        return (s.encode('utf-8') for s in iterable)
+        return (s.encode(ENCODING) for s in iterable)
 
     def _chain(self, iterable):
         iterable = iterable or []

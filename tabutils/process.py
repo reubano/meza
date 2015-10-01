@@ -243,7 +243,7 @@ def find(*args, **kwargs):
     method = kwargs.pop('method', 'exact')
     default = kwargs.pop('default', '')
     funcs = {'exact': _exact_match, 'fuzzy': _fuzzy_match}
-    func = funcs.get('method', method)
+    func = funcs.get(method, method)
 
     try:
         return func(*args, **kwargs).next()

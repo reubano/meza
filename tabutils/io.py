@@ -6,7 +6,7 @@
 tabutils.io
 ~~~~~~~~~~~
 
-Provides methods for reading tabular formatted files
+Provides methods for reading/writing tabular formatted files
 
 Examples:
     literal blocks::

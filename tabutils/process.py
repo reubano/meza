@@ -240,6 +240,29 @@ def _exact_match(*args, **kwargs):
 
 
 def find(*args, **kwargs):
+    """ Determines if there is any overlap between two lists of words
+
+    Args:
+        args (Iter[str]): Arguments passed to the search function
+        kwargs (dict): Keyword arguments passed to the search function
+
+    Kwargs:
+        method (str or func):
+        default (scalar):
+
+    Returns:
+        (str): the replaced content
+
+    Examples:
+        >>> needle = ['value', 'length', 'width', 'days']
+        >>> haystack = ['num_days', 'my_value']
+        >>> find(needle, haystack, method='fuzzy')
+        u'my_value'
+        >>> find(needle, haystack)
+        u''
+        >>> find(needle, ['num_days', 'width'])
+        u'width'
+    """
     method = kwargs.pop('method', 'exact')
     default = kwargs.pop('default', '')
     funcs = {'exact': _exact_match, 'fuzzy': _fuzzy_match}
@@ -340,15 +363,19 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
             name (default: None). `front` propagates the last valid
             value forward. `back` propagates the next valid value
             backwards. If given a column name, that column's current value
-            will be used. Note: if `back` is selected, the entire content will
-            be read into memory. Use with caution.
+            will be used.
+
+            *************************************************
+            * Note: if `back` is selected, all records will *
+            * be read into memory. Use with caution.        *
+            *************************************************
 
         limit (int): Max number of consecutive rows to fill (default: None).
         fields (List[str]): Names of the columns to fill (default: None, i.e.,
             all).
 
     Yields:
-        dict: A row of data whose keys are the field names.
+        dict: Record. A row of data whose keys are the field names.
 
     Examples:
         >>> from os import path as p

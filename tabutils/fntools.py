@@ -6,7 +6,8 @@
 tabutils.fntools
 ~~~~~~~~~~~~~~~~
 
-Provides basic functional methods
+Provides methods for functional manipulation of data from tabular formatted
+files
 
 Examples:
     literal blocks::
@@ -53,6 +54,14 @@ def mreplace(content, replacements):
 
 def is_numeric_like(content, separators=('.', ',')):
     """ Determines whether or not content can be converted into a number
+
+    Args:
+        content (scalar): the content to analyze
+
+    Kwargs:
+        separators (tuple[str]): An iterable of characters that should be
+            considered a thousand's separator (default: ('.', ','))
+
     >>> is_numeric_like('$123.45')
     True
     >>> is_numeric_like('123€')

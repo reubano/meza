@@ -26,80 +26,8 @@ from __future__ import (
     unicode_literals)
 
 import itertools as it
-import hashlib
-import xlrd
-
 
 from . import convert as cv, fntools as ft
-
-from chardet.universaldetector import UniversalDetector
-from slugify import slugify
-from xlrd.xldate import xldate_as_datetime as xl2dt
-from xlrd import (
-    XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
-    XL_CELL_ERROR)
-
-underscorify = lambda fields: [slugify(f, separator='_') for f in fields]
-
-
-def afterish(string, char=',', exclude=None):
-    """Number of digits after a given character.
-
-    >>> afterish('123.45', '.')
-    2
-    >>> afterish('1001.', '.')
-    0
-    >>> afterish('1001', '.')
-    -1
-    >>> afterish('1,001')
-    3
-    >>> afterish('2,100,001.00')
-    6
-    >>> afterish('2,100,001.00', exclude='.')
-    3
-    >>> afterish('1,000.00', '.', ',')
-    2
-    >>> afterish('eggs', '.')
-    Traceback (most recent call last):
-    TypeError: Not able to convert eggs to a number
-    """
-    numeric_like = ft.is_numeric_like(string)
-
-    if numeric_like and char in string:
-        excluded = [s for s in string.split(exclude) if char in s][0]
-        after = len(excluded) - excluded.rfind(char) - 1
-    elif numeric_like:
-        after = -1
-    else:
-        raise TypeError('Not able to convert %s to a number' % string)
-
-    return after
-
-
-def xmlize(content):
-    """ Recursively makes elements of an array xml compliant
-
-    Args:
-        content (Iter[str]): the content to clean
-
-    Yields:
-        (str): the cleaned element
-
-    Examples:
-        >>> list(xmlize(['&', '<']))
-        [u'&amp', u'&lt']
-    """
-    replacements = [
-        ('&', '&amp'), ('>', '&gt'), ('<', '&lt'), ('\n', ' '), ('\r\n', ' ')]
-
-    for item in content:
-        if hasattr(item, 'upper'):
-            yield ft.mreplace(item, replacements)
-        else:
-            try:
-                yield list(xmlize(item))
-            except TypeError:
-                yield ft.mreplace(item, replacements) if item else ''
 
 
 def type_cast(records, fields):
@@ -121,7 +49,7 @@ def type_cast(records, fields):
         >>> csv_filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> csv_records = io.read_csv(csv_filepath, sanitize=True)
         >>> csv_header = sorted(csv_records.next().keys())
-        >>> csv_fields = guess_field_types(csv_header)
+        >>> csv_fields = ft.guess_field_types(csv_header)
         >>> csv_records.next()['some_date']
         u'05/04/82'
         >>> casted_csv_row = type_cast(csv_records, csv_fields).next()
@@ -130,7 +58,7 @@ def type_cast(records, fields):
         >>> xls_filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
         >>> xls_records = io.read_xls(xls_filepath, sanitize=True)
         >>> xls_header = sorted(xls_records.next().keys())
-        >>> xls_fields = guess_field_types(xls_header)
+        >>> xls_fields = ft.guess_field_types(xls_header)
         >>> xls_records.next()['some_date']
         '1982-05-04'
         >>> casted_xls_row = type_cast(xls_records, xls_fields).next()
@@ -153,202 +81,6 @@ def type_cast(records, fields):
 
     for row in records:
         yield {k: switch.get(field_types[k])(v) for k, v in row.items()}
-
-
-def guess_field_types(names):
-    """Tries to determine field types based on field names.
-
-    Args:
-        names (Iter[str]): Field names.
-
-    Yields:
-        dict: The parsed field with type
-
-    Examples:
-        >>> guess_field_types(['date', 'raw_value', 'text']).next()
-        {u'type': u'date', u'id': u'date'}
-    """
-    for name in names:
-        if 'date' in name:
-            yield {'id': name, 'type': 'date'}
-        elif 'time' in name:
-            yield {'id': name, 'type': 'datetime'}
-        elif find(['value', 'length', 'width', 'days'], [name], method='fuzzy'):
-            yield {'id': name, 'type': 'float'}
-        elif 'count' in name:
-            yield {'id': name, 'type': 'int'}
-        else:
-            yield {'id': name, 'type': 'text'}
-
-
-def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
-    """Hashes a file or file like object.
-    http://stackoverflow.com/a/1131255/408556
-
-    Args:
-        filepath (str): The file path or file like object to hash.
-        hasher (str): The hashlib hashing algorithm to use (default: sha1).
-
-        chunksize (Optional[int]): Number of bytes to write at a time
-            (default: 0, i.e., all).
-
-        verbose (Optional[bool]): Print debug statements (default: False).
-
-    Returns:
-        str: File hash.
-
-    Examples:
-        >>> from tempfile import TemporaryFile
-        >>> hash_file(TemporaryFile())
-        'da39a3ee5e6b4b0d3255bfef95601890afd80709'
-    """
-    def read_file(f, hasher):
-        if chunksize:
-            while True:
-                data = f.read(chunksize)
-                if not data:
-                    break
-
-                hasher.update(data)
-        else:
-            hasher.update(f.read())
-
-        return hasher.hexdigest()
-
-    hasher = getattr(hashlib, hasher)()
-
-    if hasattr(filepath, 'read'):
-        file_hash = read_file(filepath, hasher)
-    else:
-        with open(filepath, 'rb') as f:
-            file_hash = read_file(f, hasher)
-
-    if verbose:
-        print('File %s hash is %s.' % (filepath, file_hash))
-
-    return file_hash
-
-
-def _fuzzy_match(needle, haystack, **kwargs):
-    for n in needle:
-        for h in haystack:
-            if n in h.lower():
-                yield h
-
-
-def _exact_match(*args, **kwargs):
-    sets = (set(i.lower() for i in arg) for arg in args)
-    return iter(reduce(lambda x, y: x.intersection(y), sets))
-
-
-def find(*args, **kwargs):
-    """ Determines if there is any overlap between two lists of words
-
-    Args:
-        args (Iter[str]): Arguments passed to the search function
-        kwargs (dict): Keyword arguments passed to the search function
-
-    Kwargs:
-        method (str or func):
-        default (scalar):
-
-    Returns:
-        (str): the replaced content
-
-    Examples:
-        >>> needle = ['value', 'length', 'width', 'days']
-        >>> haystack = ['num_days', 'my_value']
-        >>> find(needle, haystack, method='fuzzy')
-        u'my_value'
-        >>> find(needle, haystack)
-        u''
-        >>> find(needle, ['num_days', 'width'])
-        u'width'
-    """
-    method = kwargs.pop('method', 'exact')
-    default = kwargs.pop('default', '')
-    funcs = {'exact': _exact_match, 'fuzzy': _fuzzy_match}
-    func = funcs.get(method, method)
-
-    try:
-        return func(*args, **kwargs).next()
-    except StopIteration:
-        return default
-
-
-def detect_encoding(f, verbose=False):
-    """Detects a file's encoding.
-
-    Args:
-        f (obj): The file like object to detect.
-
-    Returns:
-        dict: The encoding result
-
-    Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
-        >>> f = open(filepath, 'rU')
-        >>> result = detect_encoding(f)
-        >>> f.close()
-        >>> result
-        {'confidence': 0.99, 'encoding': 'utf-8'}
-    """
-    f.seek(0)
-    detector = UniversalDetector()
-
-    for line in f:
-        detector.feed(line)
-
-        if detector.done:
-            break
-
-    detector.close()
-
-    if verbose:
-        print('detector.result', detector.result)
-
-    return detector.result
-
-
-def sanitize_sheet(sheet, mode, date_format):
-    """Formats content from xls/xslx files as strings according to its cell
-    type.
-
-    Args:
-        sheet (obj): `xlrd` sheet object.
-        mode (str): `xlrd` workbook datemode property.
-        date_format (str): `strftime()` date format.
-
-    Yields:
-        Tuple[int, str]: A tuple of (row_number, value).
-
-    Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
-        >>> book = xlrd.open_workbook(filepath)
-        >>> sheet = book.sheet_by_index(0)
-        >>> sheet.row_values(1) == [
-        ...     30075.0, u'Iñtërnâtiônàližætiøn', 234.0, u'Ādam', u' ']
-        True
-        >>> sanitized = sanitize_sheet(sheet, book.datemode, '%Y-%m-%d')
-        >>> [v for i, v in sanitized if i == 1] == [
-        ...     '1982-05-04', u'Iñtërnâtiônàližætiøn', u'234.0', u'Ādam', u' ']
-        True
-    """
-    switch = {
-        XL_CELL_DATE: lambda v: xl2dt(v, mode).strftime(date_format),
-        XL_CELL_EMPTY: lambda v: None,
-        XL_CELL_NUMBER: lambda v: unicode(v),
-        XL_CELL_BOOLEAN: lambda v: unicode(bool(v)),
-        XL_CELL_ERROR: lambda v: xlrd.error_text_from_code[v],
-    }
-
-    for i in xrange(sheet.nrows):
-        for ctype, value in it.izip(sheet.row_types(i), sheet.row_values(i)):
-            yield (i, switch.get(ctype, lambda v: v)(value))
 
 
 def fillempty(records, value=None, method=None, limit=None, fields=None):
@@ -527,3 +259,119 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
     if method == 'back':
         for row in reversed(result):
             yield row
+
+
+def merge(records, **kwargs):
+    """Merges `records` and optionally combines specified keys using a
+    specified binary operator.
+
+    http://codereview.stackexchange.com/a/85822/71049
+    http://stackoverflow.com/a/31812635/408556
+    http://stackoverflow.com/a/3936548/408556
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        kwargs (dict): keyword arguments
+
+    Kwargs:
+        predicate (func): Receives a key and should return `True`
+            if overlapping values should be combined. If a key occurs in
+            multiple dicts and isn't combined, it will be overwritten
+            by the last dict. Requires that `op` is set.
+
+        op (func): Receives a list of 2 values from overlapping keys and should
+            return the combined value. Common operators are `sum`, `min`,
+            `max`, etc. Requires that `predicate` is set. If a key is not
+            present in all records, the value from `default` will be used. Note,
+            since `op` applied inside of `reduce`, it may not perform as
+            expected for all functions for more than 2 records. E.g. an average
+            function will be applied as follows:
+
+                ave([1, 2, 3]) --> ave([ave([1, 2]), 3])
+
+            You would expect to get 2, but will instead get 2.25.
+
+        default (int or str): default value to use in `op` for missing keys
+            (default: 0).
+
+    Returns:
+        (List[str]): collapsed content
+
+    Examples:
+        >>> records = [
+        ...     {'a': 'item', 'amount': 200},
+        ...     {'a': 'item', 'amount': 300},
+        ...     {'a': 'item', 'amount': 400}]
+        ...
+        >>> predicate = lambda k: k == 'amount'
+        >>> merge(records, predicate=predicate, op=sum)
+        {u'a': u'item', u'amount': 900}
+        >>> merge(records)
+        {u'a': u'item', u'amount': 400}
+        >>> sorted(merge([{'a': 1, 'b': 2}, {'b': 10, 'c': 11}]).items())
+        [(u'a', 1), (u'b', 10), (u'c', 11)]
+        >>> records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
+        >>>
+        >>> # Combine all keys
+        >>> predicate = lambda x: True
+        >>> sorted(merge(records, predicate=predicate, op=sum).items())
+        [(u'a', 1), (u'b', 6), (u'c', 8), (u'd', 6)]
+        >>> fltrer = lambda x: x is not None
+        >>> first = lambda x: filter(fltrer, x)[0]
+        >>> kwargs = {'predicate': predicate, 'op': first, 'default': None}
+        >>> sorted(merge(records, **kwargs).items())
+        [(u'a', 1), (u'b', 2), (u'c', 3), (u'd', 6)]
+        >>>
+        >>> # This will only reliably give the expected result for 2 dicts
+        >>> average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
+        >>> kwargs = {'predicate': predicate, 'op': average, 'default': None}
+        >>> sorted(merge(records, **kwargs).items())
+        [(u'a', 1), (u'b', 3.0), (u'c', 4.0), (u'd', 6.0)]
+        >>>
+        >>> # Only combine key 'b'
+        >>> predicate = lambda k: k == 'b'
+        >>> sorted(merge(records, predicate=predicate, op=sum).items())
+        [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
+        >>>
+        >>> # This will reliably work for any number of dicts
+        >>> from collections import defaultdict
+        >>>
+        >>> counted = defaultdict(int)
+        >>> predicate = lambda x: True
+        >>> divide = lambda x: x[0] / x[1]
+        >>> records = [
+        ...    {'a': 1, 'b': 4, 'c': 0},
+        ...    {'a': 2, 'b': 5, 'c': 2},
+        ...    {'a': 3, 'b': 6, 'd': 7}]
+        ...
+        >>> for r in records:
+        ...     for k in r.keys():
+        ...         counted[k] += 1
+        ...
+        >>> sorted(counted.items())
+        [(u'a', 3), (u'b', 3), (u'c', 2), (u'd', 1)]
+        >>> summed = merge(records, predicate=predicate, op=sum)
+        >>> sorted(summed.items())
+        [(u'a', 6), (u'b', 15), (u'c', 2), (u'd', 7)]
+        >>> kwargs = {'predicate': predicate, 'op': divide}
+        >>> sorted(merge([summed, counted], **kwargs).items())
+        [(u'a', 2.0), (u'b', 5.0), (u'c', 1.0), (u'd', 7.0)]
+    """
+    predicate = kwargs.get('predicate')
+    op = kwargs.get('op')
+    default = kwargs.get('default', 0)
+
+    def reducer(x, y):
+        _merge = lambda k, v: op([x.get(k, default), v]) if predicate(k) else v
+        new_y = ([k, _merge(k, v)] for k, v in y.iteritems())
+        return dict(it.chain(x.iteritems(), new_y))
+
+    if predicate and op:
+        record = reduce(reducer, records)
+    else:
+        items = it.imap(dict.iteritems, records)
+        record = dict(it.chain.from_iterable(items))
+
+    return record

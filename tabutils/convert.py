@@ -9,12 +9,11 @@ tabutils.convert
 Provides methods for converting data structures
 
 Examples:
-    literal blocks::
+    basic usage::
 
-        from tabutils.process import underscorify
+        from tabutils.convert import to_decimal
 
-        header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
-        names = underscorify(header)
+        decimal = to_decimal('$123.45')
 
 Attributes:
     CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
@@ -26,11 +25,13 @@ from __future__ import (
     unicode_literals)
 
 import itertools as it
+import unicodecsv as csv
 
 from os import path as p
 from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
+from StringIO import StringIO
 
-from . import fntools as ft, CURRENCIES
+from . import fntools as ft, CURRENCIES, ENCODING
 
 from dateutil.parser import parse
 
@@ -117,7 +118,7 @@ def to_float(value):
     return value
 
 
-def _to_date(value, date_format):
+def _to_date(value, date_format=None):
     """Parses and formats date strings.
 
     Args:
@@ -128,14 +129,18 @@ def _to_date(value, date_format):
         [tuple(str, bool)]: Tuple of the formatted date string and retry value.
 
     Examples:
+        >>> _to_date('5/4/82')
+        (datetime.datetime(1982, 5, 4, 0, 0), False)
         >>> _to_date('5/4/82', '%Y-%m-%d')
         ('1982-05-04', False)
         >>> _to_date('2/32/82', '%Y-%m-%d')
         (u'2/32/82', True)
     """
     try:
-        if value and value.strip():
+        if value and value.strip() and date_format:
             value = parse(value).strftime(date_format)
+        elif value and value.strip():
+            value = parse(value)
 
         retry = False
     # impossible date, e.g., 2/31/15
@@ -149,7 +154,7 @@ def _to_date(value, date_format):
     return (value, retry)
 
 
-def to_date(value, date_format):
+def to_date(value, date_format=None):
     """Parses and formats date strings.
 
     Args:
@@ -160,6 +165,8 @@ def to_date(value, date_format):
         str: The formatted date string.
 
     Examples:
+        >>> to_date('5/4/82')
+        datetime.datetime(1982, 5, 4, 0, 0)
         >>> to_date('5/4/82', '%Y-%m-%d')
         '1982-05-04'
         >>> to_date('2/32/82', '%Y-%m-%d')
@@ -228,3 +235,44 @@ def to_filepath(filepath, **kwargs):
         filename = '%s.%s' % (filename, ctype2ext(ctype))
 
     return p.join(filepath, filename) if isdir else filepath
+
+
+def records2csv(records, header=None, encoding=ENCODING, bom=False):
+    """
+    Converts records into a csv file like object.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+    Kwargs:
+        header (List[str]): The header row (default: None)
+
+    Returns:
+        obj: StringIO.StringIO instance
+
+    Examples:
+        >>> from os import path as p
+        >>> from . import io
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'irismeta.csv')
+        >>> records = io.read_csv(filepath)
+        >>> header = records.next()
+        >>> sorted(header.keys())
+        [u'species', u'usda_id', u'wikipedia_url']
+        >>> csv_str = records2csv(records, header)
+        >>> csv_str.next().strip()
+        'usda_id,species,wikipedia_url'
+        >>> csv_str.next().strip()
+        'IRVE2,Iris-versicolor,http://en.wikipedia.org/wiki/Iris_versicolor'
+    """
+    f = StringIO()
+
+    if bom:
+        f.write(u'\ufeff'.encode(ENCODING))  # BOM for Windows
+
+    w = csv.DictWriter(f, header, encoding=encoding)
+    w.writer.writerow(header)
+    w.writerows(records)
+    f.seek(0)
+    return f

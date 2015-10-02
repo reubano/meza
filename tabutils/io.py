@@ -6,16 +6,16 @@
 tabutils.io
 ~~~~~~~~~~~
 
-Provides methods for reading tabular formatted files
+Provides methods for reading/writing/processing tabular formatted files
 
 Examples:
-    literal blocks::
+    basic usage::
 
         from tabutils.io import read_csv
 
         csv_records = read_csv('path/to/file.csv')
         csv_header = csv_records.next().keys()
-        csv_records.next()
+        record = csv_records.next()
 """
 
 from __future__ import (
@@ -27,12 +27,19 @@ import itertools as it
 import unicodecsv as csv
 import httplib
 import sys
+import hashlib
 
 from StringIO import StringIO
 from io import TextIOBase
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 
 from slugify import slugify
+from xlrd.xldate import xldate_as_datetime as xl2dt
+from chardet.universaldetector import UniversalDetector
+from xlrd import (
+    XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
+    XL_CELL_ERROR)
+
 from . import process as pr, fntools as ft, dbf, ENCODING
 
 
@@ -203,7 +210,7 @@ u'Abbott', u'Abbott', u'Abbott', u'Abbott', u"'"]
         sanitize = kwargs.pop('sanitize', None)
         first_line = pipe.readline()
         header = csv.reader(StringIO(first_line), **kwargs).next()
-        names = pr.underscorify(header) if sanitize else header
+        names = list(ft.underscorify(header)) if sanitize else header
 
         for line in iter(pipe.readline, b''):
             values = csv.reader(StringIO(line), **kwargs).next()
@@ -326,7 +333,7 @@ u'unicode_test': u'Unicode Test'}
             # Remove empty columns and underscorify field names
             header = csv.reader(f, encoding=encoding, **kwargs).next()
             names = [name for name in header if name.strip()]
-            names = pr.underscorify(names) if sanitize else names
+            names = list(ft.underscorify(names)) if sanitize else names
 
         try:
             records = _read_csv(f, encoding, names)
@@ -347,6 +354,45 @@ u'unicode_test': u'Unicode Test'}
         with open(filepath, mode) as f:
             for row in read_file(f):
                 yield row
+
+
+def sanitize_sheet(sheet, mode, date_format):
+    """Formats content from xls/xslx files as strings according to its cell
+    type.
+
+    Args:
+        sheet (obj): `xlrd` sheet object.
+        mode (str): `xlrd` workbook datemode property.
+        date_format (str): `strftime()` date format.
+
+    Yields:
+        Tuple[int, str]: A tuple of (row_number, value).
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
+        >>> book = xlrd.open_workbook(filepath)
+        >>> sheet = book.sheet_by_index(0)
+        >>> sheet.row_values(1) == [
+        ...     30075.0, u'Iñtërnâtiônàližætiøn', 234.0, u'Ādam', u' ']
+        True
+        >>> sanitized = sanitize_sheet(sheet, book.datemode, '%Y-%m-%d')
+        >>> [v for i, v in sanitized if i == 1] == [
+        ...     '1982-05-04', u'Iñtërnâtiônàližætiøn', u'234.0', u'Ādam', u' ']
+        True
+    """
+    switch = {
+        XL_CELL_DATE: lambda v: xl2dt(v, mode).strftime(date_format),
+        XL_CELL_EMPTY: lambda v: None,
+        XL_CELL_NUMBER: lambda v: unicode(v),
+        XL_CELL_BOOLEAN: lambda v: unicode(bool(v)),
+        XL_CELL_ERROR: lambda v: xlrd.error_text_from_code[v],
+    }
+
+    for i in xrange(sheet.nrows):
+        for ctype, value in it.izip(sheet.row_types(i), sheet.row_values(i)):
+            yield (i, switch.get(ctype, lambda v: v)(value))
 
 
 def read_xls(filepath, **kwargs):
@@ -444,7 +490,7 @@ u'unicode_test': u'Unicode Test'}
         names = [slugify(name, separator='_') for name in names]
 
     # Convert to strings
-    sanitized = pr.sanitize_sheet(sheet, book.datemode, date_format)
+    sanitized = sanitize_sheet(sheet, book.datemode, date_format)
 
     for key, group in it.groupby(sanitized, lambda v: v[0]):
         values = [g[1] for g in group]
@@ -478,10 +524,11 @@ def write(filepath, content, mode='wb', **kwargs):
         >>> tmpfile = NamedTemporaryFile(delete='True')
         >>> write(tmpfile.name, StringIO('Hello World'))
         11
-        >>> tmpfile = NamedTemporaryFile(delete='True')
-        >>> write(tmpfile.name, IterStringIO(iter('Hello World')))
+        >>> write(TemporaryFile(), StringIO('Iñtërnâtiônàližætiøn'))
+        20
+        >>> write(TemporaryFile(), IterStringIO(iter('Hello World')))
         11
-        >>> write(tmpfile.name, IterStringIO(iter('Hello World')), \
+        >>> write(TemporaryFile(), IterStringIO(iter('Hello World')), \
 chunksize=2)
         12
         >>> write(TemporaryFile(), StringIO('http://google.com'))
@@ -497,7 +544,7 @@ chunksize=2)
         progress = 0
 
         for c in ft.chunk(content, chunksize):
-            f.write(c)
+            f.write(c.encode(ENCODING) if hasattr(c, 'encode') else c)
             progress += chunksize or len(c)
 
             if length:
@@ -512,3 +559,87 @@ chunksize=2)
     else:
         with open(filepath, mode) as f:
             return _write(f, content, **kwargs)
+
+
+def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
+    """Hashes a file or file like object.
+    http://stackoverflow.com/a/1131255/408556
+
+    Args:
+        filepath (str): The file path or file like object to hash.
+        hasher (str): The hashlib hashing algorithm to use (default: sha1).
+
+        chunksize (Optional[int]): Number of bytes to write at a time
+            (default: 0, i.e., all).
+
+        verbose (Optional[bool]): Print debug statements (default: False).
+
+    Returns:
+        str: File hash.
+
+    Examples:
+        >>> from tempfile import TemporaryFile
+        >>> hash_file(TemporaryFile())
+        'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+    """
+    def read_file(f, hasher):
+        if chunksize:
+            while True:
+                data = f.read(chunksize)
+                if not data:
+                    break
+
+                hasher.update(data)
+        else:
+            hasher.update(f.read())
+
+        return hasher.hexdigest()
+
+    hasher = getattr(hashlib, hasher)()
+
+    if hasattr(filepath, 'read'):
+        file_hash = read_file(filepath, hasher)
+    else:
+        with open(filepath, 'rb') as f:
+            file_hash = read_file(f, hasher)
+
+    if verbose:
+        print('File %s hash is %s.' % (filepath, file_hash))
+
+    return file_hash
+
+
+def detect_encoding(f, verbose=False):
+    """Detects a file's encoding.
+
+    Args:
+        f (obj): The file like object to detect.
+
+    Returns:
+        dict: The encoding result
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
+        >>> f = open(filepath, 'rU')
+        >>> result = detect_encoding(f)
+        >>> f.close()
+        >>> result
+        {'confidence': 0.99, 'encoding': 'utf-8'}
+    """
+    f.seek(0)
+    detector = UniversalDetector()
+
+    for line in f:
+        detector.feed(line)
+
+        if detector.done:
+            break
+
+    detector.close()
+
+    if verbose:
+        print('detector.result', detector.result)
+
+    return detector.result

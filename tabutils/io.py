@@ -6,16 +6,16 @@
 tabutils.io
 ~~~~~~~~~~~
 
-Provides methods for reading/writing tabular formatted files
+Provides methods for reading/writing/processing tabular formatted files
 
 Examples:
-    literal blocks::
+    basic usage::
 
         from tabutils.io import read_csv
 
         csv_records = read_csv('path/to/file.csv')
         csv_header = csv_records.next().keys()
-        csv_records.next()
+        record = csv_records.next()
 """
 
 from __future__ import (

@@ -6,16 +6,15 @@
 tabutils.fntools
 ~~~~~~~~~~~~~~~~
 
-Provides methods for functional manipulation of data from tabular formatted
-files
+Provides methods for functional manipulation of content
 
 Examples:
-    literal blocks::
+    basic usage::
 
-        from tabutils.process import underscorify
+        from tabutils.fntools import underscorify
 
         header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
-        names = underscorify(header)
+        underscored = list(underscorify(header))
 
 Attributes:
     CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal

@@ -3,19 +3,18 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-dbf.io
-~~~~~~
+tabutils.dbf
+~~~~~~~~~~~~
 
 Provides methods for reading dbf files
 
 Examples:
-    literal blocks::
+    basic usage::
 
-        from tabutils.io import read_csv
+        from tabutils.dbf import DBF2
 
-        csv_records = read_csv('path/to/file.csv')
-        csv_header = csv_records.next().keys()
-        csv_records.next()
+        record = DBF2('test.dbf').next()
+
 
 Attributes:
     ENCODING (str): Default file encoding.

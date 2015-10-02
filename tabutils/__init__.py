@@ -8,11 +8,6 @@ tabutils
 
 Provides methods for reading and processing data from tabular formatted files
 
-Examples:
-    literal blocks::
-
-        python example_google.py
-
 Attributes:
     CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
         strings.

@@ -9,12 +9,11 @@ tabutils.convert
 Provides methods for converting data structures
 
 Examples:
-    literal blocks::
+    basic usage::
 
-        from tabutils.process import underscorify
+        from tabutils.convert import to_decimal
 
-        header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
-        names = underscorify(header)
+        decimal = to_decimal('$123.45')
 
 Attributes:
     CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal

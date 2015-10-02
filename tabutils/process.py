@@ -6,15 +6,15 @@
 tabutils.process
 ~~~~~~~~~~~~~~~~
 
-Provides methods for processing data from tabular formatted files
+Provides methods for processing `records`, i.e., tabular data.
 
 Examples:
-    literal blocks::
+    basic usage::
 
-        from tabutils.process import underscorify
+        from tabutils.process import type_cast
 
-        header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
-        names = underscorify(header)
+        records = [{'some_value', '1'}, {'some_value', '2'}]
+        casted_records = type_cast(records, [{'some_value': 'int'}]).next()
 
 Attributes:
     CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal

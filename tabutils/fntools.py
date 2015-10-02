@@ -160,7 +160,7 @@ def byte(content):
         # or [u'H', u'e', u'l', u'l', u'o']
         value = reduce(
             lambda x, y: x + y,
-            (bytearray(c, encoding=ENCODING) for c in content))
+            (bytearray(item, encoding=ENCODING) for item in content))
 
     return value
 

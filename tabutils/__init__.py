@@ -14,14 +14,24 @@ Examples:
         python example_google.py
 
 Attributes:
+    CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
+        strings.
     ENCODING (str): Default file encoding.
 """
+
+from __future__ import (
+    absolute_import, division, print_function, with_statement,
+    unicode_literals)
 
 __title__ = 'tabutils'
 __package_name__ = 'tabutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'tabular data utility methods'
 __email__ = 'reubano@gmail.com'
-__version__ = '0.10.0'
+__version__ = '0.11.0'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
+
+
+CURRENCIES = ('$', '£', '€')
+ENCODING = 'utf-8'

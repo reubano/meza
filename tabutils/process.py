@@ -29,7 +29,6 @@ import itertools as it
 import hashlib
 import xlrd
 
-from functools import partial
 
 from . import convert as cv, fntools as ft
 
@@ -39,7 +38,6 @@ from xlrd.xldate import xldate_as_datetime as xl2dt
 from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
     XL_CELL_ERROR)
-
 
 underscorify = lambda fields: [slugify(f, separator='_') for f in fields]
 

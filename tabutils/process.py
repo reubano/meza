@@ -143,9 +143,12 @@ def type_cast(records, fields):
         >>> casted_csv_values
         [datetime.datetime(2015, 1, 1, 0, 0), 100.0, None, None]
     """
-    to_date_p = partial(cv.to_date, date_format=date_format)
-    to_unicode = lambda v: unicode(v) if v and v.strip() else None
-    switch = {'float': cv.to_float, 'date': to_date_p, 'text': to_unicode}
+    switch = {
+        'float': cv.to_float,
+        'date': cv.to_date,
+        'text': lambda v: unicode(v) if v and v.strip() else None
+    }
+
     field_types = {f['id']: f['type'] for f in fields}
 
     for row in records:

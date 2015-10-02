@@ -123,7 +123,7 @@ def type_cast(records, fields):
         >>> csv_filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> csv_records = io.read_csv(csv_filepath, sanitize=True)
         >>> csv_header = sorted(csv_records.next().keys())
-        >>> csv_fields = guess_field_types(csv_header, True)
+        >>> csv_fields = guess_field_types(csv_header)
         >>> csv_records.next()['some_date']
         u'05/04/82'
         >>> casted_csv_row = type_cast(csv_records, csv_fields).next()
@@ -132,7 +132,7 @@ def type_cast(records, fields):
         >>> xls_filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
         >>> xls_records = io.read_xls(xls_filepath, sanitize=True)
         >>> xls_header = sorted(xls_records.next().keys())
-        >>> xls_fields = guess_field_types(xls_header, True)
+        >>> xls_fields = guess_field_types(xls_header)
         >>> xls_records.next()['some_date']
         '1982-05-04'
         >>> casted_xls_row = type_cast(xls_records, xls_fields).next()
@@ -152,26 +152,23 @@ def type_cast(records, fields):
         yield {k: switch.get(field_types[k])(v) for k, v in row.items()}
 
 
-def guess_field_types(names, type_cast=False):
+def guess_field_types(names):
     """Tries to determine field types based on field names.
 
     Args:
         names (Iter[str]): Field names.
-
-    Kwargs:
-        type_cast (bool): (default: False)
 
     Yields:
         dict: The parsed field with type
 
     Examples:
         >>> guess_field_types(['date', 'raw_value', 'text']).next()
-        {u'type': u'text', u'id': u'date'}
+        {u'type': u'date', u'id': u'date'}
     """
     for name in names:
-        if type_cast and 'date' in name:
+        if 'date' in name:
             yield {'id': name, 'type': 'date'}
-        elif type_cast and 'value' in name:
+        elif 'value' in name:
             yield {'id': name, 'type': 'float'}
         else:
             yield {'id': name, 'type': 'text'}

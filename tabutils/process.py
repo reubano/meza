@@ -225,11 +225,11 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
     return file_hash
 
 
-def _fuzzy_match(items, possibilities, **kwargs):
-    for i in items:
-        for p in possibilities:
-            if p in i.lower():
-                yield i
+def _fuzzy_match(needle, haystack, **kwargs):
+    for n in needle:
+        for h in haystack:
+            if n in h.lower():
+                yield h
 
 
 def _exact_match(*args, **kwargs):

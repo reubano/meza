@@ -90,10 +90,10 @@ def byte(content):
     """ Creates a bytearray from a string or iterable of characters
 
     Args:
-        content (Iter[str]): An iterable of characters
+        content (Iter[char]): A string or iterable of characters
 
     Returns:
-        (str): the replaced content
+        (bytearray): A bytearray of the content
 
     Examples:
         >>> content = 'Hello World!'

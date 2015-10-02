@@ -112,7 +112,7 @@ def type_cast(records, fields):
         fields (Iter[dicts]): Field types (`guess_field_types` output).
 
     Yields:
-        dict: The type casted record entry.
+        dict: Type casted record. A row of data whose keys are the field names.
 
     Examples:
         >>> from os import path as p

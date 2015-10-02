@@ -144,8 +144,10 @@ def type_cast(records, fields):
         [datetime.datetime(2015, 1, 1, 0, 0), 100.0, None, None]
     """
     switch = {
+        'int': int,
         'float': cv.to_float,
         'date': cv.to_date,
+        'datetime': cv.to_date,
         'text': lambda v: unicode(v) if v and v.strip() else None
     }
 
@@ -171,8 +173,12 @@ def guess_field_types(names):
     for name in names:
         if 'date' in name:
             yield {'id': name, 'type': 'date'}
-        elif 'value' in name:
+        elif 'time' in name:
+            yield {'id': name, 'type': 'datetime'}
+        elif find(['value', 'length', 'width', 'days'], [name], method='fuzzy'):
             yield {'id': name, 'type': 'float'}
+        elif 'count' in name:
+            yield {'id': name, 'type': 'int'}
         else:
             yield {'id': name, 'type': 'text'}
 

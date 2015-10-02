@@ -375,3 +375,167 @@ def merge(records, **kwargs):
         record = dict(it.chain.from_iterable(items))
 
     return record
+
+
+def pivot(records, **kwargs):
+    """
+    Create a spreadsheet-style pivot table as a DataFrame. The levels in the
+    pivot table will be stored in MultiIndex objects (hierarchical indexes) on
+    the index and columns of the result DataFrame. Requires `Pandas`.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        kwargs (dict): keyword arguments
+
+    Kwargs:
+        values (str): column to aggregate (default: All columns not included in
+            `index` or `columns`)
+
+        index (List[str]): Keys to group by on the pivot table index
+            (default: None).
+
+        columns (List[str]): Keys to group by on the pivot table column
+            (default: None).
+
+        aggfunc (func): Aggregation function (default: numpy.mean)
+
+        fill_value (scalar): Value to replace missing values with
+            (default: None)
+
+        margins (bool): Add all row / columns (e.g. for subtotal / grand
+            totals) (default: False)
+
+        dropna (bool): Do not include columns whose entries are all NaN
+            (default: True)
+
+    Yields:
+        dict: Record. A row of data whose keys are the field names.
+
+    Examples:
+        >>> from os import path as p
+        >>> from . import io
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'iris.csv')
+        >>> records = io.read_csv(filepath)
+        >>> header = records.next().keys()
+        >>> sorted(header)
+        [u'petal_length', u'petal_width', u'sepal_length', u'sepal_width', \
+u'species']
+        >>> fields = ft.guess_field_types(header)
+        >>> casted_records = type_cast(records, fields)
+        >>> table_records = pivot(
+        ...     casted_records, values='sepal_length',
+        ...     index=['sepal_width'], columns=['species'])
+        >>> header = table_records.next().keys()
+        >>> header
+        [u'Iris-virginica', u'sepal_width', u'Iris-setosa', u'Iris-versicolor']
+        >>> sorted(table_records.next().items())
+        [(u'Iris-setosa', nan), (u'Iris-versicolor', 5.0), \
+(u'Iris-virginica', nan), (u'sepal_width', 2.0)]
+    """
+    try:
+        import pandas as pd
+    except ImportError:
+        pd = None
+
+    if not pd:
+        print(
+            "You must install pandas, i.e. `pip install pandas`, to use this"
+            " function")
+    else:
+        df = pd.DataFrame.from_records(records)
+        table = df.pivot_table(**kwargs)
+        keys = list(table.index.names)
+
+        try:
+            keys.extend(table.columns.tolist())
+        except AttributeError:
+            # we have a Series, not a DataFrame
+            keys.append(table.name)
+            rows = (i[0] + (i[1],) for i in table.iteritems())
+        else:
+            rows = table.itertuples()
+
+        yield dict(zip(keys, keys))
+
+        for values in rows:
+            yield dict(zip(keys, values))
+
+
+def rfilter(records, field, predicate=None):
+    """ Yields records for which the predicate is True for a given field.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        field (str): The column to group the records by
+
+    Kwargs:
+        predicate (func): Receives a value and should return `True` if the
+            record should be included (default: None, i.e., return the record
+            if value is `True`).
+
+    Returns:
+        dict: Record. A row of data whose keys are the field names.
+
+    Examples:
+        >>> records = [
+        ...     {'day': 1, 'name': 'bill'},
+        ...     {'day': 1, 'name': 'bob'},
+        ...     {'day': 1, 'name': 'tom'},
+        ...     {'day': 2, 'name': 'Iñtërnâtiônàližætiøn'},
+        ...     {'day': 3, 'name': 'rob'},
+        ... ]
+        >>> rfilter(records, 'day', lambda x: x == 2).next()['name'] == \
+u'Iñtërnâtiônàližætiøn'
+        True
+        >>> rfilter(records, 'day', lambda x: x == 3).next()['name']
+        u'rob'
+    """
+    pred = lambda x: predicate(x.get(field)) if predicate else None
+    return it.ifilter(pred, records)
+
+
+def unique(records, fields=None):
+    """ Determines unique records
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        fields (List[str]): The columns to use for testing uniqueness
+            (default: None, i.e., all columns)
+
+    Yields:
+        dict: Record. A row of data whose keys are the field names.
+
+    Examples:
+        >>> records = [
+        ...     {'day': 1, 'name': 'bill'},
+        ...     {'day': 1, 'name': 'bob'},
+        ...     {'day': 1, 'name': 'tom'},
+        ...     {'day': 2, 'name': 'bill'},
+        ...     {'day': 2, 'name': 'bob'},
+        ...     {'day': 2, 'name': 'Iñtërnâtiônàližætiøn'},
+        ...     {'day': 3, 'name': 'Iñtërnâtiônàližætiøn'},
+        ...     {'day': 3, 'name': 'bob'},
+        ...     {'day': 3, 'name': 'rob'},
+        ... ]
+        >>> it.islice(unique(records), 3, 4).next()['name']
+        u'bill'
+        >>> it.islice(unique(records, ['name']), 3, 4).next()['name'] == \
+u'Iñtërnâtiônàližætiøn'
+        True
+    """
+    seen = set()
+
+    for r in records:
+        unique = set(fields or r.keys())
+        entry = tuple(sorted((k, v) for k, v in r.items() if k in unique))
+
+        if entry not in seen:
+            seen.add(entry)
+            yield r

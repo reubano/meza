@@ -26,11 +26,13 @@ from __future__ import (
     unicode_literals)
 
 import itertools as it
+import unicodecsv as csv
 
 from os import path as p
 from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
+from StringIO import StringIO
 
-from . import fntools as ft, CURRENCIES
+from . import fntools as ft, CURRENCIES, ENCODING
 
 from dateutil.parser import parse
 
@@ -234,3 +236,44 @@ def to_filepath(filepath, **kwargs):
         filename = '%s.%s' % (filename, ctype2ext(ctype))
 
     return p.join(filepath, filename) if isdir else filepath
+
+
+def records2csv(records, header=None, encoding=ENCODING, bom=False):
+    """
+    Converts records into a csv file like object.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+    Kwargs:
+        header (List[str]): The header row (default: None)
+
+    Returns:
+        obj: StringIO.StringIO instance
+
+    Examples:
+        >>> from os import path as p
+        >>> from . import io
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'irismeta.csv')
+        >>> records = io.read_csv(filepath)
+        >>> header = records.next()
+        >>> sorted(header.keys())
+        [u'species', u'usda_id', u'wikipedia_url']
+        >>> csv_str = records2csv(records, header)
+        >>> csv_str.next().strip()
+        'usda_id,species,wikipedia_url'
+        >>> csv_str.next().strip()
+        'IRVE2,Iris-versicolor,http://en.wikipedia.org/wiki/Iris_versicolor'
+    """
+    f = StringIO()
+
+    if bom:
+        f.write(u'\ufeff'.encode(ENCODING))  # BOM for Windows
+
+    w = csv.DictWriter(f, header, encoding=encoding)
+    w.writer.writerow(header)
+    w.writerows(records)
+    f.seek(0)
+    return f

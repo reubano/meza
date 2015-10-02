@@ -94,7 +94,7 @@ def ctype2ext(content_type=None):
 
 
 def to_float(value):
-    """Parses and formats numbers into floats.
+    """Formats strings into floats.
 
     Args:
         value (str): The number to parse.
@@ -155,14 +155,16 @@ def _to_date(value, date_format=None):
 
 
 def to_date(value, date_format=None):
-    """Parses and formats date strings.
+    """Parses and formats strings into dates.
 
     Args:
-        value (str): The date to parse.
-        date_format (str): Date format passed to `strftime()`.
+        value (str): The string to parse.
+
+    Kwargs:
+        date_format (str): Time format passed to `strftime()` (default: None).
 
     Returns:
-        str: The formatted date string.
+        obj: The date object or formatted date string.
 
     Examples:
         >>> to_date('5/4/82')
@@ -196,7 +198,7 @@ def to_filepath(filepath, **kwargs):
 
     Args:
         filepath (str): Output file path or directory.
-        **kwargs: Keyword arguments.
+        kwargs: Keyword arguments.
 
     Kwargs:
         headers (dict): HTTP response headers, e.g., `r.headers`.

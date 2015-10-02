@@ -44,14 +44,14 @@ from . import process as pr, fntools as ft, dbf, ENCODING
 
 
 class IterStringIO(TextIOBase):
-    """A lazy StringIO that lets you writes a generator of strings. And reads
-    bytearrays
+    """A lazy StringIO that writes a generator of strings and reads bytearrays.
 
     http://stackoverflow.com/a/32020108/408556
     """
 
     def __init__(self, iterable=None):
         """ IterStringIO constructor
+
         Args:
             iterable (dict): bank mapper (see csv2vcard.mappings)
 
@@ -501,11 +501,11 @@ u'unicode_test': u'Unicode Test'}
 
 
 def write(filepath, content, mode='wb', **kwargs):
-    """Writes content to a file or file like object.
+    """Writes content to a file path or file like object.
 
     Args:
-        filepath (str): The path of the file or file like object to write to.
-        content (obj): File like object, iterable response, or iterable.
+        filepath (str): The file path or file like object to write to.
+        content (obj): File like object or `requests` iterable response.
         kwargs: Keyword arguments.
 
     Kwargs:
@@ -562,7 +562,7 @@ chunksize=2)
 
 
 def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
-    """Hashes a file or file like object.
+    """Hashes a file path or file like object.
     http://stackoverflow.com/a/1131255/408556
 
     Args:

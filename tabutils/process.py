@@ -471,12 +471,12 @@ def rfilter(records, field, predicate=None):
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        field (str): The column to group the records by
+        field (str): The column to to apply the predicate to.
 
     Kwargs:
-        predicate (func): Receives a value and should return `True` if the
-            record should be included (default: None, i.e., return the record
-            if value is `True`).
+        predicate (func): Receives the value of `field` and should return
+            `True`  if the record should be included (default: None, i.e.,
+            return the record if value is True).
 
     Returns:
         dict: Record. A row of data whose keys are the field names.

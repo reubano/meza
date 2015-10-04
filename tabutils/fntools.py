@@ -270,14 +270,17 @@ def guess_field_types(content):
         dict: Field type. The parsed field and its type.
 
     Examples:
-        >>> guess_field_types(['date', 'raw_value', 'text']).next()
-        {u'type': u'date', u'id': u'date'}
+        >>> fields = ['date', 'raw_value', 'date_and_time']
+        >>> [t['type'] for t in guess_field_types(fields)]
+        [u'date', u'float', u'datetime', u'date']
     """
     for item in content:
+        if 'date' in item and 'time' in item:
+            yield {'id': item, 'type': 'datetime'}
         if 'date' in item:
             yield {'id': item, 'type': 'date'}
         elif 'time' in item:
-            yield {'id': item, 'type': 'datetime'}
+            yield {'id': item, 'type': 'time'}
         elif find(['value', 'length', 'width', 'days'], [item], method='fuzzy'):
             yield {'id': item, 'type': 'float'}
         elif 'count' in item:

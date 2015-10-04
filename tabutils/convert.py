@@ -166,42 +166,6 @@ def to_float(value, **kwargs):
     return value
 
 
-def _to_date(value, date_format=None):
-    """Parses and formats date strings.
-
-    Args:
-        value (str): The date to parse.
-        date_format (str): Date format passed to `strftime()`.
-
-    Returns:
-        [tuple(str, bool)]: Tuple of the formatted date string and retry value.
-
-    Examples:
-        >>> _to_date('5/4/82')
-        (datetime.datetime(1982, 5, 4, 0, 0), False)
-        >>> _to_date('5/4/82', '%Y-%m-%d')
-        ('1982-05-04', False)
-        >>> _to_date('2/32/82', '%Y-%m-%d')
-        (u'2/32/82', True)
-    """
-    try:
-        if value and value.strip() and date_format:
-            value = parse(value).strftime(date_format)
-        elif value and value.strip():
-            value = parse(value)
-
-        retry = False
-    # impossible date, e.g., 2/31/15
-    except ValueError:
-        retry = True
-    # unparseable date, e.g., Novmbr 4
-    except TypeError:
-        value = None
-        retry = False
-
-    return (value, retry)
-
-
 def to_decimal(value, **kwargs):
     """Formats strings into decimals
 
@@ -244,6 +208,82 @@ def to_decimal(value, **kwargs):
     return quantized
 
 
+def _to_datetime(value):
+    """Parses and formats strings into datetimes.
+
+    Args:
+        value (str): The date to parse.
+
+    Returns:
+        [tuple(str, bool)]: Tuple of the formatted date string and retry value.
+
+    Examples:
+        >>> _to_datetime('5/4/82')
+        (datetime.datetime(1982, 5, 4, 0, 0), False)
+        >>> _to_datetime('2/32/82')
+        (u'2/32/82', True)
+        >>> _to_datetime('Novmbr 4')
+        (None, False)
+    """
+    try:
+        value = parse(value)
+    except ValueError:  # impossible date, e.g., 2/31/15
+        retry = True
+    except TypeError:  # unparseable date, e.g., Novmbr 4
+        value = None
+        retry = False
+    else:
+        retry = False
+
+    return (value, retry)
+
+
+def to_datetime(value, dt_format=None):
+    """Parses and formats strings into datetimes.
+
+    Args:
+        value (str): The string to parse.
+
+    Kwargs:
+        dt_format (str): Date format passed to `strftime()`
+            (default: None).
+
+    Returns:
+        obj: The datetime object or formatted datetime string.
+
+    Examples:
+        >>> to_datetime('5/4/82 2:00 pm')
+        datetime.datetime(1982, 5, 4, 14, 0)
+        >>> to_datetime('5/4/82 10:00', '%Y-%m-%d %H:%M:%S')
+        '1982-05-04 10:00:00'
+        >>> to_datetime('2/32/82 12:15', '%Y-%m-%d %H:%M:%S')
+        '1982-02-28 12:15:00'
+        >>> to_datetime('Novmbr 4')
+    """
+    bad_nums = it.imap(str, xrange(29, 33))
+    good_nums = it.imap(str, xrange(31, 27, -1))
+
+    try:
+        bad_num = it.ifilter(lambda x: x in value, bad_nums).next()
+    except StopIteration:
+        options = [value]
+    else:
+        possibilities = (value.replace(bad_num, x) for x in good_nums)
+        options = it.chain([value], possibilities)
+
+    # Fix impossible dates, e.g., 2/31/15
+    results = it.ifilterfalse(lambda x: x[1], it.imap(_to_datetime, options))
+
+    try:
+        good_value = results.next()[0]
+    except StopIteration:
+        datetime = None
+    else:
+        datetime = good_value.strftime(dt_format) if dt_format else good_value
+
+    return datetime
+
+
 def to_date(value, date_format=None):
     """Parses and formats strings into dates.
 
@@ -258,28 +298,38 @@ def to_date(value, date_format=None):
 
     Examples:
         >>> to_date('5/4/82')
-        datetime.datetime(1982, 5, 4, 0, 0)
+        datetime.date(1982, 5, 4)
         >>> to_date('5/4/82', '%Y-%m-%d')
         '1982-05-04'
         >>> to_date('2/32/82', '%Y-%m-%d')
         '1982-02-28'
     """
-    value, retry = _to_date(value, date_format)
+    value = to_datetime(value).date()
+    return value.strftime(date_format) if date_format else value
 
-    # Fix impossible dates, e.g., 2/31/15
-    if retry:
-        bad_num = [x for x in ['29', '30', '31', '32'] if x in value][0]
-        possibilities = [value.replace(bad_num, x) for x in ['30', '29', '28']]
 
-        for possible in possibilities:
-            value, retry = _to_date(possible, date_format)
+def to_time(value, time_format=None):
+    """Parses and formats strings into times.
 
-            if retry:
-                continue
-            else:
-                break
+    Args:
+        value (str): The string to parse.
 
-    return value
+    Kwargs:
+        time_format (str): Time format passed to `strftime()` (default: None).
+
+    Returns:
+        obj: The time object or formatted time string.
+
+    Examples:
+        >>> to_time('5/4/82 2:00 pm')
+        datetime.time(14, 0)
+        >>> to_time('5/4/82 10:00', '%H:%M:%S')
+        '10:00:00'
+        >>> to_time('2/32/82 12:15', '%H:%M:%S')
+        '12:15:00'
+    """
+    value = to_datetime(value).time()
+    return value.strftime(time_format) if time_format else value
 
 
 def to_filepath(filepath, **kwargs):

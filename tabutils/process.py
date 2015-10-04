@@ -67,14 +67,15 @@ def type_cast(records, fields):
         >>> casted_csv_values == casted_xls_values
         True
         >>> casted_csv_values
-        [datetime.datetime(2015, 1, 1, 0, 0), 100.0, None, None]
+        [datetime.date(2015, 1, 1), 100.0, None, None]
     """
     switch = {
         'int': cv.to_int,
         'float': cv.to_float,
         'decimal': cv.to_decimal,
         'date': cv.to_date,
-        'datetime': cv.to_date,
+        'time': cv.to_time,
+        'datetime': cv.to_datetime,
         'text': lambda v: unicode(v) if v and v.strip() else None
     }
 

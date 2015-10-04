@@ -36,27 +36,35 @@ from . import fntools as ft, CURRENCIES, ENCODING
 from dateutil.parser import parse
 
 
-def to_decimal(value, **kwargs):
-    """Parses and formats currency values into decimals
-    >>> to_decimal('$123.45')
-    Decimal('123.45')
-    >>> to_decimal('123€')
-    Decimal('123.00')
-    >>> to_decimal('2,123.45')
-    Decimal('2123.45')
-    >>> to_decimal('2.123,45', thousand_sep='.', decimal_sep=',')
-    Decimal('2123.45')
-    >>> to_decimal('spam')
+def _strip(value, **kwargs):
+    """Strips a string of all non-numeric characters.
+
+    Args:
+        value (str): The string to parse.
+        kwargs (dict): Keyword arguments.
+
+    Kwargs:
+        thousand_sep (char): .
+        decimal_sep (char): .
+
+    Examples:
+        >>> _strip('$123.45')
+        u'123.45'
+        >>> _strip('123€')
+        u'123'
+        >>> _strip('2,123.45')
+        u'2123.45'
+        >>> _strip('2.123,45', thousand_sep='.', decimal_sep=',')
+        u'2123.45'
+        >>> _strip('spam')
+        u'spam'
+
+    Returns:
+        str
     """
+    currencies = it.izip(CURRENCIES, it.repeat(''))
     thousand_sep = kwargs.get('thousand_sep', ',')
     decimal_sep = kwargs.get('decimal_sep', '.')
-    places = kwargs.get('places', 2)
-    roundup = kwargs.get('roundup', True)
-
-    rounding = ROUND_UP if roundup else ROUND_DOWN
-    precision = '.%s1' % ''.join(it.repeat('0', places - 1))
-
-    currencies = it.izip(CURRENCIES, it.repeat(''))
     seperators = [(thousand_sep, ''), (decimal_sep, '.')]
 
     try:
@@ -65,14 +73,7 @@ def to_decimal(value, **kwargs):
         # We don't have a string
         stripped = value
 
-    try:
-        decimalized = Decimal(stripped)
-    except InvalidOperation:
-        quantized = None
-    else:
-        quantized = decimalized.quantize(Decimal(precision), rounding=rounding)
-
-    return quantized
+    return stripped
 
 
 def ctype2ext(content_type=None):
@@ -93,26 +94,73 @@ def ctype2ext(content_type=None):
     return switch.get(ctype, 'csv')
 
 
-def to_float(value):
-    """Formats strings into floats.
+def to_int(value, **kwargs):
+    """Formats strings into integers.
 
     Args:
         value (str): The number to parse.
+        kwargs (dict): Keyword arguments.
+
+    Kwargs:
+        thousand_sep (char): .
+        decimal_sep (char): .
 
     Returns:
         flt: The parsed number.
 
     Examples:
-        >>> to_float('1')
-        1.0
-        >>> to_float('1f')
+        >>> to_int('$123.45')
+        123
+        >>> to_int('123€')
+        123
+        >>> to_int('2,123.45')
+        2123
+        >>> to_int('2.123,45', thousand_sep='.', decimal_sep=',')
+        2123
+        >>> to_int('spam')
+
+    Returns:
+        int
     """
-    if value and value.strip():
-        try:
-            value = float(value.replace(',', ''))
-        except ValueError:
-            value = None
-    else:
+    try:
+        value = int(float(_strip(value, **kwargs)))
+    except ValueError:
+        value = None
+
+    return value
+
+
+def to_float(value, **kwargs):
+    """Formats strings into floats.
+
+    Args:
+        value (str): The number to parse.
+        kwargs (dict): Keyword arguments.
+
+    Kwargs:
+        thousand_sep (char): .
+        decimal_sep (char): .
+
+    Returns:
+        flt: The parsed number.
+
+    Examples:
+        >>> to_float('$123.45')
+        123.45
+        >>> to_float('123€')
+        123.0
+        >>> to_float('2,123.45')
+        2123.45
+        >>> to_float('2.123,45', thousand_sep='.', decimal_sep=',')
+        2123.45
+        >>> to_float('spam')
+
+    Returns:
+        float
+    """
+    try:
+        value = float(_strip(value, **kwargs))
+    except ValueError:
         value = None
 
     return value
@@ -152,6 +200,48 @@ def _to_date(value, date_format=None):
         retry = False
 
     return (value, retry)
+
+
+def to_decimal(value, **kwargs):
+    """Formats strings into decimals
+
+    Args:
+        value (str): The string to parse.
+        kwargs (dict): Keyword arguments.
+
+    Kwargs:
+        thousand_sep (char): .
+        decimal_sep (char): .
+        roundup (bool): Round up to the desired number of decimal places (
+            default: True).
+
+        places (int): Number of decimal places to display (default: 2).
+
+    Examples:
+        >>> to_decimal('$123.45')
+        Decimal('123.45')
+        >>> to_decimal('123€')
+        Decimal('123.00')
+        >>> to_decimal('2,123.45')
+        Decimal('2123.45')
+        >>> to_decimal('2.123,45', thousand_sep='.', decimal_sep=',')
+        Decimal('2123.45')
+        >>> to_decimal('spam')
+
+    Returns:
+        decimal
+    """
+    try:
+        decimalized = Decimal(_strip(value, **kwargs))
+    except InvalidOperation:
+        quantized = None
+    else:
+        rounding = ROUND_UP if kwargs.get('roundup', True) else ROUND_DOWN
+        places = int(kwargs.get('places', 2))
+        precision = '.%s1' % ''.join(it.repeat('0', places - 1))
+        quantized = decimalized.quantize(Decimal(precision), rounding=rounding)
+
+    return quantized
 
 
 def to_date(value, date_format=None):

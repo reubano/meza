@@ -70,8 +70,9 @@ def type_cast(records, fields):
         [datetime.datetime(2015, 1, 1, 0, 0), 100.0, None, None]
     """
     switch = {
-        'int': int,
+        'int': cv.to_int,
         'float': cv.to_float,
+        'decimal': cv.to_decimal,
         'date': cv.to_date,
         'datetime': cv.to_date,
         'text': lambda v: unicode(v) if v and v.strip() else None

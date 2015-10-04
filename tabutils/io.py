@@ -520,19 +520,14 @@ def write(filepath, content, mode='wb', **kwargs):
 
     Examples:
         >>> import requests
-        >>> from tempfile import TemporaryFile, NamedTemporaryFile
-        >>> tmpfile = NamedTemporaryFile(delete='True')
-        >>> write(tmpfile.name, StringIO('Hello World'))
+        >>> from tempfile import TemporaryFile
+        >>> write(TemporaryFile(), StringIO('Hello World'))
         11
         >>> write(TemporaryFile(), StringIO('Iñtërnâtiônàližætiøn'))
         20
-        >>> write(TemporaryFile(), IterStringIO(iter('Hello World')))
-        11
         >>> write(TemporaryFile(), IterStringIO(iter('Hello World')), \
 chunksize=2)
         12
-        >>> write(TemporaryFile(), StringIO('http://google.com'))
-        17
         >>> r = requests.get('http://google.com', stream=True)
         >>> write(TemporaryFile(), r.iter_content) > 10000
         True

@@ -40,7 +40,7 @@ from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
     XL_CELL_ERROR)
 
-from . import process as pr, fntools as ft, dbf, ENCODING
+from . import fntools as ft, dbf, ENCODING
 
 
 class IterStringIO(TextIOBase):
@@ -339,7 +339,7 @@ u'unicode_test': u'Unicode Test'}
             records = _read_csv(f, encoding, names)
         except UnicodeDecodeError:
             # Try to detect the encoding
-            encoding = pr.detect_encoding(f)['encoding']
+            encoding = detect_encoding(f)['encoding']
             records = _read_csv(f, encoding, names)
 
         records.next() if remove_header else None

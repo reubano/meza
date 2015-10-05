@@ -27,6 +27,7 @@ from __future__ import (
 
 import itertools as it
 
+from functools import partial
 from slugify import slugify
 
 from . import CURRENCIES, ENCODING
@@ -142,25 +143,28 @@ def byte(content):
         bytearray(b'Hello World!')
         >>> byte(list(content))
         bytearray(b'Hello World!')
+        >>> byte(iter(content))
+        bytearray(b'Hello World!')
         >>> content = 'Iñtërnâtiônàližætiøn'
         >>> byte(content) == bytearray(b'Iñtërnâtiônàližætiøn')
         True
         >>> byte(list(content)) == bytearray(b'Iñtërnâtiônàližætiøn')
         True
     """
+    tupled = tuple(content) if hasattr(content, 'next') else content
+
     try:
         # like ['H', 'e', 'l', 'l', 'o']
-        value = bytearray(content)
+        value = bytearray(tupled)
     except ValueError:
         # like ['I', '\xc3\xb1', 't', '\xc3\xab', 'r', 'n', '\xc3\xa2']
-        value = reduce(lambda x, y: x + y, it.imap(bytearray, content))
+        value = reduce(lambda x, y: x + y, it.imap(bytearray, tupled))
     except TypeError:
         # like Hello
         # or [u'I', u'\xf1', u't', u'\xeb', u'r', u'n', u'\xe2']
         # or [u'H', u'e', u'l', u'l', u'o']
-        value = reduce(
-            lambda x, y: x + y,
-            (bytearray(item, encoding=ENCODING) for item in content))
+        bytefunc = partial(bytearray, encoding=ENCODING)
+        value = reduce(lambda x, y: x + y, it.imap(bytefunc, tupled))
 
     return value
 

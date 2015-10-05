@@ -82,15 +82,14 @@ class IterStringIO(TextIOBase):
         iterable = iterable or []
         return it.chain.from_iterable(it.ifilter(None, iterable))
 
-    def _read(self, iterable, n):
-        sliced = list(it.islice(iterable, None, n))
-        return ft.byte(sliced)
+    def _read(self, iterable, n=None):
+        return ft.byte(it.islice(iterable, n)) if n else ft.byte(iterable)
 
     def write(self, iterable):
         chained = self._chain(iterable)
         self.iter = self._chain([self.iter, self._encode(chained)])
 
-    def read(self, n=pow(2, 34)):
+    def read(self, n=None):
         return self._read(self.iter, n)
 
     def readline(self, n=pow(2, 34)):

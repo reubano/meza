@@ -74,10 +74,16 @@ class IterStringIO(TextIOBase):
             bytearray(b'line one')
         """
         iterable = iterable or []
-        not_newline = lambda s: s not in {'\n', '\r', '\r\n'}
         chained = self._chain(iterable)
         self.iter = self._encode(chained)
-        self.next_line = it.takewhile(not_newline, self.iter)
+
+    @property
+    def lines(self):
+        # TODO: what about a csv with embedded newlines?
+        newlines = {'\n', '\r', '\r\n'}
+        for k, g in it.groupby(self.iter, lambda s: s not in newlines):
+            if k:
+                yield g
 
     def _encode(self, iterable):
         return (s.encode(ENCODING) for s in iterable)
@@ -96,8 +102,8 @@ class IterStringIO(TextIOBase):
     def read(self, n=None):
         return self._read(self.iter, n)
 
-    def readline(self, n=pow(2, 34)):
-        return self._read(self.next_line, n)
+    def readline(self, n=None):
+        return self._read(self.lines.next(), n)
 
 
 def patch_http_response_read(func):

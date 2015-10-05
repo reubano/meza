@@ -77,6 +77,22 @@ def _strip(value, **kwargs):
 
 
 def ctype2ext(content_type=None):
+    """Converts an http content type to a file extension.
+
+    Args:
+        content_type (str): Output file path or directory.
+
+    Returns:
+        str: file extension
+
+    Examples:
+        >>> ctype2ext('/csv;')
+        u'csv'
+        >>> ctype2ext('/xls;')
+        u'xls'
+        >>> ctype2ext('/vnd.openxmlformats-officedocument.spreadsheetml.sheet;')
+        u'xlsx'
+    """
     try:
         ctype = content_type.split('/')[1].split(';')[0]
     except (AttributeError, IndexError):

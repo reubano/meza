@@ -68,6 +68,10 @@ class IterStringIO(TextIOBase):
             >>> iter_sio.write(': Iñtërnâtiônàližætiøn')
             >>> iter_sio.read() == bytearray(b' person: Iñtërnâtiônàližætiøn')
             True
+            >>> content = 'line one\\nline two\\nline three\\n'
+            >>> iter_sio = IterStringIO(content)
+            >>> iter_sio.readline()
+            bytearray(b'line one')
         """
         iterable = iterable or []
         not_newline = lambda s: s not in {'\n', '\r', '\r\n'}

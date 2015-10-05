@@ -154,13 +154,13 @@ def byte(content):
     tupled = tuple(content) if hasattr(content, 'next') else content
 
     try:
-        # like ['H', 'e', 'l', 'l', 'o']
+        # encoded iterable like ['H', 'e', 'l', 'l', 'o']
         value = bytearray(tupled)
     except ValueError:
-        # like ['I', '\xc3\xb1', 't', '\xc3\xab', 'r', 'n', '\xc3\xa2']
+        # encoded iterable like ['I', '\xc3\xb1', 't', '\xc3\xab', 'r', 'n']
         value = reduce(lambda x, y: x + y, it.imap(bytearray, tupled))
     except TypeError:
-        # like Hello
+        # unicode iterable like Hello
         # or [u'I', u'\xf1', u't', u'\xeb', u'r', u'n', u'\xe2']
         # or [u'H', u'e', u'l', u'l', u'o']
         bytefunc = partial(bytearray, encoding=ENCODING)

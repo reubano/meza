@@ -72,6 +72,8 @@ class IterStringIO(TextIOBase):
             >>> iter_sio = IterStringIO(content)
             >>> iter_sio.readline()
             bytearray(b'line one')
+            >>> list(iter_sio.readlines())
+            [bytearray(b'line two'), bytearray(b'line three')]
         """
         iterable = iterable or []
         chained = self._chain(iterable)
@@ -105,6 +107,8 @@ class IterStringIO(TextIOBase):
     def readline(self, n=None):
         return self._read(self.lines.next(), n)
 
+    def readlines(self):
+        return it.imap(self._read, self.lines)
 
 def patch_http_response_read(func):
     """Patches httplib to read poorly encoded chunked data.

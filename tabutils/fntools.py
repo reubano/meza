@@ -421,7 +421,7 @@ def fill(prev_row, cur_row, **kwargs):
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'bad.csv')
-        >>> records = io.read_csv(filepath, remove_header=True)
+        >>> records = io.read_csv(filepath)
         >>> prev_row = {}
         >>> cur_row = records.next()
         >>> cur_row == {

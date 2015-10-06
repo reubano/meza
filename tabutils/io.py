@@ -33,7 +33,6 @@ from StringIO import StringIO
 from io import TextIOBase
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 
-from slugify import slugify
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from chardet.universaldetector import UniversalDetector
 from xlrd import (
@@ -126,7 +125,7 @@ def patch_http_response_read(func):
 httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 
-def _read_csv(f, encoding, names=('field_0',)):
+def _read_csv(f, encoding, header=None, has_header=True):
     """Helps read a csv file.
 
     Args:
@@ -134,7 +133,7 @@ def _read_csv(f, encoding, names=('field_0',)):
         encoding (str): File encoding.
 
     Kwargs:
-        names (List[str]): The header names.
+        header (List[str]): The column names.
 
     Yields:
         dict: A csv record.
@@ -142,17 +141,36 @@ def _read_csv(f, encoding, names=('field_0',)):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
-        >>> f = open(filepath, 'rU')
-        >>> names = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
-        >>> records = _read_csv(f, 'utf-8', names)
-        >>> it.islice(records, 2, 3).next()['some_date']
-        u'01-Jan-15'
+        >>> with_header = p.join(parent_dir, 'data', 'test', 'test.csv')
+        >>> no_header = p.join(parent_dir, 'data', 'test', 'no_header_row.csv')
+        >>> f = open(with_header, 'rU')
+        >>> sorted(_read_csv(f, 'utf-8').next().items()) == [(u'Some Date', \
+u'05/04/82'), (u'Some Value', u'234'), (u'Sparse Data', \
+u'Iñtërnâtiônàližætiøn'), (u'Unicode Test', u'Ādam')]
+        True
+        >>> header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
+        >>> sorted(_read_csv(f, 'utf-8', header).next().items()) == [\
+(u'some_date', u'05/04/82'), (u'some_value', u'234'), (u'sparse_data', \
+u'Iñtërnâtiônàližætiøn'), (u'unicode_test', u'Ādam')]
+        True
         >>> f.close()
+        >>> header = ['col_1', 'col_2', 'col_3']
+        >>> with open(no_header, 'rU') as f:
+        ...     records = _read_csv(f, 'utf-8', header, has_header=False)
+        ...     sorted(records.next().items())
+        [(u'col_1', u'1'), (u'col_2', u'2'), (u'col_3', u'3')]
     """
-    # Read data
     f.seek(0)
-    reader = csv.DictReader(f, names, encoding=encoding)
+
+    if header and has_header:
+        f.next()
+        reader = csv.DictReader(f, header, encoding=encoding)
+    elif header:
+        reader = csv.DictReader(f, header, encoding=encoding)
+    elif has_header:
+        reader = csv.DictReader(f, encoding=encoding)
+    else:
+        raise ValueError('Either `header` or `has_header` must be specified.')
 
     # Remove `None` keys
     records = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
@@ -187,20 +205,21 @@ def read_mdb(filepath, table=None, **kwargs):
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.mdb')
         >>> records = read_mdb(filepath, sanitize=True)
-        >>> header = sorted(records.next().keys())
-        >>> header
-        [u'date_of_order_of_court', u'forenames', \
-u'forenames_master_or_father', u'freedom', u'how_admitted', u'id_no', \
-u'livery', u'notes', u'remarks', u'source_ref', u'surname', \
-u'surname_master_or_father']
-        >>> row = records.next()
-        >>> [row[h] for h in header]
-        [u'', u'Richard', u'', u'05/11/01 00:00:00', u'Redn.', u'2', u'', \
-u'', u'', u'MF 324', u'Abbey', u'']
-        >>> [r['surname'] for r in records]
-        [u'Abbis', u'Abbis', u'Abbis', u'Abbot', u'Abbot', u'Abbott', \
-u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', u'Abbott', \
-u'Abbott', u'Abbott', u'Abbott', u'Abbott', u"'"]
+        >>> records.next() == {
+        ...     u'surname': u'Aaron',
+        ...     u'forenames': u'William',
+        ...     u'freedom': u'07/03/60 00:00:00',
+        ...     u'notes': u'Order of Court',
+        ...     u'surname_master_or_father': u'',
+        ...     u'how_admitted': u'Redn.',
+        ...     u'id_no': u'1',
+        ...     u'forenames_master_or_father': u'',
+        ...     u'remarks': u'',
+        ...     u'livery': u'',
+        ...     u'date_of_order_of_court': u'06/05/60 00:00:00',
+        ...     u'source_ref': u'MF 324'}
+        ...
+        True
     """
     args = ['mdb-tables', '-1', filepath]
 
@@ -259,28 +278,38 @@ def read_dbf(filepath, **kwargs):
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.dbf')
         >>> records = read_dbf(filepath, sanitize=True)
-        >>> header = sorted(records.next().keys())
-        >>> header
-        [u'aland10', u'awater10', u'cd111fp', u'cdsessn', u'funcstat10', \
-u'geoid10', u'intptlat10', u'intptlon10', u'lsad10', u'mtfcc10', \
-u'namelsad10', u'statefp10']
-        >>> row = records.next()
-        >>> [row[h] for h in header]
-        [320220379, 15485125, u'05', u'111', u'N', u'2705', u'+44.9781144', \
-u'-093.2928317', u'C2', u'G5200', u'Congressional District 5', u'27']
-        >>> [r['namelsad10'] for r in records]
-        [u'Congressional District 4', u'Congressional District 2', \
-u'Congressional District 1', u'Congressional District 6', u'Congressional \
-District 7', u'Congressional District 3']
-        >>> f = open(filepath, 'rb')
-        >>> read_dbf(f, sanitize=True, recfactory=dict).next() == {\
-u'awater10': 12416573076, u'aland10': 71546663636, u'intptlat10': \
-u'+47.2400052', u'lsad10': u'C2', u'cd111fp': u'08', u'namelsad10': \
-u'Congressional District 8', u'funcstat10': u'N', u'statefp10': u'27', \
-u'cdsessn': u'111', u'mtfcc10': u'G5200', u'geoid10': u'2708', u'intptlon10': \
-u'-092.9323194'}
+        >>> records.next() == {
+        ...      u'awater10': 12416573076,
+        ...      u'aland10': 71546663636,
+        ...      u'intptlat10': u'+47.2400052',
+        ...      u'lsad10': u'C2',
+        ...      u'cd111fp': u'08',
+        ...      u'namelsad10': u'Congressional District 8',
+        ...      u'funcstat10': u'N',
+        ...      u'statefp10': u'27',
+        ...      u'cdsessn': u'111',
+        ...      u'mtfcc10': u'G5200',
+        ...      u'geoid10': u'2708',
+        ...      u'intptlon10': u'-092.9323194'}
+        ...
         True
-        >>> f.close()
+        >>> with open(filepath, 'rb') as f:
+        ...     records = read_dbf(f, sanitize=True)
+        ...     records.next() == {
+        ...         u'awater10': 12416573076,
+        ...         u'aland10': 71546663636,
+        ...         u'intptlat10': u'+47.2400052',
+        ...         u'lsad10': u'C2',
+        ...         u'cd111fp': u'08',
+        ...         u'namelsad10': u'Congressional District 8',
+        ...         u'funcstat10': u'N',
+        ...         u'statefp10': u'27',
+        ...         u'cdsessn': u'111',
+        ...         u'mtfcc10': u'G5200',
+        ...         u'geoid10': u'2708',
+        ...         u'intptlon10': u'-092.9323194'}
+        ...
+        True
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
 
@@ -301,7 +330,6 @@ def read_csv(filepath, mode='rU', **kwargs):
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
-        remove_header (bool): Remove header record from result (default: False).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -320,45 +348,61 @@ def read_csv(filepath, mode='rU', **kwargs):
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> records = read_csv(filepath, sanitize=True)
-        >>> header = sorted(records.next().keys())
-        >>> header
-        [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
-        >>> row = records.next()
-        >>> [row[h] for h in header] == [ \
-u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
+        >>> records.next() == {
+        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
+        ...     u'some_date': u'05/04/82',
+        ...     u'some_value': u'234',
+        ...     u'unicode_test': u'Ādam'}
+        ...
         True
-        >>> [r['some_date'] for r in records]
-        [u'01-Jan-15', u'December 31, 1995']
-        >>> f = open(filepath, 'rU')
-        >>> read_csv(f, sanitize=True).next() == {u'sparse_data': u'Sparse \
-Data', u'some_date': u'Some Date', u'some_value': u'Some Value', \
-u'unicode_test': u'Unicode Test'}
+        >>> with open(filepath, 'rU') as f:
+        ...     records = read_csv(f, sanitize=True)
+        ...     records.next() == {
+        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
+        ...     u'some_date': u'05/04/82',
+        ...     u'some_value': u'234',
+        ...     u'unicode_test': u'Ādam'}
+        ...
         True
-        >>> f.close()
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'no_header_row.csv')
+        >>> records = read_csv(filepath, has_header=False)
+        >>> records.next() == {
+        ...     u'column_1': u'1',
+        ...     u'column_2': u'2',
+        ...     u'column_3': u'3'}
+        ...
+        True
     """
-    def read_file(f):
-        encoding = kwargs.pop('encoding', ENCODING)
-        sanitize = kwargs.pop('sanitize', False)
-        remove_header = kwargs.pop('remove_header', False)
-        names = None
+    encoding = kwargs.pop('encoding', ENCODING)
+    sanitize = kwargs.pop('sanitize', False)
+    has_header = kwargs.pop('has_header', True)
 
-        if kwargs.pop('has_header', True):
-            # Remove empty columns and underscorify field names
-            header = csv.reader(f, encoding=encoding, **kwargs).next()
-            names = [name for name in header if name.strip()]
-            names = list(ft.underscorify(names)) if sanitize else names
+    def read_file(f):
+        # Get header row and remove empty columns
+        names = csv.reader(f, encoding=encoding, **kwargs).next()
+
+        if has_header:
+            stripped = [name for name in names if name.strip()]
+            header = list(ft.underscorify(stripped)) if sanitize else stripped
+        else:
+            header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
         try:
-            records = _read_csv(f, encoding, names)
+            records = _read_csv(f, encoding, header, has_header)
         except UnicodeDecodeError:
             # Try to detect the encoding
-            encoding = detect_encoding(f)['encoding']
-            records = _read_csv(f, encoding, names)
+            new_encoding = detect_encoding(f)['encoding']
+            records = _read_csv(f, new_encoding, header, has_header)
 
-        records.next() if remove_header else None
+        return records
 
-        for row in records:
+    if hasattr(filepath, 'read'):
+        for row in read_file(filepath):
             yield row
+    else:
+        with open(filepath, mode) as f:
+            for row in read_file(f):
+                yield row
 
     if hasattr(filepath, 'read'):
         for row in read_file(filepath):
@@ -417,6 +461,7 @@ def read_xls(filepath, **kwargs):
 
     Kwargs:
         sheet (int): Zero indexed sheet to open (default: 0)
+        has_header (bool): Has header row (default: True).
         date_format (str): Date format passed to `strftime()` (default:
             '%Y-%m-%d', i.e, 'YYYY-MM-DD').
 
@@ -449,33 +494,34 @@ def read_xls(filepath, **kwargs):
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
         >>> records = read_xls(filepath, sanitize=True)
-        >>> header = sorted(records.next().keys())
-        >>> header
-        [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
-        >>> row = records.next()
-        >>> [row[h] for h in header] == [ \
-'1982-05-04', u'234.0', u'Iñtërnâtiônàližætiøn', u'Ādam']
+        >>> records.next() == {
+        ...     u'some_value': u'234.0',
+        ...     u'some_date': '1982-05-04',
+        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
+        ...     u'unicode_test': u'Ādam'}
+        ...
         True
-        >>> [r['some_date'] for r in records]
-        ['2015-01-01', '1995-12-31']
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xlsx')
         >>> records = read_xls(filepath, sanitize=True)
-        >>> header = sorted(records.next().keys())
-        >>> header
-        [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
-        >>> row = records.next()
-        >>> [row[h] for h in header] == [ \
-'1982-05-04', u'234.0', u'Iñtërnâtiônàližætiøn', u'Ādam']
+        >>> records.next() == {
+        ...     u'some_value': u'234.0',
+        ...     u'some_date': '1982-05-04',
+        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
+        ...     u'unicode_test': u'Ādam'}
+        ...
         True
-        >>> [r['some_date'] for r in records]
-        ['2015-01-01', '1995-12-31']
-        >>> f = open(filepath, 'r+b')
-        >>> read_xls(f, sanitize=True).next() == {u'some_value': \
-u'Some Value', u'some_date': u'Some Date', u'sparse_data': u'Sparse Data', \
-u'unicode_test': u'Unicode Test'}
+        >>> with open(filepath, 'r+b') as f:
+        ...     records = read_xls(f, sanitize=True)
+        ...     records.next() == {
+        ...         u'some_value': u'234.0',
+        ...         u'some_date': '1982-05-04',
+        ...         u'sparse_data': u'Iñtërnâtiônàližætiøn',
+        ...         u'unicode_test': u'Ādam'}
         True
-        >>> f.close()
     """
+    has_header = kwargs.get('has_header', True)
+    sanitize = kwargs.get('sanitize')
+
     xlrd_kwargs = {
         'on_demand': kwargs.get('on_demand'),
         'ragged_rows': not kwargs.get('pad_rows'),
@@ -493,24 +539,27 @@ u'unicode_test': u'Unicode Test'}
         book = xlrd.open_workbook(filepath, **xlrd_kwargs)
 
     sheet = book.sheet_by_index(kwargs.get('sheet', 0))
-    header = sheet.row_values(0)
 
-    # Remove empty columns
-    names = [name for name in header if name.strip()]
-
-    # Underscorify field names
-    if kwargs.get('sanitize'):
-        names = [slugify(name, separator='_') for name in names]
+    # Get header row and remove empty columns
+    if has_header:
+        names = sheet.row_values(0)
+        stripped = [name for name in names if name.strip()]
+        header = list(ft.underscorify(stripped)) if sanitize else stripped
+    else:
+        header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
     # Convert to strings
     sanitized = sanitize_sheet(sheet, book.datemode, date_format)
 
     for key, group in it.groupby(sanitized, lambda v: v[0]):
+        if has_header and key == 0:
+            continue
+
         values = [g[1] for g in group]
 
         # Remove empty rows
         if any(v and v.strip() for v in values):
-            yield dict(zip(names, values))
+            yield dict(zip(header, values))
 
 
 def write(filepath, content, mode='wb', **kwargs):

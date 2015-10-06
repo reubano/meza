@@ -429,19 +429,18 @@ def records2csv(records, header=None, encoding=ENCODING, bom=False):
         obj: StringIO.StringIO instance
 
     Examples:
-        >>> from os import path as p
-        >>> from . import io
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'irismeta.csv')
-        >>> records = io.read_csv(filepath)
-        >>> header = records.next()
-        >>> sorted(header.keys())
-        [u'species', u'usda_id', u'wikipedia_url']
+        >>> records = [
+        ...     {
+        ...         u'usda_id': u'IRVE2',
+        ...         u'species': u'Iris-versicolor',
+        ...         u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}]
+        ...
+        >>> header = records[0].keys()
         >>> csv_str = records2csv(records, header)
         >>> csv_str.next().strip()
         'usda_id,species,wikipedia_url'
         >>> csv_str.next().strip()
-        'IRVE2,Iris-versicolor,http://en.wikipedia.org/wiki/Iris_versicolor'
+        'IRVE2,Iris-versicolor,wikipedia.org/wiki/Iris_versicolor'
     """
     f = StringIO()
 

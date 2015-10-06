@@ -47,27 +47,32 @@ def type_cast(records, fields):
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> csv_filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
-        >>> csv_records = io.read_csv(csv_filepath, sanitize=True)
-        >>> csv_header = sorted(csv_records.next().keys())
+        >>> csv_records = list(io.read_csv(csv_filepath, sanitize=True))
+        >>> csv_header = csv_records[0].keys()
         >>> csv_fields = ft.guess_field_types(csv_header)
-        >>> csv_records.next()['some_date']
+        >>> csv_records[0]['some_date']
         u'05/04/82'
         >>> casted_csv_row = type_cast(csv_records, csv_fields).next()
         >>> casted_csv_values = [casted_csv_row[h] for h in csv_header]
         >>>
         >>> xls_filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
-        >>> xls_records = io.read_xls(xls_filepath, sanitize=True)
-        >>> xls_header = sorted(xls_records.next().keys())
+        >>> xls_records = list(io.read_xls(xls_filepath, sanitize=True))
+        >>> xls_header = xls_records[0].keys()
+        >>> set(csv_header) == set(xls_header)
+        True
         >>> xls_fields = ft.guess_field_types(xls_header)
-        >>> xls_records.next()['some_date']
+        >>> xls_records[0]['some_date']
         '1982-05-04'
         >>> casted_xls_row = type_cast(xls_records, xls_fields).next()
         >>> casted_xls_values = [casted_xls_row[h] for h in xls_header]
         >>>
-        >>> casted_csv_values == casted_xls_values
+        >>> set(casted_csv_values) == set(casted_xls_values)
         True
-        >>> casted_csv_values
-        [datetime.date(2015, 1, 1), 100.0, None, None]
+        >>> casted_csv_values == [
+        ...     u'Iñtërnâtiônàližætiøn', datetime.date(1982, 5, 4), 234.0,
+        ...     u'Ādam']
+        ...
+        True
     """
     switch = {
         'int': cv.to_int,
@@ -118,7 +123,7 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'bad.csv')
-        >>> records = list(io.read_csv(filepath, remove_header=True))
+        >>> records = list(io.read_csv(filepath))
         >>> records == [
         ...    {
         ...        u'column_a': u'1',
@@ -420,8 +425,8 @@ def pivot(records, **kwargs):
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'iris.csv')
-        >>> records = io.read_csv(filepath)
-        >>> header = records.next().keys()
+        >>> records = list(io.read_csv(filepath))
+        >>> header = records[0].keys()
         >>> sorted(header)
         [u'petal_length', u'petal_width', u'sepal_length', u'sepal_width', \
 u'species']

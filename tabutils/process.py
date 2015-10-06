@@ -43,37 +43,45 @@ def type_cast(records, fields):
         dict: Type casted record. A row of data whose keys are the field names.
 
     Examples:
+        >>> import datetime
         >>> from os import path as p
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> csv_filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
-        >>> csv_records = io.read_csv(csv_filepath, sanitize=True)
-        >>> csv_header = sorted(csv_records.next().keys())
+        >>> csv_records = list(io.read_csv(csv_filepath, sanitize=True))
+        >>> csv_header = csv_records[0].keys()
         >>> csv_fields = ft.guess_field_types(csv_header)
-        >>> csv_records.next()['some_date']
+        >>> csv_records[0]['some_date']
         u'05/04/82'
         >>> casted_csv_row = type_cast(csv_records, csv_fields).next()
         >>> casted_csv_values = [casted_csv_row[h] for h in csv_header]
         >>>
         >>> xls_filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
-        >>> xls_records = io.read_xls(xls_filepath, sanitize=True)
-        >>> xls_header = sorted(xls_records.next().keys())
+        >>> xls_records = list(io.read_xls(xls_filepath, sanitize=True))
+        >>> xls_header = xls_records[0].keys()
+        >>> set(csv_header) == set(xls_header)
+        True
         >>> xls_fields = ft.guess_field_types(xls_header)
-        >>> xls_records.next()['some_date']
+        >>> xls_records[0]['some_date']
         '1982-05-04'
         >>> casted_xls_row = type_cast(xls_records, xls_fields).next()
         >>> casted_xls_values = [casted_xls_row[h] for h in xls_header]
         >>>
-        >>> casted_csv_values == casted_xls_values
+        >>> set(casted_csv_values) == set(casted_xls_values)
         True
-        >>> casted_csv_values
-        [datetime.datetime(2015, 1, 1, 0, 0), 100.0, None, None]
+        >>> casted_csv_values == [
+        ...     u'Iñtërnâtiônàližætiøn', datetime.date(1982, 5, 4), 234.0,
+        ...     u'Ādam']
+        ...
+        True
     """
     switch = {
-        'int': int,
+        'int': cv.to_int,
         'float': cv.to_float,
+        'decimal': cv.to_decimal,
         'date': cv.to_date,
-        'datetime': cv.to_date,
+        'time': cv.to_time,
+        'datetime': cv.to_datetime,
         'text': lambda v: unicode(v) if v and v.strip() else None
     }
 
@@ -116,7 +124,7 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'bad.csv')
-        >>> records = list(io.read_csv(filepath, remove_header=True))
+        >>> records = list(io.read_csv(filepath))
         >>> records == [
         ...    {
         ...        u'column_a': u'1',
@@ -418,8 +426,8 @@ def pivot(records, **kwargs):
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'iris.csv')
-        >>> records = io.read_csv(filepath)
-        >>> header = records.next().keys()
+        >>> records = list(io.read_csv(filepath))
+        >>> header = records[0].keys()
         >>> sorted(header)
         [u'petal_length', u'petal_width', u'sepal_length', u'sepal_width', \
 u'species']
@@ -428,55 +436,35 @@ u'species']
         >>> table_records = pivot(
         ...     casted_records, values='sepal_length',
         ...     index=['sepal_width'], columns=['species'])
-        >>> header = table_records.next().keys()
-        >>> header
-        [u'Iris-virginica', u'sepal_width', u'Iris-setosa', u'Iris-versicolor']
-        >>> sorted(table_records.next().items())
-        [(u'Iris-setosa', nan), (u'Iris-versicolor', 5.0), \
-(u'Iris-virginica', nan), (u'sepal_width', 2.0)]
+        >>> row = table_records.next()
+        >>> row['sepal_width']
+        2.0
+        >>> row['Iris-versicolor']
+        5.0
     """
     try:
         import pandas as pd
     except ImportError:
-        pd = None
-
-    if not pd:
-        print(
-            "You must install pandas, i.e. `pip install pandas`, to use this"
-            " function")
+        raise ImportError("pandas is required to use this function")
     else:
         df = pd.DataFrame.from_records(records)
         table = df.pivot_table(**kwargs)
-        keys = list(table.index.names)
-
-        try:
-            keys.extend(table.columns.tolist())
-        except AttributeError:
-            # we have a Series, not a DataFrame
-            keys.append(table.name)
-            rows = (i[0] + (i[1],) for i in table.iteritems())
-        else:
-            rows = table.itertuples()
-
-        yield dict(zip(keys, keys))
-
-        for values in rows:
-            yield dict(zip(keys, values))
+        return cv.df2records(table)
 
 
-def rfilter(records, field, predicate=None):
+def tfilter(records, field, predicate=None):
     """ Yields records for which the predicate is True for a given field.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        field (str): The column to group the records by
+        field (str): The column to to apply the predicate to.
 
     Kwargs:
-        predicate (func): Receives a value and should return `True` if the
-            record should be included (default: None, i.e., return the record
-            if value is `True`).
+        predicate (func): Receives the value of `field` and should return
+            `True`  if the record should be included (default: None, i.e.,
+            return the record if value is True).
 
     Returns:
         dict: Record. A row of data whose keys are the field names.
@@ -489,10 +477,10 @@ def rfilter(records, field, predicate=None):
         ...     {'day': 2, 'name': 'Iñtërnâtiônàližætiøn'},
         ...     {'day': 3, 'name': 'rob'},
         ... ]
-        >>> rfilter(records, 'day', lambda x: x == 2).next()['name'] == \
+        >>> tfilter(records, 'day', lambda x: x == 2).next()['name'] == \
 u'Iñtërnâtiônàližætiøn'
         True
-        >>> rfilter(records, 'day', lambda x: x == 3).next()['name']
+        >>> tfilter(records, 'day', lambda x: x == 3).next()['name']
         u'rob'
     """
     pred = lambda x: predicate(x.get(field)) if predicate else None
@@ -500,7 +488,7 @@ u'Iñtërnâtiônàližætiøn'
 
 
 def unique(records, fields=None):
-    """ Determines unique records
+    """ Yields unique records
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.

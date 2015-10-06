@@ -27,6 +27,7 @@ from __future__ import (
 
 import itertools as it
 
+from functools import partial
 from slugify import slugify
 
 from . import CURRENCIES, ENCODING
@@ -142,25 +143,28 @@ def byte(content):
         bytearray(b'Hello World!')
         >>> byte(list(content))
         bytearray(b'Hello World!')
+        >>> byte(iter(content))
+        bytearray(b'Hello World!')
         >>> content = 'Iñtërnâtiônàližætiøn'
         >>> byte(content) == bytearray(b'Iñtërnâtiônàližætiøn')
         True
         >>> byte(list(content)) == bytearray(b'Iñtërnâtiônàližætiøn')
         True
     """
+    tupled = tuple(content) if hasattr(content, 'next') else content
+
     try:
-        # like ['H', 'e', 'l', 'l', 'o']
-        value = bytearray(content)
+        # encoded iterable like ['H', 'e', 'l', 'l', 'o']
+        value = bytearray(tupled)
     except ValueError:
-        # like ['I', '\xc3\xb1', 't', '\xc3\xab', 'r', 'n', '\xc3\xa2']
-        value = reduce(lambda x, y: x + y, it.imap(bytearray, content))
+        # encoded iterable like ['I', '\xc3\xb1', 't', '\xc3\xab', 'r', 'n']
+        value = reduce(lambda x, y: x + y, it.imap(bytearray, tupled))
     except TypeError:
-        # like Hello
+        # unicode iterable like Hello
         # or [u'I', u'\xf1', u't', u'\xeb', u'r', u'n', u'\xe2']
         # or [u'H', u'e', u'l', u'l', u'o']
-        value = reduce(
-            lambda x, y: x + y,
-            (bytearray(item, encoding=ENCODING) for item in content))
+        bytefunc = partial(bytearray, encoding=ENCODING)
+        value = reduce(lambda x, y: x + y, it.imap(bytefunc, tupled))
 
     return value
 
@@ -270,14 +274,17 @@ def guess_field_types(content):
         dict: Field type. The parsed field and its type.
 
     Examples:
-        >>> guess_field_types(['date', 'raw_value', 'text']).next()
-        {u'type': u'date', u'id': u'date'}
+        >>> fields = ['date', 'raw_value', 'date_and_time']
+        >>> [t['type'] for t in guess_field_types(fields)]
+        [u'date', u'float', u'datetime', u'date']
     """
     for item in content:
+        if 'date' in item and 'time' in item:
+            yield {'id': item, 'type': 'datetime'}
         if 'date' in item:
             yield {'id': item, 'type': 'date'}
         elif 'time' in item:
-            yield {'id': item, 'type': 'datetime'}
+            yield {'id': item, 'type': 'time'}
         elif find(['value', 'length', 'width', 'days'], [item], method='fuzzy'):
             yield {'id': item, 'type': 'float'}
         elif 'count' in item:
@@ -414,7 +421,7 @@ def fill(prev_row, cur_row, **kwargs):
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'bad.csv')
-        >>> records = io.read_csv(filepath, remove_header=True)
+        >>> records = io.read_csv(filepath)
         >>> prev_row = {}
         >>> cur_row = records.next()
         >>> cur_row == {

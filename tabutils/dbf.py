@@ -25,7 +25,6 @@ from __future__ import (
     unicode_literals)
 
 from os import path as p
-from collections import OrderedDict
 from datetime import date
 
 from dbfread import DBF
@@ -57,15 +56,13 @@ class DBF2(DBF):
                 exceptions (default: False).
         """
         try:
+            kwargs['recfactory'] = dict
             return super(DBF2, self).__init__(filepath, **kwargs)
         except AttributeError:
             filename = filepath.name
 
         defaults = {
-            'ignorecase': True,
-            'parserclass': FieldParser,
-            'recfactory': OrderedDict
-        }
+            'ignorecase': True, 'parserclass': FieldParser, 'recfactory': dict}
 
         [kwargs.setdefault(k, v) for k, v in defaults.items()]
         [self.__setattr__(k, v) for k, v in kwargs.items()]

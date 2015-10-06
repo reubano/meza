@@ -36,27 +36,35 @@ from . import fntools as ft, CURRENCIES, ENCODING
 from dateutil.parser import parse
 
 
-def to_decimal(value, **kwargs):
-    """Parses and formats currency values into decimals
-    >>> to_decimal('$123.45')
-    Decimal('123.45')
-    >>> to_decimal('123€')
-    Decimal('123.00')
-    >>> to_decimal('2,123.45')
-    Decimal('2123.45')
-    >>> to_decimal('2.123,45', thousand_sep='.', decimal_sep=',')
-    Decimal('2123.45')
-    >>> to_decimal('spam')
+def _strip(value, **kwargs):
+    """Strips a string of all non-numeric characters.
+
+    Args:
+        value (str): The string to parse.
+        kwargs (dict): Keyword arguments.
+
+    Kwargs:
+        thousand_sep (char): .
+        decimal_sep (char): .
+
+    Examples:
+        >>> _strip('$123.45')
+        u'123.45'
+        >>> _strip('123€')
+        u'123'
+        >>> _strip('2,123.45')
+        u'2123.45'
+        >>> _strip('2.123,45', thousand_sep='.', decimal_sep=',')
+        u'2123.45'
+        >>> _strip('spam')
+        u'spam'
+
+    Returns:
+        str
     """
+    currencies = it.izip(CURRENCIES, it.repeat(''))
     thousand_sep = kwargs.get('thousand_sep', ',')
     decimal_sep = kwargs.get('decimal_sep', '.')
-    places = kwargs.get('places', 2)
-    roundup = kwargs.get('roundup', True)
-
-    rounding = ROUND_UP if roundup else ROUND_DOWN
-    precision = '.%s1' % ''.join(it.repeat('0', places - 1))
-
-    currencies = it.izip(CURRENCIES, it.repeat(''))
     seperators = [(thousand_sep, ''), (decimal_sep, '.')]
 
     try:
@@ -65,17 +73,26 @@ def to_decimal(value, **kwargs):
         # We don't have a string
         stripped = value
 
-    try:
-        decimalized = Decimal(stripped)
-    except InvalidOperation:
-        quantized = None
-    else:
-        quantized = decimalized.quantize(Decimal(precision), rounding=rounding)
-
-    return quantized
+    return stripped
 
 
 def ctype2ext(content_type=None):
+    """Converts an http content type to a file extension.
+
+    Args:
+        content_type (str): Output file path or directory.
+
+    Returns:
+        str: file extension
+
+    Examples:
+        >>> ctype2ext('/csv;')
+        u'csv'
+        >>> ctype2ext('/xls;')
+        u'xls'
+        >>> ctype2ext('/vnd.openxmlformats-officedocument.spreadsheetml.sheet;')
+        u'xlsx'
+    """
     try:
         ctype = content_type.split('/')[1].split(';')[0]
     except (AttributeError, IndexError):
@@ -93,101 +110,242 @@ def ctype2ext(content_type=None):
     return switch.get(ctype, 'csv')
 
 
-def to_float(value):
-    """Parses and formats numbers into floats.
+def to_int(value, **kwargs):
+    """Formats strings into integers.
 
     Args:
         value (str): The number to parse.
+        kwargs (dict): Keyword arguments.
+
+    Kwargs:
+        thousand_sep (char): .
+        decimal_sep (char): .
 
     Returns:
         flt: The parsed number.
 
     Examples:
-        >>> to_float('1')
-        1.0
-        >>> to_float('1f')
+        >>> to_int('$123.45')
+        123
+        >>> to_int('123€')
+        123
+        >>> to_int('2,123.45')
+        2123
+        >>> to_int('2.123,45', thousand_sep='.', decimal_sep=',')
+        2123
+        >>> to_int('spam')
+
+    Returns:
+        int
     """
-    if value and value.strip():
-        try:
-            value = float(value.replace(',', ''))
-        except ValueError:
-            value = None
-    else:
+    try:
+        value = int(float(_strip(value, **kwargs)))
+    except ValueError:
         value = None
 
     return value
 
 
-def _to_date(value, date_format=None):
-    """Parses and formats date strings.
+def to_float(value, **kwargs):
+    """Formats strings into floats.
+
+    Args:
+        value (str): The number to parse.
+        kwargs (dict): Keyword arguments.
+
+    Kwargs:
+        thousand_sep (char): .
+        decimal_sep (char): .
+
+    Returns:
+        flt: The parsed number.
+
+    Examples:
+        >>> to_float('$123.45')
+        123.45
+        >>> to_float('123€')
+        123.0
+        >>> to_float('2,123.45')
+        2123.45
+        >>> to_float('2.123,45', thousand_sep='.', decimal_sep=',')
+        2123.45
+        >>> to_float('spam')
+
+    Returns:
+        float
+    """
+    try:
+        value = float(_strip(value, **kwargs))
+    except ValueError:
+        value = None
+
+    return value
+
+
+def to_decimal(value, **kwargs):
+    """Formats strings into decimals
+
+    Args:
+        value (str): The string to parse.
+        kwargs (dict): Keyword arguments.
+
+    Kwargs:
+        thousand_sep (char): .
+        decimal_sep (char): .
+        roundup (bool): Round up to the desired number of decimal places (
+            default: True).
+
+        places (int): Number of decimal places to display (default: 2).
+
+    Examples:
+        >>> to_decimal('$123.45')
+        Decimal('123.45')
+        >>> to_decimal('123€')
+        Decimal('123.00')
+        >>> to_decimal('2,123.45')
+        Decimal('2123.45')
+        >>> to_decimal('2.123,45', thousand_sep='.', decimal_sep=',')
+        Decimal('2123.45')
+        >>> to_decimal('spam')
+
+    Returns:
+        decimal
+    """
+    try:
+        decimalized = Decimal(_strip(value, **kwargs))
+    except InvalidOperation:
+        quantized = None
+    else:
+        rounding = ROUND_UP if kwargs.get('roundup', True) else ROUND_DOWN
+        places = int(kwargs.get('places', 2))
+        precision = '.%s1' % ''.join(it.repeat('0', places - 1))
+        quantized = decimalized.quantize(Decimal(precision), rounding=rounding)
+
+    return quantized
+
+
+def _to_datetime(value):
+    """Parses and formats strings into datetimes.
 
     Args:
         value (str): The date to parse.
-        date_format (str): Date format passed to `strftime()`.
 
     Returns:
         [tuple(str, bool)]: Tuple of the formatted date string and retry value.
 
     Examples:
-        >>> _to_date('5/4/82')
+        >>> _to_datetime('5/4/82')
         (datetime.datetime(1982, 5, 4, 0, 0), False)
-        >>> _to_date('5/4/82', '%Y-%m-%d')
-        ('1982-05-04', False)
-        >>> _to_date('2/32/82', '%Y-%m-%d')
+        >>> _to_datetime('2/32/82')
         (u'2/32/82', True)
+        >>> _to_datetime('Novmbr 4')
+        (None, False)
     """
     try:
-        if value and value.strip() and date_format:
-            value = parse(value).strftime(date_format)
-        elif value and value.strip():
-            value = parse(value)
-
-        retry = False
-    # impossible date, e.g., 2/31/15
-    except ValueError:
+        value = parse(value)
+    except ValueError:  # impossible date, e.g., 2/31/15
         retry = True
-    # unparseable date, e.g., Novmbr 4
-    except TypeError:
+    except TypeError:  # unparseable date, e.g., Novmbr 4
         value = None
+        retry = False
+    else:
         retry = False
 
     return (value, retry)
 
 
-def to_date(value, date_format=None):
-    """Parses and formats date strings.
+def to_datetime(value, dt_format=None):
+    """Parses and formats strings into datetimes.
 
     Args:
-        value (str): The date to parse.
-        date_format (str): Date format passed to `strftime()`.
+        value (str): The string to parse.
+
+    Kwargs:
+        dt_format (str): Date format passed to `strftime()`
+            (default: None).
 
     Returns:
-        str: The formatted date string.
+        obj: The datetime object or formatted datetime string.
+
+    Examples:
+        >>> to_datetime('5/4/82 2:00 pm')
+        datetime.datetime(1982, 5, 4, 14, 0)
+        >>> to_datetime('5/4/82 10:00', '%Y-%m-%d %H:%M:%S')
+        '1982-05-04 10:00:00'
+        >>> to_datetime('2/32/82 12:15', '%Y-%m-%d %H:%M:%S')
+        '1982-02-28 12:15:00'
+        >>> to_datetime('Novmbr 4')
+    """
+    bad_nums = it.imap(str, xrange(29, 33))
+    good_nums = it.imap(str, xrange(31, 27, -1))
+
+    try:
+        bad_num = it.ifilter(lambda x: x in value, bad_nums).next()
+    except StopIteration:
+        options = [value]
+    else:
+        possibilities = (value.replace(bad_num, x) for x in good_nums)
+        options = it.chain([value], possibilities)
+
+    # Fix impossible dates, e.g., 2/31/15
+    results = it.ifilterfalse(lambda x: x[1], it.imap(_to_datetime, options))
+
+    try:
+        good_value = results.next()[0]
+    except StopIteration:
+        datetime = None
+    else:
+        datetime = good_value.strftime(dt_format) if dt_format else good_value
+
+    return datetime
+
+
+def to_date(value, date_format=None):
+    """Parses and formats strings into dates.
+
+    Args:
+        value (str): The string to parse.
+
+    Kwargs:
+        date_format (str): Time format passed to `strftime()` (default: None).
+
+    Returns:
+        obj: The date object or formatted date string.
 
     Examples:
         >>> to_date('5/4/82')
-        datetime.datetime(1982, 5, 4, 0, 0)
+        datetime.date(1982, 5, 4)
         >>> to_date('5/4/82', '%Y-%m-%d')
         '1982-05-04'
         >>> to_date('2/32/82', '%Y-%m-%d')
         '1982-02-28'
     """
-    value, retry = _to_date(value, date_format)
+    value = to_datetime(value).date()
+    return value.strftime(date_format) if date_format else value
 
-    # Fix impossible dates, e.g., 2/31/15
-    if retry:
-        bad_num = [x for x in ['29', '30', '31', '32'] if x in value][0]
-        possibilities = [value.replace(bad_num, x) for x in ['30', '29', '28']]
 
-        for possible in possibilities:
-            value, retry = _to_date(possible, date_format)
+def to_time(value, time_format=None):
+    """Parses and formats strings into times.
 
-            if retry:
-                continue
-            else:
-                break
+    Args:
+        value (str): The string to parse.
 
-    return value
+    Kwargs:
+        time_format (str): Time format passed to `strftime()` (default: None).
+
+    Returns:
+        obj: The time object or formatted time string.
+
+    Examples:
+        >>> to_time('5/4/82 2:00 pm')
+        datetime.time(14, 0)
+        >>> to_time('5/4/82 10:00', '%H:%M:%S')
+        '10:00:00'
+        >>> to_time('2/32/82 12:15', '%H:%M:%S')
+        '12:15:00'
+    """
+    value = to_datetime(value).time()
+    return value.strftime(time_format) if time_format else value
 
 
 def to_filepath(filepath, **kwargs):
@@ -196,7 +354,7 @@ def to_filepath(filepath, **kwargs):
 
     Args:
         filepath (str): Output file path or directory.
-        **kwargs: Keyword arguments.
+        kwargs: Keyword arguments.
 
     Kwargs:
         headers (dict): HTTP response headers, e.g., `r.headers`.
@@ -237,6 +395,25 @@ def to_filepath(filepath, **kwargs):
     return p.join(filepath, filename) if isdir else filepath
 
 
+def df2records(df):
+    """
+    Converts a pandas DataFrame into records.
+    """
+    keys = list(df.index.names)
+
+    try:
+        keys.extend(df.columns.tolist())
+    except AttributeError:
+        # we have a Series, not a DataFrame
+        keys.append(df.name)
+        rows = (i[0] + (i[1],) for i in df.iteritems())
+    else:
+        rows = df.itertuples()
+
+    for values in rows:
+        yield dict(zip(keys, values))
+
+
 def records2csv(records, header=None, encoding=ENCODING, bom=False):
     """
     Converts records into a csv file like object.
@@ -252,19 +429,18 @@ def records2csv(records, header=None, encoding=ENCODING, bom=False):
         obj: StringIO.StringIO instance
 
     Examples:
-        >>> from os import path as p
-        >>> from . import io
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'irismeta.csv')
-        >>> records = io.read_csv(filepath)
-        >>> header = records.next()
-        >>> sorted(header.keys())
-        [u'species', u'usda_id', u'wikipedia_url']
+        >>> records = [
+        ...     {
+        ...         u'usda_id': u'IRVE2',
+        ...         u'species': u'Iris-versicolor',
+        ...         u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}]
+        ...
+        >>> header = records[0].keys()
         >>> csv_str = records2csv(records, header)
         >>> csv_str.next().strip()
         'usda_id,species,wikipedia_url'
         >>> csv_str.next().strip()
-        'IRVE2,Iris-versicolor,http://en.wikipedia.org/wiki/Iris_versicolor'
+        'IRVE2,Iris-versicolor,wikipedia.org/wiki/Iris_versicolor'
     """
     f = StringIO()
 

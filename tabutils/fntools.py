@@ -33,6 +33,35 @@ from slugify import slugify
 from . import CURRENCIES, ENCODING
 
 
+class Objectify(object):
+    """Creates an object with dynamically set attributes. Useful
+    for accessing the kwargs of a function as attributes.
+    """
+    def __init__(self, kwargs, **defaults):
+        """ Objectify constructor
+        Args:
+            kwargs (dict): The attributes to set
+            defaults (dict): The default attributes
+
+        Examples:
+            >>> kwargs = {'key_1': 1, 'key_2': 2}
+            >>> defaults = {'key_2': 5, 'key_3': 3}
+            >>> kw = Objectify(kwargs, **defaults)
+            >>> kw.key_1
+            1
+            >>> kw.key_2
+            2
+            >>> kw.key_3
+            3
+            >>> kw.key_4
+        """
+        defaults.update(kwargs)
+        self.__dict__.update(defaults)
+
+    def __getattr__(self, name):
+        return None
+
+
 def isempty(content):
     """ Returns whether or not content is empty
 

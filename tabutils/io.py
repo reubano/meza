@@ -415,6 +415,71 @@ def read_csv(filepath, mode='rU', **kwargs):
             for row in read_file(f):
                 yield row
 
+
+def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
+    """Reads a fixed-width csv file.
+
+    Args:
+        filepath (str): The fixed width csv file path or file like object.
+        widths (List[int]): The zero-based 'start' position of each column.
+        mode (Optional[str]): The file open mode (default: 'rU').
+        kwargs (dict): Keyword arguments that are passed to the csv reader.
+
+    Kwargs:
+        has_header (bool): Has header row (default: False).
+        sanitize (bool): Underscorify and lowercase field names
+            (default: False).
+
+    Yields:
+        dict: A row of data whose keys are the field names.
+
+    Raises:
+        NotFound: If unable to find the resource.
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'fixed.txt')
+        >>> widths = [0, 18, 29, 33, 38, 50]
+        >>> records = read_fixed_csv(filepath, widths)
+        >>> records.next() == {
+        ...     u'column_1': 'Chicago Reader',
+        ...     u'column_2': '1971-01-01',
+        ...     u'column_3': '40',
+        ...     u'column_4': 'True',
+        ...     u'column_5': '1.0',
+        ...     u'column_6': '04:14:001971-01-01T04:14:00'}
+        ...
+        True
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'fixed_w_header.txt')
+        >>> records = read_fixed_csv(filepath, widths, has_header=True)
+        >>> records.next() == {
+        ...     u'News Paper': 'Chicago Reader',
+        ...     u'Founded': '1971-01-01',
+        ...     u'Int': '40',
+        ...     u'Bool': 'True',
+        ...     u'Float': '1.0',
+        ...     u'Timestamp': '04:14:001971-01-01T04:14:00'}
+        ...
+        True
+    """
+    sanitize = kwargs.get('sanitize')
+    has_header = kwargs.get('has_header')
+    schema = tuple(it.izip_longest(widths, widths[1:]))
+
+    def read_file(f):
+        if has_header:
+            line = f.readline()
+            names = filter(None, (line[s:e].strip() for s, e in schema))
+            header = list(ft.underscorify(names)) if sanitize else names
+        else:
+            header = ['column_%i' % (n + 1) for n in xrange(len(widths))]
+
+        zipped = zip(header, schema)
+
+        get_row = lambda line: {k: line[v[0]:v[1]].strip() for k, v in zipped}
+        return it.imap(get_row, f)
+
     if hasattr(filepath, 'read'):
         for row in read_file(filepath):
             yield row

@@ -43,6 +43,7 @@ def type_cast(records, fields):
         dict: Type casted record. A row of data whose keys are the field names.
 
     Examples:
+        >>> import datetime
         >>> from os import path as p
         >>> from . import io
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))

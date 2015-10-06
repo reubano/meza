@@ -115,6 +115,7 @@ bytearray(b'line three')]
     def readlines(self):
         return it.imap(self._read, self.lines)
 
+
 def patch_http_response_read(func):
     """Patches httplib to read poorly encoded chunked data.
 

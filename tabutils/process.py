@@ -430,40 +430,20 @@ u'species']
         >>> table_records = pivot(
         ...     casted_records, values='sepal_length',
         ...     index=['sepal_width'], columns=['species'])
-        >>> header = table_records.next().keys()
-        >>> header
-        [u'Iris-virginica', u'sepal_width', u'Iris-setosa', u'Iris-versicolor']
-        >>> sorted(table_records.next().items())
-        [(u'Iris-setosa', nan), (u'Iris-versicolor', 5.0), \
-(u'Iris-virginica', nan), (u'sepal_width', 2.0)]
+        >>> row = table_records.next()
+        >>> row['sepal_width']
+        2.0
+        >>> row['Iris-versicolor']
+        5.0
     """
     try:
         import pandas as pd
     except ImportError:
-        pd = None
-
-    if not pd:
-        print(
-            "You must install pandas, i.e. `pip install pandas`, to use this"
-            " function")
+        raise ImportError("pandas is required to use this function")
     else:
         df = pd.DataFrame.from_records(records)
         table = df.pivot_table(**kwargs)
-        keys = list(table.index.names)
-
-        try:
-            keys.extend(table.columns.tolist())
-        except AttributeError:
-            # we have a Series, not a DataFrame
-            keys.append(table.name)
-            rows = (i[0] + (i[1],) for i in table.iteritems())
-        else:
-            rows = table.itertuples()
-
-        yield dict(zip(keys, keys))
-
-        for values in rows:
-            yield dict(zip(keys, values))
+        return cv.df2records(table)
 
 
 def rfilter(records, field, predicate=None):

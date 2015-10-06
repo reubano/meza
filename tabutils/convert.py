@@ -395,6 +395,25 @@ def to_filepath(filepath, **kwargs):
     return p.join(filepath, filename) if isdir else filepath
 
 
+def df2records(df):
+    """
+    Converts a pandas DataFrame into records.
+    """
+    keys = list(df.index.names)
+
+    try:
+        keys.extend(df.columns.tolist())
+    except AttributeError:
+        # we have a Series, not a DataFrame
+        keys.append(df.name)
+        rows = (i[0] + (i[1],) for i in df.iteritems())
+    else:
+        rows = df.itertuples()
+
+    for values in rows:
+        yield dict(zip(keys, values))
+
+
 def records2csv(records, header=None, encoding=ENCODING, bom=False):
     """
     Converts records into a csv file like object.

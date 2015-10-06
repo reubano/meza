@@ -71,12 +71,18 @@ class IterStringIO(TextIOBase):
             >>> iter_sio = IterStringIO(content)
             >>> iter_sio.readline()
             bytearray(b'line one')
-            >>> list(iter_sio.readlines())
-            [bytearray(b'line two'), bytearray(b'line three')]
+            >>> iter_sio.next()
+            bytearray(b'line two')
+            >>> list(IterStringIO(content).readlines())
+            [bytearray(b'line one'), bytearray(b'line two'), \
+bytearray(b'line three')]
         """
         iterable = iterable or []
         chained = self._chain(iterable)
         self.iter = self._encode(chained)
+
+    def __next__(self):
+        return self._read(self.lines.next())
 
     @property
     def lines(self):

@@ -192,11 +192,13 @@ def read_mdb(filepath, table=None, **kwargs):
 
     Args:
         filepath (str): The mdb file path.
-        **kwargs: Keyword arguments that are passed to the csv reader.
+        kwargs (dict): Keyword arguments that are passed to the csv reader.
 
     Kwargs:
         table (str): The table to load (default: None, the first found table).
-        sanitize (bool): Convert field names to lower case (default: False).
+        sanitize (bool): Underscorify and lowercase field names
+            (default: False).
+
         ignorecase (bool): Treat file name as case insensitive (default: true).
 
     Yields:
@@ -260,14 +262,16 @@ def read_dbf(filepath, **kwargs):
 
     Args:
         filepath (str): The dbf file path or file like object.
-        **kwargs: Keyword arguments that are passed to the DBF reader.
+        kwargs (dict): Keyword arguments that are passed to the DBF reader.
 
     Kwargs:
         load (bool): Load all records into memory (default: false).
         encoding (bool): Character encoding (default: None, parsed from
             the `language_driver`).
 
-        sanitize (bool): Convert field names to lower case (default: False).
+        sanitize (bool): Underscorify and lowercase field names
+            (default: False).
+
         ignorecase (bool): Treat file name as case insensitive (default: true).
         ignore_missing_memofile (bool): Suppress `MissingMemoFile` exceptions
             (default: False).
@@ -329,7 +333,7 @@ def read_csv(filepath, mode='rU', **kwargs):
     Args:
         filepath (str): The csv file path or file like object.
         mode (Optional[str]): The file open mode (default: 'rU').
-        **kwargs: Keyword arguments that are passed to the csv reader.
+        kwargs (dict): Keyword arguments that are passed to the csv reader.
 
     Kwargs:
         delimiter (str): Field delimiter (default: ',').
@@ -463,7 +467,7 @@ def read_xls(filepath, **kwargs):
 
     Args:
         filepath (str): The xls/xlsx file path or file like object.
-        **kwargs: Keyword arguments that are passed to the xls reader.
+        kwargs (dict): Keyword arguments that are passed to the xls reader.
 
     Kwargs:
         sheet (int): Zero indexed sheet to open (default: 0)

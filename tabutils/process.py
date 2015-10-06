@@ -451,7 +451,7 @@ u'species']
         return cv.df2records(table)
 
 
-def rfilter(records, field, predicate=None):
+def tfilter(records, field, predicate=None):
     """ Yields records for which the predicate is True for a given field.
 
     Args:
@@ -476,10 +476,10 @@ def rfilter(records, field, predicate=None):
         ...     {'day': 2, 'name': 'Iñtërnâtiônàližætiøn'},
         ...     {'day': 3, 'name': 'rob'},
         ... ]
-        >>> rfilter(records, 'day', lambda x: x == 2).next()['name'] == \
+        >>> tfilter(records, 'day', lambda x: x == 2).next()['name'] == \
 u'Iñtërnâtiônàližætiøn'
         True
-        >>> rfilter(records, 'day', lambda x: x == 3).next()['name']
+        >>> tfilter(records, 'day', lambda x: x == 3).next()['name']
         u'rob'
     """
     pred = lambda x: predicate(x.get(field)) if predicate else None
@@ -487,7 +487,7 @@ u'Iñtërnâtiônàližætiøn'
 
 
 def unique(records, fields=None):
-    """ Determines unique records
+    """ Yields unique records
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.

@@ -1,4 +1,7 @@
-recursive-include tabutils/tests *
+recursive-include tests *
+recursive-include data *
+recursive-include helpers *
+include tabutils/test.csv
 include LICENSE
 include README.md
 include requirements.txt

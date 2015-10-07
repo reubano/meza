@@ -68,6 +68,10 @@ setup(
     url='https://github.com/reubano/tabutils',
     packages=find_packages(exclude=['docs', 'tests']),
     include_package_data=True,
+    package_data={
+        'data': 'data/*', 'helpers': 'helpers/*', 'tests': 'tests/*',
+        'temp': 'test.csv'
+    },
     install_requires=requirements,
     dependency_links=dependencies,
     tests_require=dev_requirements,

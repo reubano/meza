@@ -367,6 +367,68 @@ def afterish(content, separator=',', exclude=None):
     return after
 
 
+def get_separators(content):
+    """Guesses the appropriate thousandths and decimal separators
+
+    Args:
+        content (str): The string to parse.
+
+    Examples:
+        >>> get_separators('$123.45')
+        {u'thousand_sep': u',', u'decimal_sep': u'.'}
+        >>> get_separators('123€')
+        {u'thousand_sep': u',', u'decimal_sep': u'.'}
+        >>> get_separators('2,123.45')
+        {u'thousand_sep': u',', u'decimal_sep': u'.'}
+        >>> get_separators('2.123,45')
+        {u'thousand_sep': u'.', u'decimal_sep': u','}
+        >>> get_separators('spam')
+        Traceback (most recent call last):
+        TypeError: Not able to convert spam to a number
+
+    Returns:
+        dict: thousandths and decimal separators
+    """
+    try:
+        after_comma = afterish(content, exclude='.')
+        after_decimal = afterish(content, '.', ',')
+    except AttributeError:
+        # We don't have a string
+        after_comma = 0
+        after_decimal = 0
+
+    if after_comma in {-1, 0, 3} and after_decimal in {-1, 0, 1, 2}:
+        thousand_sep, decimal_sep = ',', '.'
+    elif after_comma in {-1, 0, 1, 2} and after_decimal in {-1, 0, 3}:
+        thousand_sep, decimal_sep = '.', ','
+    else:
+        print('after_comma', after_comma)
+        print('after_decimal', after_decimal)
+        raise TypeError('Invalid number format for `%s`.' % content)
+
+    return {'thousand_sep': thousand_sep, 'decimal_sep': decimal_sep}
+
+
+def add_ordinal(num):
+    """ Returns a number with ordinal suffix, e.g., 1st, 2nd, 3rd.
+
+    Args:
+        num (int): a number
+
+    Returns:
+        (str): ext a number with the ordinal suffix
+
+    Examples:
+        >>> add_ordinal(11)
+        u'11th'
+        >>> add_ordinal(132)
+        u'132nd'
+    """
+    switch = {1: 'st', 2: 'nd', 3: 'rd'}
+    end = 'th' if (num % 100 in {11, 12, 13}) else switch.get(num % 10, 'th')
+    return '%i%s' % (num, end)
+
+
 def _fuzzy_match(needle, haystack, **kwargs):
     for n in needle:
         for h in haystack:

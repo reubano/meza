@@ -65,10 +65,10 @@ def _strip(value, **kwargs):
     currencies = it.izip(CURRENCIES, it.repeat(''))
     thousand_sep = kwargs.get('thousand_sep', ',')
     decimal_sep = kwargs.get('decimal_sep', '.')
-    seperators = [(thousand_sep, ''), (decimal_sep, '.')]
+    separators = [(thousand_sep, ''), (decimal_sep, '.')]
 
     try:
-        stripped = ft.mreplace(value, it.chain(currencies, seperators))
+        stripped = ft.mreplace(value, it.chain(currencies, separators))
     except AttributeError:
         # We don't have a string
         stripped = value

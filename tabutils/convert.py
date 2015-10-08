@@ -337,9 +337,9 @@ def to_time(value, time_format=None):
         obj: The time object or formatted time string.
 
     Examples:
-        >>> to_time('5/4/82 2:00 pm')
+        >>> to_time('2:00 pm')
         datetime.time(14, 0)
-        >>> to_time('5/4/82 10:00', '%H:%M:%S')
+        >>> to_time('10:00', '%H:%M:%S')
         '10:00:00'
         >>> to_time('2/32/82 12:15', '%H:%M:%S')
         '12:15:00'

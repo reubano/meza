@@ -755,10 +755,9 @@ def detect_encoding(f, verbose=False):
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
-        >>> f = open(filepath, 'rU')
-        >>> result = detect_encoding(f)
-        >>> f.close()
-        >>> result
+        >>> with open(filepath, 'rU') as f:
+        ...     detect_encoding(f)
+        ...
         {'confidence': 0.99, 'encoding': 'utf-8'}
     """
     f.seek(0)

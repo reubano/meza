@@ -507,6 +507,9 @@ def fill(prev_row, cur_row, **kwargs):
         Tuple[str, str]: A tuple of (key, value).
         dict: The updated count.
 
+    See also:
+        `process.fillempty`
+
     Examples:
         >>> from os import path as p
         >>> from . import io
@@ -616,6 +619,9 @@ def combine(x, y, key, value=None, predicate=None, op=None, default=0):
 
     Returns:
         (scalar): the combined value
+
+    See also:
+        `process.merge`
 
     Examples:
         >>> records = [

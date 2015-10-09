@@ -43,6 +43,14 @@ def type_cast(records, fields):
     Yields:
         dict: Type casted record. A row of data whose keys are the field names.
 
+    See also:
+        `convert.to_int`
+        `convert.to_float`
+        `convert.to_decimal`
+        `convert.to_date`
+        `convert.to_time`
+        `convert.to_datetime`
+
     Examples:
         >>> import datetime
         >>> from os import path as p
@@ -119,6 +127,9 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
+
+    See also:
+        `fntools.fill`
 
     Examples:
         >>> from os import path as p
@@ -312,6 +323,9 @@ def merge(records, **kwargs):
     Returns:
         (Iter[dicts]): collapsed records
 
+    See also:
+        `fntools.combine`
+
     Examples:
         >>> records = [
         ...     {'a': 'item', 'amount': 200},
@@ -427,6 +441,9 @@ def pivot(records, **kwargs):
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
+
+    See also:
+        `convert.df2records`
 
     Examples:
         >>> from os import path as p

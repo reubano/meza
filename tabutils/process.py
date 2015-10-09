@@ -284,15 +284,19 @@ def merge(records, **kwargs):
         kwargs (dict): keyword arguments
 
     Kwargs:
-        predicate (func): Receives a key and should return `True`
-            if overlapping values should be combined. If a key occurs in
-            multiple dicts and isn't combined, it will be overwritten
-            by the last dict. Requires that `op` is set.
+        predicate (func): Receives the current key and should return `True`
+            if overlapping values should be combined. Can optionally be a
+            keyfunc which receives a record. In this case, the entries will be
+            combined if the value obtained after applying keyfunc to the record
+            equals the current value.
+
+            If a key occurs in multiple records and isn't combined, it will be
+            overwritten by the last record. Requires that `op` is set.
 
         op (func): Receives a list of 2 values from overlapping keys and should
             return the combined value. Common operators are `sum`, `min`,
             `max`, etc. Requires that `predicate` is set. If a key is not
-            present in all records, the value from `default` will be used. Note,
+            present in a record, the value from `default` will be used. Note,
             since `op` applied inside of `reduce`, it may not perform as
             expected for all functions for more than 2 records. E.g. an average
             function will be applied as follows:
@@ -305,7 +309,7 @@ def merge(records, **kwargs):
             (default: 0).
 
     Returns:
-        (List[str]): collapsed content
+        (Iter[dicts]): collapsed records
 
     Examples:
         >>> records = [
@@ -313,7 +317,7 @@ def merge(records, **kwargs):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> predicate = lambda k: k == 'amount'
+        >>> predicate = lambda key: key == 'amount'
         >>> merge(records, predicate=predicate, op=sum)
         {u'a': u'item', u'amount': 900}
         >>> merge(records)
@@ -323,7 +327,7 @@ def merge(records, **kwargs):
         >>> records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
         >>>
         >>> # Combine all keys
-        >>> predicate = lambda x: True
+        >>> predicate = lambda key: True
         >>> sorted(merge(records, predicate=predicate, op=sum).items())
         [(u'a', 1), (u'b', 6), (u'c', 8), (u'd', 6)]
         >>> fltrer = lambda x: x is not None
@@ -332,22 +336,22 @@ def merge(records, **kwargs):
         >>> sorted(merge(records, **kwargs).items())
         [(u'a', 1), (u'b', 2), (u'c', 3), (u'd', 6)]
         >>>
-        >>> # This will only reliably give the expected result for 2 dicts
+        >>> # This will only reliably give the expected result for 2 records
         >>> average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
         >>> kwargs = {'predicate': predicate, 'op': average, 'default': None}
         >>> sorted(merge(records, **kwargs).items())
         [(u'a', 1), (u'b', 3.0), (u'c', 4.0), (u'd', 6.0)]
         >>>
         >>> # Only combine key 'b'
-        >>> predicate = lambda k: k == 'b'
+        >>> predicate = lambda key: key == 'b'
         >>> sorted(merge(records, predicate=predicate, op=sum).items())
         [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
         >>>
-        >>> # This will reliably work for any number of dicts
+        >>> # This will reliably work for any number of records
         >>> from collections import defaultdict
         >>>
         >>> counted = defaultdict(int)
-        >>> predicate = lambda x: True
+        >>> predicate = lambda key: True
         >>> divide = lambda x: x[0] / x[1]
         >>> records = [
         ...    {'a': 1, 'b': 4, 'c': 0},
@@ -467,7 +471,7 @@ def tfilter(records, field, predicate=None):
             return the record if value is True).
 
     Returns:
-        dict: Record. A row of data whose keys are the field names.
+        Iter[dicts]: The filtered records.
 
     Examples:
         >>> records = [

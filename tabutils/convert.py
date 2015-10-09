@@ -425,6 +425,18 @@ def df2records(df):
 
     See also:
         `process.pivot`
+
+    Examples:
+        >>> try:
+        ...    import pandas as pd
+        ... except ImportError:
+        ...    print('pandas is required to run this test')
+        ... else:
+        ...    records = [{'a': 1, 'b': 2, 'c': 3}, {'a': 4, 'b': 5, 'c': 6}]
+        ...    df = pd.DataFrame.from_records(records)
+        ...    df2records(df).next() == {u'a': 1, u'b': 2, u'c': 3}
+        ...
+        True
     """
     keys = list(df.index.names)
 

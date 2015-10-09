@@ -347,6 +347,12 @@ def merge(records, **kwargs):
         >>> sorted(merge(records, predicate=predicate, op=sum).items())
         [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
         >>>
+        >>> # Only combine keys that have the same value of 'b'
+        >>> from operator import itemgetter
+        >>> predicate = itemgetter('b')
+        >>> sorted(merge(records, predicate=predicate, op=sum).items())
+        [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
+        >>>
         >>> # This will reliably work for any number of records
         >>> from collections import defaultdict
         >>>

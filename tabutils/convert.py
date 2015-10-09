@@ -121,6 +121,9 @@ def to_int(value, **kwargs):
         thousand_sep (char): .
         decimal_sep (char): .
 
+    See also:
+        `process.type_cast`
+
     Returns:
         flt: The parsed number.
 
@@ -160,6 +163,9 @@ def to_float(value, **kwargs):
     Returns:
         flt: The parsed number.
 
+    See also:
+        `process.type_cast`
+
     Examples:
         >>> to_float('$123.45')
         123.45
@@ -196,6 +202,9 @@ def to_decimal(value, **kwargs):
             default: True).
 
         places (int): Number of decimal places to display (default: 2).
+
+    See also:
+        `process.type_cast`
 
     Examples:
         >>> to_decimal('$123.45')
@@ -267,6 +276,9 @@ def to_datetime(value, dt_format=None):
     Returns:
         obj: The datetime object or formatted datetime string.
 
+    See also:
+        `process.type_cast`
+
     Examples:
         >>> to_datetime('5/4/82 2:00 pm')
         datetime.datetime(1982, 5, 4, 14, 0)
@@ -312,6 +324,9 @@ def to_date(value, date_format=None):
     Returns:
         obj: The date object or formatted date string.
 
+    See also:
+        `process.type_cast`
+
     Examples:
         >>> to_date('5/4/82')
         datetime.date(1982, 5, 4)
@@ -335,6 +350,9 @@ def to_time(value, time_format=None):
 
     Returns:
         obj: The time object or formatted time string.
+
+    See also:
+        `process.type_cast`
 
     Examples:
         >>> to_time('2:00 pm')
@@ -398,20 +416,44 @@ def to_filepath(filepath, **kwargs):
 def df2records(df):
     """
     Converts a pandas DataFrame into records.
+
+    Args:
+        df (obj): pandas.DataFrame object
+
+    Yields:
+        dict: Record. A row of data whose keys are the field names.
+
+    See also:
+        `process.pivot`
+
+    Examples:
+        >>> try:
+        ...    import pandas as pd
+        ... except ImportError:
+        ...    print('pandas is required to run this test')
+        ... else:
+        ...    records = [{'a': 1, 'b': 2, 'c': 3}, {'a': 4, 'b': 5, 'c': 6}]
+        ...    df = pd.DataFrame.from_records(records)
+        ...    df2records(df).next() == {u'a': 1, u'b': 2, u'c': 3}
+        ...
+        True
     """
-    keys = list(df.index.names)
+    index = filter(None, (df.index.names))
 
     try:
-        keys.extend(df.columns.tolist())
+        keys = index + df.columns.tolist()
     except AttributeError:
         # we have a Series, not a DataFrame
-        keys.append(df.name)
+        keys = index + [df.name]
         rows = (i[0] + (i[1],) for i in df.iteritems())
     else:
         rows = df.itertuples()
 
     for values in rows:
-        yield dict(zip(keys, values))
+        if index:
+            yield dict(zip(keys, values))
+        else:
+            yield dict(zip(keys, values[1:]))
 
 
 def records2csv(records, header=None, encoding=ENCODING, bom=False):

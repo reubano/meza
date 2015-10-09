@@ -25,6 +25,7 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
+from functools import partial
 import itertools as it
 
 from . import convert as cv, fntools as ft
@@ -41,6 +42,14 @@ def type_cast(records, fields):
 
     Yields:
         dict: Type casted record. A row of data whose keys are the field names.
+
+    See also:
+        `convert.to_int`
+        `convert.to_float`
+        `convert.to_decimal`
+        `convert.to_date`
+        `convert.to_time`
+        `convert.to_datetime`
 
     Examples:
         >>> import datetime
@@ -118,6 +127,9 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
+
+    See also:
+        `fntools.fill`
 
     Examples:
         >>> from os import path as p
@@ -284,15 +296,19 @@ def merge(records, **kwargs):
         kwargs (dict): keyword arguments
 
     Kwargs:
-        predicate (func): Receives a key and should return `True`
-            if overlapping values should be combined. If a key occurs in
-            multiple dicts and isn't combined, it will be overwritten
-            by the last dict. Requires that `op` is set.
+        predicate (func): Receives the current key and should return `True`
+            if overlapping values should be combined. Can optionally be a
+            keyfunc which receives a record. In this case, the entries will be
+            combined if the value obtained after applying keyfunc to the record
+            equals the current value.
+
+            If a key occurs in multiple records and isn't combined, it will be
+            overwritten by the last record. Requires that `op` is set.
 
         op (func): Receives a list of 2 values from overlapping keys and should
             return the combined value. Common operators are `sum`, `min`,
             `max`, etc. Requires that `predicate` is set. If a key is not
-            present in all records, the value from `default` will be used. Note,
+            present in a record, the value from `default` will be used. Note,
             since `op` applied inside of `reduce`, it may not perform as
             expected for all functions for more than 2 records. E.g. an average
             function will be applied as follows:
@@ -305,7 +321,10 @@ def merge(records, **kwargs):
             (default: 0).
 
     Returns:
-        (List[str]): collapsed content
+        (Iter[dicts]): collapsed records
+
+    See also:
+        `fntools.combine`
 
     Examples:
         >>> records = [
@@ -313,7 +332,7 @@ def merge(records, **kwargs):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> predicate = lambda k: k == 'amount'
+        >>> predicate = lambda key: key == 'amount'
         >>> merge(records, predicate=predicate, op=sum)
         {u'a': u'item', u'amount': 900}
         >>> merge(records)
@@ -323,7 +342,7 @@ def merge(records, **kwargs):
         >>> records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
         >>>
         >>> # Combine all keys
-        >>> predicate = lambda x: True
+        >>> predicate = lambda key: True
         >>> sorted(merge(records, predicate=predicate, op=sum).items())
         [(u'a', 1), (u'b', 6), (u'c', 8), (u'd', 6)]
         >>> fltrer = lambda x: x is not None
@@ -332,22 +351,28 @@ def merge(records, **kwargs):
         >>> sorted(merge(records, **kwargs).items())
         [(u'a', 1), (u'b', 2), (u'c', 3), (u'd', 6)]
         >>>
-        >>> # This will only reliably give the expected result for 2 dicts
+        >>> # This will only reliably give the expected result for 2 records
         >>> average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
         >>> kwargs = {'predicate': predicate, 'op': average, 'default': None}
         >>> sorted(merge(records, **kwargs).items())
         [(u'a', 1), (u'b', 3.0), (u'c', 4.0), (u'd', 6.0)]
         >>>
         >>> # Only combine key 'b'
-        >>> predicate = lambda k: k == 'b'
+        >>> predicate = lambda key: key == 'b'
         >>> sorted(merge(records, predicate=predicate, op=sum).items())
         [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
         >>>
-        >>> # This will reliably work for any number of dicts
+        >>> # Only combine keys that have the same value of 'b'
+        >>> from operator import itemgetter
+        >>> predicate = itemgetter('b')
+        >>> sorted(merge(records, predicate=predicate, op=sum).items())
+        [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
+        >>>
+        >>> # This will reliably work for any number of records
         >>> from collections import defaultdict
         >>>
         >>> counted = defaultdict(int)
-        >>> predicate = lambda x: True
+        >>> predicate = lambda key: True
         >>> divide = lambda x: x[0] / x[1]
         >>> records = [
         ...    {'a': 1, 'b': 4, 'c': 0},
@@ -367,16 +392,12 @@ def merge(records, **kwargs):
         >>> sorted(merge([summed, counted], **kwargs).items())
         [(u'a', 2.0), (u'b', 5.0), (u'c', 1.0), (u'd', 7.0)]
     """
-    predicate = kwargs.get('predicate')
-    op = kwargs.get('op')
-    default = kwargs.get('default', 0)
-
     def reducer(x, y):
-        _merge = lambda k, v: op([x.get(k, default), v]) if predicate(k) else v
-        new_y = ([k, _merge(k, v)] for k, v in y.iteritems())
+        _merge = partial(ft.combine, x, y, **kwargs)
+        new_y = ((k, _merge(k, v)) for k, v in y.iteritems())
         return dict(it.chain(x.iteritems(), new_y))
 
-    if predicate and op:
+    if kwargs.get('predicate') and kwargs.get('op'):
         record = reduce(reducer, records)
     else:
         items = it.imap(dict.iteritems, records)
@@ -420,6 +441,9 @@ def pivot(records, **kwargs):
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
+
+    See also:
+        `convert.df2records`
 
     Examples:
         >>> from os import path as p
@@ -467,7 +491,7 @@ def tfilter(records, field, predicate=None):
             return the record if value is True).
 
     Returns:
-        dict: Record. A row of data whose keys are the field names.
+        Iter[dicts]: The filtered records.
 
     Examples:
         >>> records = [

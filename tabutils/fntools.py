@@ -581,3 +581,96 @@ def fill(prev_row, cur_row, **kwargs):
         yield (key, new_value)
 
     yield count
+
+
+def combine(x, y, key, value=None, predicate=None, op=None, default=0):
+    """Applies a binary operator to the value of an entry in two `records`.
+
+    Args:
+        x (dict): First record. Row of data whose keys are the field names.
+            E.g., result from from calling next() on the output of any
+            `tabutils.io` read function.
+
+        y (dict): Second record. Row of data whose keys are the field names.
+            E.g., result from from calling next() on the output of any
+            `tabutils.io` read function.
+
+        key (str): Current key.
+        value (Optional[scalar]): The 2nd record's value of the given `key`.
+
+        predicate (func): Receives `key` and should return `True`
+            if the values from both records should be combined. Can optionally
+            be a keyfunc which receives the 2nd record and should return the
+            value that `value` needs to equal in order to be combined.
+
+            If `key` occurs in both records and isn't combined, it will be
+            overwritten by the 2nd record. Requires that `op` is set.
+
+        op (func): Receives a list of the 2 values from the records and should
+            return the combined value. Common operators are `sum`, `min`,
+            `max`, etc. Requires that `predicate` is set. If a key is not
+            present in a record, the value from `default` will be used.
+
+        default (int or str): default value to use in `op` for missing keys
+            (default: 0).
+
+    Returns:
+        (scalar): the combined value
+
+    Examples:
+        >>> records = [
+        ...     {'a': 'item', 'amount': 200},
+        ...     {'a': 'item', 'amount': 300},
+        ...     {'a': 'item', 'amount': 400}]
+        ...
+        >>> predicate = lambda key: key == 'amount'
+        >>> x, y = records[0], records[1]
+        >>> combine(x, y, 'a', predicate=predicate, op=sum)
+        u'item'
+        >>> combine(x, y, 'amount', predicate=predicate, op=sum)
+        500
+        >>> records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
+        >>>
+        >>> # Combine all keys
+        >>> predicate = lambda key: True
+        >>> x, y = records[0], records[1]
+        >>> combine(x, y, 'a', predicate=predicate, op=sum)
+        1
+        >>> combine(x, y, 'b', predicate=predicate, op=sum)
+        6
+        >>> combine(x, y, 'c', predicate=predicate, op=sum)
+        8
+        >>> fltrer = lambda x: x is not None
+        >>> first = lambda x: filter(fltrer, x)[0]
+        >>> kwargs = {'predicate': predicate, 'op': first, 'default': None}
+        >>> combine(x, y, 'b', **kwargs)
+        2
+        >>>
+        >>> average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
+        >>> kwargs = {'predicate': predicate, 'op': average, 'default': None}
+        >>> combine(x, y, 'a', **kwargs)
+        1.0
+        >>> combine(x, y, 'b', **kwargs)
+        3.0
+        >>>
+        >>> # Only combine key 'b'
+        >>> predicate = lambda key: key == 'b'
+        >>> combine(x, y, 'c', predicate=predicate, op=sum)
+        5
+        >>>
+        >>> # Only combine keys that have the same value of 'b'
+        >>> from operator import itemgetter
+        >>> predicate = itemgetter('b')
+        >>> combine(x, y, 'b', predicate=predicate, op=sum)
+        6
+        >>> combine(x, y, 'c', predicate=predicate, op=sum)
+        5
+    """
+    value = y.get(key, default) if value is None else value
+
+    try:
+        passed = predicate(key)
+    except TypeError:
+        passed = predicate(y) == value
+
+    return op([x.get(key, default), value]) if passed else value

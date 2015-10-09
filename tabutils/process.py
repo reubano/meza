@@ -25,6 +25,7 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
+from functools import partial
 import itertools as it
 
 from . import convert as cv, fntools as ft
@@ -377,16 +378,12 @@ def merge(records, **kwargs):
         >>> sorted(merge([summed, counted], **kwargs).items())
         [(u'a', 2.0), (u'b', 5.0), (u'c', 1.0), (u'd', 7.0)]
     """
-    predicate = kwargs.get('predicate')
-    op = kwargs.get('op')
-    default = kwargs.get('default', 0)
-
     def reducer(x, y):
-        _merge = lambda k, v: op([x.get(k, default), v]) if predicate(k) else v
-        new_y = ([k, _merge(k, v)] for k, v in y.iteritems())
+        _merge = partial(ft.combine, x, y, **kwargs)
+        new_y = ((k, _merge(k, v)) for k, v in y.iteritems())
         return dict(it.chain(x.iteritems(), new_y))
 
-    if predicate and op:
+    if kwargs.get('predicate') and kwargs.get('op'):
         record = reduce(reducer, records)
     else:
         items = it.imap(dict.iteritems, records)

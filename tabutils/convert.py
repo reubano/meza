@@ -438,19 +438,22 @@ def df2records(df):
         ...
         True
     """
-    keys = list(df.index.names)
+    index = filter(None, (df.index.names))
 
     try:
-        keys.extend(df.columns.tolist())
+        keys = index + df.columns.tolist()
     except AttributeError:
         # we have a Series, not a DataFrame
-        keys.append(df.name)
+        keys = index + [df.name]
         rows = (i[0] + (i[1],) for i in df.iteritems())
     else:
         rows = df.itertuples()
 
     for values in rows:
-        yield dict(zip(keys, values))
+        if index:
+            yield dict(zip(keys, values))
+        else:
+            yield dict(zip(keys, values[1:]))
 
 
 def records2csv(records, header=None, encoding=ENCODING, bom=False):

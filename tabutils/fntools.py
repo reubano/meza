@@ -476,32 +476,36 @@ def find(*args, **kwargs):
         return default
 
 
-def fill(prev_row, cur_row, **kwargs):
-    """Fills in data of the current row with data from either a given
-    value, the value of the same column in the previous row, or the value of a
-    given column in the current row.
+def fill(previous, current, **kwargs):
+    """Fills in data of the current record with data from either a given
+    value, the value of the same column in the previous record, or the value of
+    a given column in the current record.
 
     Args:
-        prev_row (dict): The previous row of data whose keys are the field
+        previous (dict): The previous record of data whose keys are the
+            field names.
+
+        current (dict): The current record of data whose keys are the field
             names.
 
-        cur_row (dict): The current row of data whose keys are the field names.
         kwargs (dict): Keyword arguments
 
     Kwargs:
         predicate (func): Receives a value and should return `True`
             if the value should be filled. If predicate is None, it returns
             `True` for empty values (default: None).
-        value (str): Value to use to fill holes (default: None).
-        fill_key (str): The column name of the current row to use for filling
-            missing data.
 
-        limit (int): Max number of consecutive rows to fill (default: None).
+        value (str): Value to use to fill holes (default: None).
+        fill_key (str): The column name of the current record to use for
+            filling missing data.
+
+        limit (int): Max number of consecutive records to fill (default: None).
+
         fields (List[str]): Names of the columns to fill (default: None, i.e.,
             all).
 
-        count (dict): The number of consecutive rows of missing data that have
-            filled for each column.
+        count (dict): The number of consecutive records of missing data that
+            have filled for each column.
 
     Yields:
         Tuple[str, str]: A tuple of (key, value).
@@ -516,39 +520,39 @@ def fill(prev_row, cur_row, **kwargs):
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'bad.csv')
         >>> records = io.read_csv(filepath)
-        >>> prev_row = {}
-        >>> cur_row = records.next()
-        >>> cur_row == {
+        >>> previous = {}
+        >>> current = records.next()
+        >>> current == {
         ...     u'column_a': u'1',
         ...     u'column_b': u'27',
         ...     u'column_c': u'',
         ... }
         True
-        >>> length = len(cur_row)
-        >>> filled = fill(prev_row, cur_row, value=0)
-        >>> prev_row = dict(it.islice(filled, length))
+        >>> length = len(current)
+        >>> filled = fill(previous, current, value=0)
+        >>> previous = dict(it.islice(filled, length))
         >>> count = filled.next()
         >>> count == {u'column_a': 0, u'column_b': 0, u'column_c': 1}
         True
-        >>> prev_row == {
+        >>> previous == {
         ...     u'column_a': u'1',
         ...     u'column_b': u'27',
         ...     u'column_c': 0,
         ... }
         True
-        >>> cur_row = records.next()
-        >>> cur_row == {
+        >>> current = records.next()
+        >>> current == {
         ...     u'column_a': u'',
         ...     u'column_b': u"I'm too short!",
         ...     u'column_c': None,
         ... }
         True
-        >>> filled = fill(prev_row, cur_row, fill_key='column_b', count=count)
-        >>> prev_row = dict(it.islice(filled, length))
+        >>> filled = fill(previous, current, fill_key='column_b', count=count)
+        >>> previous = dict(it.islice(filled, length))
         >>> count = filled.next()
         >>> count == {u'column_a': 1, u'column_b': 0, u'column_c': 2}
         True
-        >>> prev_row == {
+        >>> previous == {
         ...     u'column_a': u"I'm too short!",
         ...     u'column_b': u"I'm too short!",
         ...     u'column_c': u"I'm too short!",
@@ -561,9 +565,9 @@ def fill(prev_row, cur_row, **kwargs):
     fields = kwargs.get('fields')
     count = kwargs.get('count', {})
     fill_key = kwargs.get('fill_key')
-    whitelist = set(fields or cur_row.keys())
+    whitelist = set(fields or current.keys())
 
-    for key, entry in cur_row.items():
+    for key, entry in current.items():
         key_count = count.get(key, 0)
         within_limit = key_count < limit if limit else True
         can_fill = (key in whitelist) and predicate(entry)
@@ -572,9 +576,9 @@ def fill(prev_row, cur_row, **kwargs):
         if can_fill and within_limit and value is not None:
             new_value = value
         elif can_fill and within_limit and fill_key:
-            new_value = cur_row[fill_key]
+            new_value = current[fill_key]
         elif can_fill and within_limit:
-            new_value = prev_row.get(key, entry)
+            new_value = previous.get(key, entry)
         else:
             new_value = entry
 

@@ -680,3 +680,54 @@ def combine(x, y, key, value=None, predicate=None, op=None, default=0):
         passed = predicate(y) == value
 
     return op([x.get(key, default), value]) if passed else value
+
+
+def flatten(record, prefix=None):
+    """Recursively flattens a nested record by pre-pending the parent field
+    name to the children field names.
+
+    Args:
+        record (dict): The record to flattens whose keys are the field
+            names.
+
+        prefix (str): String to prepend to all children (default: None)
+
+    Yields:
+        Tuple[str, scalar]: A tuple of (key, value).
+
+    Examples:
+        >>> record = {
+        ...     'parent_a': {'child_1': 1, 'child_2': 2, 'child_3': 3},
+        ...     'parent_b': {'child_1': 1, 'child_2': 2, 'child_3': 3},
+        ...     'parent_c': 'no child',
+        ... }
+        >>> dict(flatten(record)) == {
+        ...     u'parent_a_child_1': 1,
+        ...     u'parent_a_child_2': 2,
+        ...     u'parent_a_child_3': 3,
+        ...     u'parent_b_child_1': 1,
+        ...     u'parent_b_child_2': 2,
+        ...     u'parent_b_child_3': 3,
+        ...     u'parent_c': u'no child',
+        ... }
+        ...
+        True
+        >>> dict(flatten(record, 'flt')) == {
+        ...     u'flt_parent_a_child_1': 1,
+        ...     u'flt_parent_a_child_2': 2,
+        ...     u'flt_parent_a_child_3': 3,
+        ...     u'flt_parent_b_child_1': 1,
+        ...     u'flt_parent_b_child_2': 2,
+        ...     u'flt_parent_b_child_3': 3,
+        ...     u'flt_parent_c': u'no child',
+        ... }
+        True
+    """
+    try:
+        for key, value in record.items():
+            newkey = '%s_%s' % (prefix, key) if prefix else key
+
+            for flattened in flatten(value, newkey):
+                yield flattened
+    except AttributeError:
+        yield (prefix, record)

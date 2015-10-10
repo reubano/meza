@@ -551,3 +551,124 @@ u'Iñtërnâtiônàližætiøn'
         if entry not in seen:
             seen.add(entry)
             yield r
+
+
+def cut(records, **kwargs):
+    """
+    Edit records to only return specified columns. Like unix `cut`, but for
+    tabular data.'
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        kwargs (dict): keyword arguments
+
+    Kwargs:
+        include (Iter[str]): Column names to include. (default: None, i.e.,
+            all columns.'). If the same field is also in `exclude`, it will
+            still be included.
+
+        exclude (Iter[str]): Column names to exclude (default: None, i.e.,
+            no columns.'). If the same field is also in `include`, it will
+            still be included.
+
+        prune (bool): Remove empty rows from result.
+
+    Yields:
+        dict: Record. A row of data whose keys are the field names.
+
+    Examples:
+        >>> records = [
+        ...     {'field_1': 1, 'field_2': 'bill', 'field_3': 'male'},
+        ...     {'field_1': 2, 'field_2': 'bob', 'field_3': 'male'},
+        ...     {'field_1': 3, 'field_2': 'jane', 'field_3': 'female'},
+        ... ]
+        >>> cut(records).next() == {
+        ...     u'field_1': 1, u'field_2': u'bill', u'field_3': u'male'}
+        ...
+        True
+        >>> cut(records, include=['field_2']).next()
+        {u'field_2': u'bill'}
+        >>> cut(records, exclude=['field_2']).next() == {
+        ...     u'field_1': 1, u'field_3': u'male'}
+        ...
+        True
+        >>> include = ['field_1', 'field_2']
+        >>> cut(records, include=['field_2'], exclude=['field_2']).next()
+        {u'field_2': u'bill'}
+    """
+    include = set(kwargs.get('include') or [])
+    exclude = set(kwargs.get('exclude') or [])
+    included = lambda x: x[0] in include if include else x[0] not in exclude
+    filtered = (dict(filter(included, r.items())) for r in records)
+    return it.ifilter(None, filtered) if kwargs.get('prune') else filtered
+
+
+def grep(records, rules, any_match=False, inverse=False):
+    """
+    Yields rows which match all the given rules.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        rules (Iter[dict]): Each rule dict must contain a `pattern`
+            key and the value can be either a string, function, or regular
+            expression. A `fields` key is optional and corresponds to the
+            columns you wish to pattern match. Default is to search all columns.
+
+        any_match (bool): Return records which match any of the rules
+            (default: False)
+
+        inverse (bool): Only return records which don't match the rules
+            (default: None, i.e., all columns)
+
+    Returns:
+        Iter[dict]: The filtered records.
+
+    Examples:
+        >>> import re
+        >>> records = [
+        ...     {'day': 1, 'name': 'bill'},
+        ...     {'day': 1, 'name': 'rob'},
+        ...     {'day': 1, 'name': 'jane'},
+        ...     {'day': 2, 'name': 'rob'},
+        ...     {'day': 3, 'name': 'jane'},
+        ... ]
+        >>> rules = [{'fields': ['name'], 'pattern': 'o'}]
+        >>> grep(records, rules).next()['name']
+        u'rob'
+        >>> rules = [{'fields': ['name'], 'pattern': re.compile(r'j.*e$')}]
+        >>> grep(records, rules).next()['name']
+        u'jane'
+        >>> rules = [{'fields': ['day'], 'pattern': lambda x: x == 1}]
+        >>> grep(records, rules).next()['name']
+        u'bill'
+        >>> rules = [{'pattern': lambda x: x in {1, 'rob'}}]
+        >>> grep(records, rules).next()['name']
+        u'rob'
+        >>> rules = [{'pattern': lambda x: x in {1, 'rob'}}]
+        >>> grep(records, rules, any_match=True).next()['name']
+        u'bill'
+        >>> rules = [{'fields': ['name'], 'pattern': 'o'}]
+        >>> grep(records, rules, inverse=True).next()['name']
+        u'bill'
+    """
+    def predicate(record):
+        for rule in rules:
+            for field in rule.get('fields', record.keys()):
+                value = record[field]
+                p = rule['pattern']
+
+                try:
+                    passed = p.match(value)
+                except AttributeError:
+                    passed = p(value) if callable(p) else p in value
+
+                if (any_match and passed) or not (any_match or passed):
+                    break
+
+        return not passed if inverse else passed
+
+    return it.ifilter(predicate, records)

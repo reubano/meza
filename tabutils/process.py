@@ -25,9 +25,9 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
-from functools import partial
 import itertools as it
 
+from functools import partial
 from . import convert as cv, fntools as ft
 
 

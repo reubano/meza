@@ -491,7 +491,7 @@ def tfilter(records, field, predicate=None):
             return the record if value is True).
 
     Returns:
-        Iter[dicts]: The filtered records.
+        Iter[dict]: The filtered records.
 
     Examples:
         >>> records = [

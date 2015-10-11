@@ -132,6 +132,17 @@ def patch_http_response_read(func):
 httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 
+def read_any(filepath, reader, mode, **kwargs):
+    """Reads any file"""
+    if hasattr(filepath, 'read'):
+        for row in reader(filepath, **kwargs):
+            yield row
+    else:
+        with open(filepath, mode) as f:
+            for row in reader(f, **kwargs):
+                yield row
+
+
 def _read_csv(f, encoding, header=None, has_header=True):
     """Helps read a csv file.
 
@@ -200,6 +211,7 @@ def read_mdb(filepath, table=None, **kwargs):
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
+        dedupe (bool): Deduplicate field names (default: False).
         ignorecase (bool): Treat file name as case insensitive (default: true).
 
     Yields:
@@ -242,20 +254,22 @@ def read_mdb(filepath, table=None, **kwargs):
     except CalledProcessError:
         raise TypeError('%s is not readable by mdbtools' % filepath)
 
+    sanitize = kwargs.pop('sanitize', None)
+    dedupe = kwargs.pop('dedupe', False)
     table = table or check_output(args).splitlines()[0]
     pkwargs = {'stdout': PIPE, 'bufsize': 1, 'universal_newlines': True}
 
     # http://stackoverflow.com/a/2813530/408556
     # http://stackoverflow.com/a/17698359/408556
     with Popen(['mdb-export', filepath, table], **pkwargs).stdout as pipe:
-        sanitize = kwargs.pop('sanitize', None)
         first_line = pipe.readline()
-        header = csv.reader(StringIO(first_line), **kwargs).next()
-        names = list(ft.underscorify(header)) if sanitize else header
+        names = csv.reader(StringIO(first_line), **kwargs).next()
+        _scored = list(ft.underscorify(names)) if sanitize else names
+        header = list(ft.dedupe(_scored)) if dedupe else _scored
 
         for line in iter(pipe.readline, b''):
             values = csv.reader(StringIO(line), **kwargs).next()
-            yield dict(zip(names, values))
+            yield dict(zip(header, values))
 
 
 def read_dbf(filepath, **kwargs):
@@ -344,6 +358,8 @@ def read_csv(filepath, mode='rU', **kwargs):
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
+        dedupe (bool): Deduplicate field names (default: False).
+
     Yields:
         dict: A row of data whose keys are the field names.
 
@@ -384,17 +400,19 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...
         True
     """
-    encoding = kwargs.pop('encoding', ENCODING)
-    sanitize = kwargs.pop('sanitize', False)
-    has_header = kwargs.pop('has_header', True)
+    def reader(f, **kwargs):
+        encoding = kwargs.pop('encoding', ENCODING)
+        sanitize = kwargs.pop('sanitize', False)
+        dedupe = kwargs.pop('dedupe', False)
+        has_header = kwargs.pop('has_header', True)
 
-    def read_file(f):
         # Get header row and remove empty columns
         names = csv.reader(f, encoding=encoding, **kwargs).next()
 
         if has_header:
             stripped = [name for name in names if name.strip()]
-            header = list(ft.underscorify(stripped)) if sanitize else stripped
+            _scored = list(ft.underscorify(stripped)) if sanitize else stripped
+            header = list(ft.dedupe(_scored)) if dedupe else _scored
         else:
             header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
@@ -407,13 +425,7 @@ def read_csv(filepath, mode='rU', **kwargs):
 
         return records
 
-    if hasattr(filepath, 'read'):
-        for row in read_file(filepath):
-            yield row
-    else:
-        with open(filepath, mode) as f:
-            for row in read_file(f):
-                yield row
+    return read_any(filepath, reader, mode, **kwargs)
 
 
 def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
@@ -429,6 +441,8 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         has_header (bool): Has header row (default: False).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
+
+        dedupe (bool): Deduplicate field names (default: False).
 
     Yields:
         dict: A row of data whose keys are the field names.
@@ -463,15 +477,17 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         ...
         True
     """
-    sanitize = kwargs.get('sanitize')
-    has_header = kwargs.get('has_header')
-    schema = tuple(it.izip_longest(widths, widths[1:]))
+    def reader(f, **kwargs):
+        sanitize = kwargs.get('sanitize')
+        dedupe = kwargs.pop('dedupe', False)
+        has_header = kwargs.get('has_header')
+        schema = tuple(it.izip_longest(widths, widths[1:]))
 
-    def read_file(f):
         if has_header:
             line = f.readline()
             names = filter(None, (line[s:e].strip() for s, e in schema))
-            header = list(ft.underscorify(names)) if sanitize else names
+            _scored = list(ft.underscorify(names)) if sanitize else names
+            header = list(ft.dedupe(_scored)) if dedupe else _scored
         else:
             header = ['column_%i' % (n + 1) for n in xrange(len(widths))]
 
@@ -480,13 +496,7 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         get_row = lambda line: {k: line[v[0]:v[1]].strip() for k, v in zipped}
         return it.imap(get_row, f)
 
-    if hasattr(filepath, 'read'):
-        for row in read_file(filepath):
-            yield row
-    else:
-        with open(filepath, mode) as f:
-            for row in read_file(f):
-                yield row
+    return read_any(filepath, reader, mode, **kwargs)
 
 
 def sanitize_sheet(sheet, mode, date_format):
@@ -547,6 +557,8 @@ def read_xls(filepath, **kwargs):
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
+        dedupe (bool): Deduplicate field names (default: False).
+
         on_demand (bool): open_workbook() loads global data and returns without
             releasing resources. At this stage, the only information available
             about sheets is Book.nsheets and Book.sheet_names() (default:
@@ -597,6 +609,7 @@ def read_xls(filepath, **kwargs):
     """
     has_header = kwargs.get('has_header', True)
     sanitize = kwargs.get('sanitize')
+    dedupe = kwargs.pop('dedupe', False)
 
     xlrd_kwargs = {
         'on_demand': kwargs.get('on_demand'),
@@ -620,7 +633,8 @@ def read_xls(filepath, **kwargs):
     if has_header:
         names = sheet.row_values(0)
         stripped = [name for name in names if name.strip()]
-        header = list(ft.underscorify(stripped)) if sanitize else stripped
+        _scored = list(ft.underscorify(stripped)) if sanitize else stripped
+        header = list(ft.dedupe(_scored)) if dedupe else _scored
     else:
         header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
@@ -715,7 +729,7 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
         >>> hash_file(TemporaryFile())
         'da39a3ee5e6b4b0d3255bfef95601890afd80709'
     """
-    def read_file(f, hasher):
+    def reader(f, hasher):
         if chunksize:
             while True:
                 data = f.read(chunksize)
@@ -731,10 +745,10 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
     hasher = getattr(hashlib, hasher)()
 
     if hasattr(filepath, 'read'):
-        file_hash = read_file(filepath, hasher)
+        file_hash = reader(filepath, hasher)
     else:
         with open(filepath, 'rb') as f:
-            file_hash = read_file(f, hasher)
+            file_hash = reader(f, hasher)
 
     if verbose:
         print('File %s hash is %s.' % (filepath, file_hash))

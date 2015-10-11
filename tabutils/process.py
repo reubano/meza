@@ -25,20 +25,25 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
-from functools import partial
 import itertools as it
 
-from . import convert as cv, fntools as ft
+from functools import partial
+from collections import defaultdict
+from operator import itemgetter
+from math import log1p
+
+from . import convert as cv, fntools as ft, typetools as tt
 
 
-def type_cast(records, fields):
+def type_cast(records, types):
     """Casts record entries based on field types.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        fields (Iter[dicts]): Field types (`guess_field_types` output).
+        types (Iter[dicts]): Field types (`guess_type_by_field` or
+            `guess_type_by_value` output).
 
     Yields:
         dict: Type casted record. A row of data whose keys are the field names.
@@ -50,38 +55,31 @@ def type_cast(records, fields):
         `convert.to_date`
         `convert.to_time`
         `convert.to_datetime`
+        `convert.to_bool`
 
     Examples:
         >>> import datetime
-        >>> from os import path as p
-        >>> from . import io
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> csv_filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
-        >>> csv_records = list(io.read_csv(csv_filepath, sanitize=True))
-        >>> csv_header = csv_records[0].keys()
-        >>> csv_fields = ft.guess_field_types(csv_header)
-        >>> csv_records[0]['some_date']
-        u'05/04/82'
-        >>> casted_csv_row = type_cast(csv_records, csv_fields).next()
-        >>> casted_csv_values = [casted_csv_row[h] for h in csv_header]
-        >>>
-        >>> xls_filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
-        >>> xls_records = list(io.read_xls(xls_filepath, sanitize=True))
-        >>> xls_header = xls_records[0].keys()
-        >>> set(csv_header) == set(xls_header)
-        True
-        >>> xls_fields = ft.guess_field_types(xls_header)
-        >>> xls_records[0]['some_date']
-        '1982-05-04'
-        >>> casted_xls_row = type_cast(xls_records, xls_fields).next()
-        >>> casted_xls_values = [casted_xls_row[h] for h in xls_header]
-        >>>
-        >>> set(casted_csv_values) == set(casted_xls_values)
-        True
-        >>> casted_csv_values == [
-        ...     u'Iñtërnâtiônàližætiøn', datetime.date(1982, 5, 4), 234.0,
-        ...     u'Ādam']
-        ...
+        >>> record = {
+        ...     'null': 'None',
+        ...     'bool': 'false',
+        ...     'int': '10',
+        ...     'float': '1.5',
+        ...     'unicode': 'Iñtërnâtiônàližætiøn',
+        ...     'date': '5/4/82',
+        ...     'time': '2:30',
+        ...     'datetime': '5/4/82 2pm',
+        ... }
+        >>> types = tt.guess_type_by_value(record)
+        >>> type_cast([record], types).next() == {
+        ...     u'null': None,
+        ...     u'bool': False,
+        ...     u'int': 10,
+        ...     u'float': 1.5,
+        ...     u'unicode': u'Iñtërnâtiônàližætiøn',
+        ...     u'date': datetime.date(1982, 5, 4),
+        ...     u'time': datetime.time(2, 30),
+        ...     u'datetime': datetime.datetime(1982, 5, 4, 14, 0),
+        ... }
         True
     """
     switch = {
@@ -91,13 +89,187 @@ def type_cast(records, fields):
         'date': cv.to_date,
         'time': cv.to_time,
         'datetime': cv.to_datetime,
-        'text': lambda v: unicode(v) if v and v.strip() else None
+        'unicode': lambda v: unicode(v) if v and v.strip() else '',
+        'null': lambda x: None,
+        'bool': cv.to_bool,
     }
 
-    field_types = {f['id']: f['type'] for f in fields}
+    field_types = {t['id']: t['type'] for t in types}
 
     for row in records:
         yield {k: switch.get(field_types[k])(v) for k, v in row.items()}
+
+
+def gen_confidences(tally, types, a=1):
+    """Calculates confidence using a logarithmic function which asymptotically
+    approaches 1.
+
+    Args:
+        tally (dict): Rows of data whose keys are the field names and whose
+            data is a dict of types and counts.
+
+        types (Iter[dicts]): Field types (`guess_type_by_field` or
+            `guess_type_by_value` output).
+
+        a (int): logarithmic weighting, a higher value will converge faster
+            (default: 1)
+
+    Returns:
+        Iter(decimal): Generator of confidences
+
+    Examples:
+        >>> record = {'field_1': 'None', 'field_2': 'false'}
+        >>> types = list(tt.guess_type_by_value(record))
+        >>> tally = {'field_1': {'null': 3}, 'field_2': {'bool': 2}}
+        >>> list(gen_confidences(tally, types))
+        [Decimal('0.52'), Decimal('0.58')]
+        >>> list(gen_confidences(tally, types, 5))
+        [Decimal('0.85'), Decimal('0.87')]
+    """
+    # http://math.stackexchange.com/a/354879
+    calc = lambda x: cv.to_decimal(a * x / (1 + a * x))
+    return (calc(log1p(tally[t['id']][t['type']])) for t in types)
+
+
+def gen_types(tally):
+    """Selects the field type with the highest count.
+
+    Args:
+        tally (dict): Rows of data whose keys are the field names and whose
+            data is a dict of types and counts.
+
+    Yields:
+        dict: Field type. The parsed field and its type.
+
+    Examples:
+        >>> tally = {
+        ...     'field_1': {'null': 3, 'bool': 1},
+        ...     'field_2': {'bool': 2, 'int': 4}}
+        >>> types = sorted(list(gen_types(tally)), key=itemgetter('id'))
+        >>> types[0] == {u'id': u'field_1', u'type': u'null'}
+        True
+        >>> types[1] == {u'id': u'field_2', u'type': u'int'}
+        True
+    """
+    for key, value in tally.items():
+        ttypes = [{'type': k, 'count': v} for k, v in value.items()]
+        highest = sorted(ttypes, key=itemgetter('count'), reverse=True)[0]
+        yield {'id': key, 'type': highest['type']}
+
+
+def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
+    """Detects record types.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        min_conf (float): minimum confidence level (default: 0.95)
+        hweight (int): weight to give header row, a higher value will
+            converge faster (default: 6). E.g.,
+
+        max_iter (int): maximum number of iterations to perform (default: 100)
+
+            detect_types(records, 0.9, 3)['count'] == 23
+            detect_types(records, 0.9, 4)['count'] == 10
+            detect_types(records, 0.9, 5)['count'] == 6
+            detect_types(records, 0.95, 5)['count'] == 31
+            detect_types(records, 0.95, 6)['count'] == 17
+            detect_types(records, 0.95, 7)['count'] == 11
+
+    Returns:
+        tuple(Iter[dict], dict): Tuple of records and the result
+
+    Examples:
+        >>> record = {
+        ...     'null': 'None',
+        ...     'bool': 'false',
+        ...     'int': '1',
+        ...     'float': '1.5',
+        ...     'unicode': 'Iñtërnâtiônàližætiøn',
+        ...     'date': '5/4/82',
+        ...     'time': '2:30',
+        ...     'datetime': '5/4/82 2pm',
+        ... }
+        >>> records = it.repeat(record)
+        >>> records, result = detect_types(records)
+        >>> result['count']
+        17
+        >>> result['confidence']
+        Decimal('0.95')
+        >>> result['accurate']
+        True
+        >>> {r['id']: r['type'] for r in result['types']} == {
+        ...     u'null': u'null',
+        ...     u'bool': u'bool',
+        ...     u'int': u'int',
+        ...     u'float': u'float',
+        ...     u'unicode': u'unicode',
+        ...     u'date': u'date',
+        ...     u'time': u'time',
+        ...     u'datetime': u'datetime',
+        ... }
+        True
+        >>> records.next() == record
+        True
+        >>> result = detect_types(records, 0.99)[1]
+        >>> result['count']
+        100
+        >>> result['confidence']
+        Decimal('0.97')
+        >>> result['accurate']
+        False
+        >>> result = detect_types([record, record])[1]
+        >>> result['count']
+        2
+        >>> result['confidence']
+        Decimal('0.87')
+        >>> result['accurate']
+        False
+    """
+    records = iter(records)
+    tally = {}
+    consumed = []
+
+    if hweight < 1:
+        raise ValueError('`hweight` must be greater than or equal to 1!')
+
+    if min_conf >= 1:
+        raise ValueError('`min_conf must` be less than 1!')
+
+    for record in records:
+        if not tally:
+            # take a first guess using the header
+            ftypes = tt.guess_type_by_field(record.keys())
+            tally = {t['id']: defaultdict(int) for t in ftypes}
+
+            for t in ftypes:
+                # TODO: figure out using the below in place of above alters the
+                # result
+                # tally[t['id']] = defaultdict(int)
+                tally[t['id']][t['type']] += hweight
+
+        # now guess using the values
+        for t in tt.guess_type_by_value(record):
+            tally[t['id']][t['type']] += 1
+
+        types = list(gen_types(tally))
+        confidence = min(gen_confidences(tally, types, hweight))
+        consumed.append(record)
+        count = len(consumed)
+
+        if (confidence >= min_conf) or count >= max_iter:
+            break
+
+    records = it.chain(consumed, records)
+
+    result = {
+        'confidence': confidence,
+        'types': types,
+        'count': count,
+        'accurate': confidence >= min_conf}
+
+    return records, result
 
 
 def fillempty(records, value=None, method=None, limit=None, fields=None):
@@ -455,7 +627,7 @@ def pivot(records, **kwargs):
         >>> sorted(header)
         [u'petal_length', u'petal_width', u'sepal_length', u'sepal_width', \
 u'species']
-        >>> fields = ft.guess_field_types(header)
+        >>> fields = tt.guess_type_by_field(header)
         >>> casted_records = type_cast(records, fields)
         >>> table_records = pivot(
         ...     casted_records, values='sepal_length',
@@ -491,7 +663,7 @@ def tfilter(records, field, predicate=None):
             return the record if value is True).
 
     Returns:
-        Iter[dicts]: The filtered records.
+        Iter[dict]: The filtered records.
 
     Examples:
         >>> records = [
@@ -551,3 +723,124 @@ u'Iñtërnâtiônàližætiøn'
         if entry not in seen:
             seen.add(entry)
             yield r
+
+
+def cut(records, **kwargs):
+    """
+    Edit records to only return specified columns. Like unix `cut`, but for
+    tabular data.'
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        kwargs (dict): keyword arguments
+
+    Kwargs:
+        include (Iter[str]): Column names to include. (default: None, i.e.,
+            all columns.'). If the same field is also in `exclude`, it will
+            still be included.
+
+        exclude (Iter[str]): Column names to exclude (default: None, i.e.,
+            no columns.'). If the same field is also in `include`, it will
+            still be included.
+
+        prune (bool): Remove empty rows from result.
+
+    Yields:
+        dict: Record. A row of data whose keys are the field names.
+
+    Examples:
+        >>> records = [
+        ...     {'field_1': 1, 'field_2': 'bill', 'field_3': 'male'},
+        ...     {'field_1': 2, 'field_2': 'bob', 'field_3': 'male'},
+        ...     {'field_1': 3, 'field_2': 'jane', 'field_3': 'female'},
+        ... ]
+        >>> cut(records).next() == {
+        ...     u'field_1': 1, u'field_2': u'bill', u'field_3': u'male'}
+        ...
+        True
+        >>> cut(records, include=['field_2']).next()
+        {u'field_2': u'bill'}
+        >>> cut(records, exclude=['field_2']).next() == {
+        ...     u'field_1': 1, u'field_3': u'male'}
+        ...
+        True
+        >>> include = ['field_1', 'field_2']
+        >>> cut(records, include=['field_2'], exclude=['field_2']).next()
+        {u'field_2': u'bill'}
+    """
+    include = set(kwargs.get('include') or [])
+    exclude = set(kwargs.get('exclude') or [])
+    included = lambda x: x[0] in include if include else x[0] not in exclude
+    filtered = (dict(filter(included, r.items())) for r in records)
+    return it.ifilter(None, filtered) if kwargs.get('prune') else filtered
+
+
+def grep(records, rules, any_match=False, inverse=False):
+    """
+    Yields rows which match all the given rules.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        rules (Iter[dict]): Each rule dict must contain a `pattern`
+            key and the value can be either a string, function, or regular
+            expression. A `fields` key is optional and corresponds to the
+            columns you wish to pattern match. Default is to search all columns.
+
+        any_match (bool): Return records which match any of the rules
+            (default: False)
+
+        inverse (bool): Only return records which don't match the rules
+            (default: None, i.e., all columns)
+
+    Returns:
+        Iter[dict]: The filtered records.
+
+    Examples:
+        >>> import re
+        >>> records = [
+        ...     {'day': 1, 'name': 'bill'},
+        ...     {'day': 1, 'name': 'rob'},
+        ...     {'day': 1, 'name': 'jane'},
+        ...     {'day': 2, 'name': 'rob'},
+        ...     {'day': 3, 'name': 'jane'},
+        ... ]
+        >>> rules = [{'fields': ['name'], 'pattern': 'o'}]
+        >>> grep(records, rules).next()['name']
+        u'rob'
+        >>> rules = [{'fields': ['name'], 'pattern': re.compile(r'j.*e$')}]
+        >>> grep(records, rules).next()['name']
+        u'jane'
+        >>> rules = [{'fields': ['day'], 'pattern': lambda x: x == 1}]
+        >>> grep(records, rules).next()['name']
+        u'bill'
+        >>> rules = [{'pattern': lambda x: x in {1, 'rob'}}]
+        >>> grep(records, rules).next()['name']
+        u'rob'
+        >>> rules = [{'pattern': lambda x: x in {1, 'rob'}}]
+        >>> grep(records, rules, any_match=True).next()['name']
+        u'bill'
+        >>> rules = [{'fields': ['name'], 'pattern': 'o'}]
+        >>> grep(records, rules, inverse=True).next()['name']
+        u'bill'
+    """
+    def predicate(record):
+        for rule in rules:
+            for field in rule.get('fields', record.keys()):
+                value = record[field]
+                p = rule['pattern']
+
+                try:
+                    passed = p.match(value)
+                except AttributeError:
+                    passed = p(value) if callable(p) else p in value
+
+                if (any_match and passed) or not (any_match or passed):
+                    break
+
+        return not passed if inverse else passed
+
+    return it.ifilter(predicate, records)

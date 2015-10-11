@@ -17,8 +17,8 @@ Examples:
         underscored = list(underscorify(header))
 
 Attributes:
-    CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
-        strings.
+    DEF_TRUES (tuple[str]): Values to be consider True
+    DEF_FALSES (tuple[str]): Values to be consider False
 """
 
 from __future__ import (
@@ -28,9 +28,13 @@ from __future__ import (
 import itertools as it
 
 from functools import partial
-from slugify import slugify
+from collections import defaultdict
 
+from slugify import slugify
 from . import CURRENCIES, ENCODING
+
+DEF_TRUES = ('yes', 'y', 'true', 't')
+DEF_FALSES = ('no', 'n', 'false', 'f')
 
 
 class Objectify(object):
@@ -62,32 +66,6 @@ class Objectify(object):
         return None
 
 
-def isempty(content):
-    """ Returns whether or not content is empty
-
-    Args:
-        content (scalar): the content to check
-
-    Returns:
-        (bool): True if content is empty
-
-    Examples:
-        >>> isempty(None)
-        True
-        >>> isempty('')
-        True
-        >>> isempty(False)
-        False
-        >>> isempty(' ')
-        False
-        >>> isempty('0')
-        False
-        >>> isempty(0)
-        False
-    """
-    return content is None or content == ''
-
-
 def underscorify(content):
     """ Slugifies elements of an array with underscores
 
@@ -102,6 +80,27 @@ def underscorify(content):
         [u'all_caps', u'illegal', u'lots_of_space']
     """
     return (slugify(item, separator='_') for item in content)
+
+
+def dedupe(content):
+    """ Deduplicates elements of an array
+
+    Args:
+        content (Iter[str]): the content to dedupe
+
+    Returns:
+        (generator): the deduped content
+
+    Examples:
+        >>> list(dedupe(['field', 'field', 'field']))
+        [u'field', u'field_2', u'field_3']
+    """
+    seen = defaultdict(int)
+
+    for f in content:
+        new_field = '%s_%i' % (f, seen[f] + 1) if f in seen else f
+        seen[f] += 1
+        yield new_field
 
 
 def mreplace(content, replacements):
@@ -123,38 +122,197 @@ def mreplace(content, replacements):
     return reduce(func, replacements, content)
 
 
-def is_numeric_like(content, separators=('.', ',')):
+def strip(value, thousand_sep=',', decimal_sep='.'):
+    """Strips a string of all non-numeric characters.
+
+    Args:
+        value (str): The string to parse.
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
+
+    Examples:
+        >>> strip('$123.45')
+        u'123.45'
+        >>> strip('123€')
+        u'123'
+        >>> strip('2,123.45')
+        u'2123.45'
+        >>> strip('2.123,45', thousand_sep='.', decimal_sep=',')
+        u'2123.45'
+        >>> strip('spam')
+        u'spam'
+
+    Returns:
+        str
+    """
+    currencies = it.izip(CURRENCIES, it.repeat(''))
+    separators = [(thousand_sep, ''), (decimal_sep, '.')]
+
+    try:
+        stripped = mreplace(value, it.chain(currencies, separators))
+    except AttributeError:
+        stripped = value  # We don't have a string
+
+    return stripped
+
+
+def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
     """ Determines whether or not content can be converted into a number
 
     Args:
         content (scalar): the content to analyze
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
+        kwargs (dict): Keyword arguments passed to the search function
 
     Kwargs:
-        separators (tuple[str]): An iterable of characters that should be
-            considered a thousand's separator (default: ('.', ','))
+        strip_zeros (bool): Remove leading zeros (default: False)
 
-    >>> is_numeric_like('$123.45')
+    >>> is_numeric('$123.45')
     True
-    >>> is_numeric_like('123€')
+    >>> is_numeric('123€')
     True
-    >>> is_numeric_like('2,123.45')
+    >>> is_numeric('2,123.45')
     True
-    >>> is_numeric_like('2.123,45')
+    >>> is_numeric('2.123,45')
     True
-    >>> is_numeric_like('10e5')
+    >>> is_numeric('10e5')
     True
-    >>> is_numeric_like('spam')
+    >>> is_numeric('spam')
     False
+    >>> is_numeric('02139')
+    False
+    >>> is_numeric('02139', strip_zeros=True)
+    True
     """
-    replacements = it.izip(it.chain(CURRENCIES, separators), it.repeat(''))
-    stripped = mreplace(content, replacements)
+    try:
+        stripped = strip(content, thousand_sep, decimal_sep)
+    except TypeError:
+        stripped = content
 
     try:
-        float(stripped)
+        passed = bool(float(stripped))
     except (ValueError, TypeError):
-        return False
+        passed = False
     else:
-        return True
+        if not kwargs.get('strip_zeros') and str(stripped)[0] == '0':
+            passed = int(content) == 0
+
+    return passed
+
+
+def is_int(content, strip_zeros=False, thousand_sep=',', decimal_sep='.'):
+    """ Determines whether or not content can be converted into an int
+
+    Args:
+        content (scalar): the content to analyze
+        strip_zeros (bool): Remove leading zeros (default: False)
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
+
+
+    Examples:
+        >>> is_int('$123.45')
+        False
+        >>> is_int('123')
+        True
+        >>> is_int('5/4/82')
+        False
+    """
+    passed = is_numeric(content, thousand_sep, decimal_sep)
+
+    try:
+        stripped = strip(content, thousand_sep, decimal_sep)
+    except TypeError:
+        stripped = content
+
+    return passed and float(stripped).is_integer()
+
+
+def is_bool(content, trues=None, falses=None):
+    """ Determines whether or not content can be converted into a bool
+
+    Args:
+        content (scalar): the content to analyze
+        trues (List[str]): Values to consider True.
+        falses (List[str]): Values to consider Frue.
+
+    Examples:
+        >>> is_bool(True)
+        True
+        >>> is_bool('true')
+        True
+        >>> is_bool('y')
+        True
+        >>> is_bool(1)
+        True
+        >>> is_bool(False)
+        True
+        >>> is_bool('false')
+        True
+        >>> is_bool('n')
+        True
+        >>> is_bool(0)
+        True
+        >>> is_bool('')
+        False
+        >>> is_bool(None)
+        False
+    """
+    trues = set(map(str.lower, trues) if trues else DEF_TRUES)
+    falses = set(map(str.lower, falses) if falses else DEF_FALSES)
+
+    try:
+        passed = content.lower() in trues.union(falses)
+    except AttributeError:
+        passed = content in {True, False}
+
+    return passed
+
+
+def is_null(content, nulls=None, blanks_as_nulls=False):
+    """ Determines whether or not content can be converted into a null
+
+    Args:
+        content (scalar): the content to analyze
+        nulls (List[str]): Values to consider null.
+        blanks_as_nulls (bool): Treat empty strings as null (default: False).
+
+    Examples:
+        >>> is_null('n/a')
+        True
+        >>> is_null(None)
+        True
+        >>> is_null('')
+        False
+        >>> is_null(' ')
+        False
+        >>> is_null(False)
+        False
+        >>> is_null('0')
+        False
+        >>> is_null(0)
+        False
+        >>> is_null('', blanks_as_nulls=True)
+        True
+        >>> is_null(' ', blanks_as_nulls=True)
+        True
+    """
+    def_nulls = ('na', 'n/a', 'none', 'null', '.')
+    nulls = set(map(str.lower, nulls) if nulls else def_nulls)
+
+    try:
+        passed = content.lower() in nulls
+    except AttributeError:
+        passed = content is None
+
+    try:
+        if not (passed or content.strip()):
+            passed = blanks_as_nulls
+    except AttributeError:
+        pass
+
+    return passed
 
 
 def byte(content):
@@ -293,42 +451,11 @@ def xmlize(content):
                 yield mreplace(item, replacements) if item else ''
 
 
-def guess_field_types(content):
-    """Tries to determine field types based on field names.
-
-    Args:
-        content (Iter[str]): Field names.
-
-    Yields:
-        dict: Field type. The parsed field and its type.
-
-    Examples:
-        >>> fields = ['date', 'raw_value', 'date_and_time']
-        >>> [t['type'] for t in guess_field_types(fields)]
-        [u'date', u'float', u'datetime', u'date']
-    """
-    for item in content:
-        if 'date' in item and 'time' in item:
-            yield {'id': item, 'type': 'datetime'}
-        if 'date' in item:
-            yield {'id': item, 'type': 'date'}
-        elif 'time' in item:
-            yield {'id': item, 'type': 'time'}
-        elif find(['value', 'length', 'width', 'days'], [item], method='fuzzy'):
-            yield {'id': item, 'type': 'float'}
-        elif 'count' in item:
-            yield {'id': item, 'type': 'int'}
-        else:
-            yield {'id': item, 'type': 'text'}
-
-
 def afterish(content, separator=',', exclude=None):
     """Calculates the number of digits after a given separator.
 
     Args:
         content (str): Field names.
-
-    Kwargs:
         separator (char): Character to start counting from (default: ',').
         exclude (char): Character to ignore from the calculation (default: '').
 
@@ -354,12 +481,12 @@ def afterish(content, separator=',', exclude=None):
         Traceback (most recent call last):
         TypeError: Not able to convert eggs to a number
     """
-    numeric_like = is_numeric_like(content)
+    numeric = is_numeric(content)
 
-    if numeric_like and separator in content:
+    if numeric and separator in content:
         excluded = [s for s in content.split(exclude) if separator in s][0]
         after = len(excluded) - excluded.rfind(separator) - 1
-    elif numeric_like:
+    elif numeric:
         after = -1
     else:
         raise TypeError('Not able to convert %s to a number' % content)
@@ -476,32 +603,38 @@ def find(*args, **kwargs):
         return default
 
 
-def fill(prev_row, cur_row, **kwargs):
-    """Fills in data of the current row with data from either a given
-    value, the value of the same column in the previous row, or the value of a
-    given column in the current row.
+def fill(previous, current, **kwargs):
+    """Fills in data of the current record with data from either a given
+    value, the value of the same column in the previous record, or the value of
+    a given column in the current record.
 
     Args:
-        prev_row (dict): The previous row of data whose keys are the field
+        previous (dict): The previous record of data whose keys are the
+            field names.
+
+        current (dict): The current record of data whose keys are the field
             names.
 
-        cur_row (dict): The current row of data whose keys are the field names.
         kwargs (dict): Keyword arguments
 
     Kwargs:
         predicate (func): Receives a value and should return `True`
             if the value should be filled. If predicate is None, it returns
             `True` for empty values (default: None).
-        value (str): Value to use to fill holes (default: None).
-        fill_key (str): The column name of the current row to use for filling
-            missing data.
 
-        limit (int): Max number of consecutive rows to fill (default: None).
+        value (str): Value to use to fill holes (default: None).
+        fill_key (str): The column name of the current record to use for
+            filling missing data.
+
+        limit (int): Max number of consecutive records to fill (default: None).
+
         fields (List[str]): Names of the columns to fill (default: None, i.e.,
             all).
 
-        count (dict): The number of consecutive rows of missing data that have
-            filled for each column.
+        count (dict): The number of consecutive records of missing data that
+            have filled for each column.
+
+        blanks_as_nulls (bool): Treat empty strings as null (default: True).
 
     Yields:
         Tuple[str, str]: A tuple of (key, value).
@@ -516,54 +649,56 @@ def fill(prev_row, cur_row, **kwargs):
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'bad.csv')
         >>> records = io.read_csv(filepath)
-        >>> prev_row = {}
-        >>> cur_row = records.next()
-        >>> cur_row == {
+        >>> previous = {}
+        >>> current = records.next()
+        >>> current == {
         ...     u'column_a': u'1',
         ...     u'column_b': u'27',
         ...     u'column_c': u'',
         ... }
         True
-        >>> length = len(cur_row)
-        >>> filled = fill(prev_row, cur_row, value=0)
-        >>> prev_row = dict(it.islice(filled, length))
+        >>> length = len(current)
+        >>> filled = fill(previous, current, value=0)
+        >>> previous = dict(it.islice(filled, length))
         >>> count = filled.next()
         >>> count == {u'column_a': 0, u'column_b': 0, u'column_c': 1}
         True
-        >>> prev_row == {
+        >>> previous == {
         ...     u'column_a': u'1',
         ...     u'column_b': u'27',
         ...     u'column_c': 0,
         ... }
         True
-        >>> cur_row = records.next()
-        >>> cur_row == {
+        >>> current = records.next()
+        >>> current == {
         ...     u'column_a': u'',
         ...     u'column_b': u"I'm too short!",
         ...     u'column_c': None,
         ... }
         True
-        >>> filled = fill(prev_row, cur_row, fill_key='column_b', count=count)
-        >>> prev_row = dict(it.islice(filled, length))
+        >>> filled = fill(previous, current, fill_key='column_b', count=count)
+        >>> previous = dict(it.islice(filled, length))
         >>> count = filled.next()
         >>> count == {u'column_a': 1, u'column_b': 0, u'column_c': 2}
         True
-        >>> prev_row == {
+        >>> previous == {
         ...     u'column_a': u"I'm too short!",
         ...     u'column_b': u"I'm too short!",
         ...     u'column_c': u"I'm too short!",
         ... }
         True
     """
-    predicate = kwargs.get('predicate', isempty)
+    pkwargs = {'blanks_as_nulls': kwargs.get('blanks_as_nulls', True)}
+    def_predicate = partial(is_null, **pkwargs)
+    predicate = kwargs.get('predicate', def_predicate)
     value = kwargs.get('value')
     limit = kwargs.get('limit')
     fields = kwargs.get('fields')
     count = kwargs.get('count', {})
     fill_key = kwargs.get('fill_key')
-    whitelist = set(fields or cur_row.keys())
+    whitelist = set(fields or current.keys())
 
-    for key, entry in cur_row.items():
+    for key, entry in current.items():
         key_count = count.get(key, 0)
         within_limit = key_count < limit if limit else True
         can_fill = (key in whitelist) and predicate(entry)
@@ -572,9 +707,9 @@ def fill(prev_row, cur_row, **kwargs):
         if can_fill and within_limit and value is not None:
             new_value = value
         elif can_fill and within_limit and fill_key:
-            new_value = cur_row[fill_key]
+            new_value = current[fill_key]
         elif can_fill and within_limit:
-            new_value = prev_row.get(key, entry)
+            new_value = previous.get(key, entry)
         else:
             new_value = entry
 
@@ -680,3 +815,54 @@ def combine(x, y, key, value=None, predicate=None, op=None, default=0):
         passed = predicate(y) == value
 
     return op([x.get(key, default), value]) if passed else value
+
+
+def flatten(record, prefix=None):
+    """Recursively flattens a nested record by pre-pending the parent field
+    name to the children field names.
+
+    Args:
+        record (dict): The record to flattens whose keys are the field
+            names.
+
+        prefix (str): String to prepend to all children (default: None)
+
+    Yields:
+        Tuple[str, scalar]: A tuple of (key, value).
+
+    Examples:
+        >>> record = {
+        ...     'parent_a': {'child_1': 1, 'child_2': 2, 'child_3': 3},
+        ...     'parent_b': {'child_1': 1, 'child_2': 2, 'child_3': 3},
+        ...     'parent_c': 'no child',
+        ... }
+        >>> dict(flatten(record)) == {
+        ...     u'parent_a_child_1': 1,
+        ...     u'parent_a_child_2': 2,
+        ...     u'parent_a_child_3': 3,
+        ...     u'parent_b_child_1': 1,
+        ...     u'parent_b_child_2': 2,
+        ...     u'parent_b_child_3': 3,
+        ...     u'parent_c': u'no child',
+        ... }
+        ...
+        True
+        >>> dict(flatten(record, 'flt')) == {
+        ...     u'flt_parent_a_child_1': 1,
+        ...     u'flt_parent_a_child_2': 2,
+        ...     u'flt_parent_a_child_3': 3,
+        ...     u'flt_parent_b_child_1': 1,
+        ...     u'flt_parent_b_child_2': 2,
+        ...     u'flt_parent_b_child_3': 3,
+        ...     u'flt_parent_c': u'no child',
+        ... }
+        True
+    """
+    try:
+        for key, value in record.items():
+            newkey = '%s_%s' % (prefix, key) if prefix else key
+
+            for flattened in flatten(value, newkey):
+                yield flattened
+    except AttributeError:
+        yield (prefix, record)

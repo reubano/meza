@@ -16,8 +16,7 @@ Examples:
         decimal = to_decimal('$123.45')
 
 Attributes:
-    CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
-        strings.
+    DEFAULT_DATETIME (obj): Default datetime object
 """
 
 from __future__ import (
@@ -28,52 +27,25 @@ import itertools as it
 import unicodecsv as csv
 
 from os import path as p
-from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_HALF_DOWN
 from StringIO import StringIO
+from json import dumps, JSONEncoder
+from datetime import datetime as dt
 
-from . import fntools as ft, CURRENCIES, ENCODING
+from . import fntools as ft, ENCODING
 
 from dateutil.parser import parse
 
+DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
 
-def _strip(value, **kwargs):
-    """Strips a string of all non-numeric characters.
 
-    Args:
-        value (str): The string to parse.
-        kwargs (dict): Keyword arguments.
-
-    Kwargs:
-        thousand_sep (char): .
-        decimal_sep (char): .
-
-    Examples:
-        >>> _strip('$123.45')
-        u'123.45'
-        >>> _strip('123€')
-        u'123'
-        >>> _strip('2,123.45')
-        u'2123.45'
-        >>> _strip('2.123,45', thousand_sep='.', decimal_sep=',')
-        u'2123.45'
-        >>> _strip('spam')
-        u'spam'
-
-    Returns:
-        str
-    """
-    currencies = it.izip(CURRENCIES, it.repeat(''))
-    thousand_sep = kwargs.get('thousand_sep', ',')
-    decimal_sep = kwargs.get('decimal_sep', '.')
-    separators = [(thousand_sep, ''), (decimal_sep, '.')]
-
-    try:
-        stripped = ft.mreplace(value, it.chain(currencies, separators))
-    except AttributeError:
-        # We don't have a string
-        stripped = value
-
-    return stripped
+class CustomEncoder(JSONEncoder):
+    def default(self, obj):
+        if set(['quantize', 'year']).intersection(dir(obj)):
+            return str(obj)
+        elif set(['next', 'union']).intersection(dir(obj)):
+            return list(obj)
+        return JSONEncoder.default(self, obj)
 
 
 def ctype2ext(content_type=None):
@@ -110,7 +82,56 @@ def ctype2ext(content_type=None):
     return switch.get(ctype, 'csv')
 
 
-def to_int(value, **kwargs):
+def to_bool(content, trues=None, falses=None):
+    """Formats strings into bool.
+
+    Args:
+        content (str): The content to parse.
+        trues (List[str]): Values to consider True.
+        falses (List[str]): Values to consider Frue.
+
+    See also:
+        `process.type_cast`
+
+    Returns:
+        bool: The parsed content.
+
+    Examples:
+        >>> to_bool(True)
+        True
+        >>> to_bool('true')
+        True
+        >>> to_bool('y')
+        True
+        >>> to_bool(1)
+        True
+        >>> to_bool(False)
+        False
+        >>> to_bool('false')
+        False
+        >>> to_bool('n')
+        False
+        >>> to_bool(0)
+        False
+        >>> to_bool('')
+        False
+        >>> to_bool(None)
+        False
+
+    Returns:
+        int
+    """
+    trues = set(map(str.lower, trues) if trues else ft.DEF_TRUES)
+
+    try:
+        value = content.lower() in trues
+    except AttributeError:
+        value = bool(content)
+
+    return value
+
+
+def to_int(value, thousand_sep=',', decimal_sep='.'):
     """Formats strings into integers.
 
     Args:
@@ -118,8 +139,8 @@ def to_int(value, **kwargs):
         kwargs (dict): Keyword arguments.
 
     Kwargs:
-        thousand_sep (char): .
-        decimal_sep (char): .
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
 
     See also:
         `process.type_cast`
@@ -142,23 +163,20 @@ def to_int(value, **kwargs):
         int
     """
     try:
-        value = int(float(_strip(value, **kwargs)))
+        value = int(float(ft.strip(value, thousand_sep, decimal_sep)))
     except ValueError:
         value = None
 
     return value
 
 
-def to_float(value, **kwargs):
+def to_float(content, thousand_sep=',', decimal_sep='.'):
     """Formats strings into floats.
 
     Args:
-        value (str): The number to parse.
-        kwargs (dict): Keyword arguments.
-
-    Kwargs:
-        thousand_sep (char): .
-        decimal_sep (char): .
+        content (str): The number to parse.
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
 
     Returns:
         flt: The parsed number.
@@ -181,23 +199,23 @@ def to_float(value, **kwargs):
         float
     """
     try:
-        value = float(_strip(value, **kwargs))
+        value = float(ft.strip(content, thousand_sep, decimal_sep))
     except ValueError:
         value = None
 
     return value
 
 
-def to_decimal(value, **kwargs):
+def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
     """Formats strings into decimals
 
     Args:
-        value (str): The string to parse.
+        content (str): The string to parse.
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
         kwargs (dict): Keyword arguments.
 
     Kwargs:
-        thousand_sep (char): .
-        decimal_sep (char): .
         roundup (bool): Round up to the desired number of decimal places (
             default: True).
 
@@ -215,17 +233,26 @@ def to_decimal(value, **kwargs):
         Decimal('2123.45')
         >>> to_decimal('2.123,45', thousand_sep='.', decimal_sep=',')
         Decimal('2123.45')
+        >>> to_decimal('1.554')
+        Decimal('1.55')
+        >>> to_decimal('1.555')
+        Decimal('1.56')
+        >>> to_decimal('1.555', roundup=False)
+        Decimal('1.55')
+        >>> to_decimal('1.556')
+        Decimal('1.56')
         >>> to_decimal('spam')
 
     Returns:
         decimal
     """
     try:
-        decimalized = Decimal(_strip(value, **kwargs))
+        decimalized = Decimal(ft.strip(content, thousand_sep, decimal_sep))
     except InvalidOperation:
         quantized = None
     else:
-        rounding = ROUND_UP if kwargs.get('roundup', True) else ROUND_DOWN
+        roundup = kwargs.get('roundup', True)
+        rounding = ROUND_HALF_UP if roundup else ROUND_HALF_DOWN
         places = int(kwargs.get('places', 2))
         precision = '.%s1' % ''.join(it.repeat('0', places - 1))
         quantized = decimalized.quantize(Decimal(precision), rounding=rounding)
@@ -233,11 +260,11 @@ def to_decimal(value, **kwargs):
     return quantized
 
 
-def _to_datetime(value):
+def _to_datetime(content):
     """Parses and formats strings into datetimes.
 
     Args:
-        value (str): The date to parse.
+        content (str): The date to parse.
 
     Returns:
         [tuple(str, bool)]: Tuple of the formatted date string and retry value.
@@ -251,8 +278,9 @@ def _to_datetime(value):
         (None, False)
     """
     try:
-        value = parse(value)
+        value = parse(content, default=DEFAULT_DATETIME)
     except ValueError:  # impossible date, e.g., 2/31/15
+        value = content
         retry = True
     except TypeError:  # unparseable date, e.g., Novmbr 4
         value = None
@@ -263,11 +291,11 @@ def _to_datetime(value):
     return (value, retry)
 
 
-def to_datetime(value, dt_format=None):
+def to_datetime(content, dt_format=None):
     """Parses and formats strings into datetimes.
 
     Args:
-        value (str): The string to parse.
+        content (str): The string to parse.
 
     Kwargs:
         dt_format (str): Date format passed to `strftime()`
@@ -292,12 +320,12 @@ def to_datetime(value, dt_format=None):
     good_nums = it.imap(str, xrange(31, 27, -1))
 
     try:
-        bad_num = it.ifilter(lambda x: x in value, bad_nums).next()
+        bad_num = it.ifilter(lambda x: x in content, bad_nums).next()
     except StopIteration:
-        options = [value]
+        options = [content]
     else:
-        possibilities = (value.replace(bad_num, x) for x in good_nums)
-        options = it.chain([value], possibilities)
+        possibilities = (content.replace(bad_num, x) for x in good_nums)
+        options = it.chain([content], possibilities)
 
     # Fix impossible dates, e.g., 2/31/15
     results = it.ifilterfalse(lambda x: x[1], it.imap(_to_datetime, options))
@@ -312,11 +340,11 @@ def to_datetime(value, dt_format=None):
     return datetime
 
 
-def to_date(value, date_format=None):
+def to_date(content, date_format=None):
     """Parses and formats strings into dates.
 
     Args:
-        value (str): The string to parse.
+        content (str): The string to parse.
 
     Kwargs:
         date_format (str): Time format passed to `strftime()` (default: None).
@@ -335,15 +363,15 @@ def to_date(value, date_format=None):
         >>> to_date('2/32/82', '%Y-%m-%d')
         '1982-02-28'
     """
-    value = to_datetime(value).date()
+    value = to_datetime(content).date()
     return value.strftime(date_format) if date_format else value
 
 
-def to_time(value, time_format=None):
+def to_time(content, time_format=None):
     """Parses and formats strings into times.
 
     Args:
-        value (str): The string to parse.
+        content (str): The string to parse.
 
     Kwargs:
         time_format (str): Time format passed to `strftime()` (default: None).
@@ -362,7 +390,7 @@ def to_time(value, time_format=None):
         >>> to_time('2/32/82 12:15', '%H:%M:%S')
         '12:15:00'
     """
-    value = to_datetime(value).time()
+    value = to_datetime(content).time()
     return value.strftime(time_format) if time_format else value
 
 
@@ -494,3 +522,37 @@ def records2csv(records, header=None, encoding=ENCODING, bom=False):
     w.writerows(records)
     f.seek(0)
     return f
+
+
+def records2json(records, header=None, **kwargs):
+    """
+    Converts records into a json file like object.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+    Kwargs:
+        header (List[str]): The header row (default: None)
+        indent (int): Number of spaces to indent (default: 2).
+        sort_keys (bool): Sort rows by keys (default: True).
+        ensure_ascii (bool): Sort response dict by keys (default: False).
+
+    Returns:
+        obj: StringIO.StringIO instance
+
+    Examples:
+        >>> from json import loads
+        >>> records = [
+        ...     {
+        ...         u'usda_id': u'IRVE2',
+        ...         u'species': u'Iris-versicolor',
+        ...         u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}]
+        ...
+        >>> header = records[0].keys()
+        >>> json_str = records2json(records, header)
+        >>> sorted(loads(json_str.next().strip())[0].keys())
+        [u'species', u'usda_id', u'wikipedia_url']
+    """
+    json = dumps(records, cls=CustomEncoder, **kwargs)
+    return StringIO(json)

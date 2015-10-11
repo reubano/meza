@@ -28,6 +28,7 @@ import unicodecsv as csv
 import httplib
 import sys
 import hashlib
+import sqlite3
 
 from os import path as p
 from StringIO import StringIO
@@ -229,7 +230,7 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
                 yield r
 
 
-def _read_csv(f, encoding, header=None, has_header=True):
+def _read_csv(f, encoding, header=None, has_header=True, **kwargs):
     """Helps read a csv file.
 
     Args:
@@ -268,7 +269,7 @@ def _read_csv(f, encoding, header=None, has_header=True):
     elif not (header or has_header):
         raise ValueError('Either `header` or `has_header` must be specified.')
 
-    reader = csv.DictReader(f, header, encoding=encoding)
+    reader = csv.DictReader(f, header, encoding=encoding, **kwargs)
 
     # Remove `None` keys
     records = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
@@ -415,6 +416,43 @@ def read_dbf(filepath, **kwargs):
     return iter(dbf.DBF2(filepath, **kwargs))
 
 
+def read_sqlite(filepath, table=None):
+    """Reads a sqlite file.
+
+    Args:
+        filepath (str): The sqlite file path
+        table (str): The table to load (default: None, the first found table).
+
+    Yields:
+        dict: A row of data whose keys are the field names.
+
+    Raises:
+        NotFound: If unable to find the resource.
+
+    See also:
+        `io.read_any`
+
+    Examples:
+        >>> filepath = p.join(DATA_DIR, 'test.sqlite')
+        >>> records = read_sqlite(filepath)
+        >>> records.next() == {
+        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
+        ...     u'some_date': u'05/04/82',
+        ...     u'some_value': 234,
+        ...     u'unicode_test': u'Ādam'}
+        ...
+        True
+    """
+    con = sqlite3.connect(filepath)
+    con.row_factory = sqlite3.Row
+    c = con.cursor()
+    c.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+
+    t = table or c.fetchone()[0]
+    c.execute('SELECT * FROM %s' % t)
+    return it.imap(dict, c)
+
+
 def read_csv(filepath, mode='rU', **kwargs):
     """Reads a csv file.
 
@@ -479,9 +517,49 @@ def read_csv(filepath, mode='rU', **kwargs):
             f.seek(pos)
             header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
-        return _read_csv(f, encoding, header, False)
+        return _read_csv(f, encoding, header, False, **kwargs)
 
     return read_any(filepath, reader, mode, **kwargs)
+
+
+def read_tsv(filepath, mode='rU', **kwargs):
+    """Reads a csv file.
+
+    Args:
+        filepath (str): The csv file path or file like object.
+        mode (Optional[str]): The file open mode (default: 'rU').
+        kwargs (dict): Keyword arguments that are passed to the csv reader.
+
+    Kwargs:
+        quotechar (str): Quote character (default: '"').
+        encoding (str): File encoding.
+        has_header (bool): Has header row (default: True).
+        sanitize (bool): Underscorify and lowercase field names
+            (default: False).
+
+        dedupe (bool): Deduplicate field names (default: False).
+
+    Yields:
+        dict: A row of data whose keys are the field names.
+
+    Raises:
+        NotFound: If unable to find the resource.
+
+    See also:
+        `io.read_any`
+
+    Examples:
+        >>> filepath = p.join(DATA_DIR, 'test.tsv')
+        >>> records = read_tsv(filepath, sanitize=True)
+        >>> records.next() == {
+        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
+        ...     u'some_date': u'05/04/82',
+        ...     u'some_value': u'234',
+        ...     u'unicode_test': u'Ādam'}
+        ...
+        True
+    """
+    return read_csv(filepath, dialect=csv.excel_tab, **kwargs)
 
 
 def read_fixed_csv(filepath, widths, mode='rU', **kwargs):

@@ -27,7 +27,7 @@ import itertools as it
 import unicodecsv as csv
 
 from os import path as p
-from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_HALF_DOWN
 from StringIO import StringIO
 from datetime import datetime as dt
 
@@ -224,6 +224,14 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
         Decimal('2123.45')
         >>> to_decimal('2.123,45', thousand_sep='.', decimal_sep=',')
         Decimal('2123.45')
+        >>> to_decimal('1.554')
+        Decimal('1.55')
+        >>> to_decimal('1.555')
+        Decimal('1.56')
+        >>> to_decimal('1.555', roundup=False)
+        Decimal('1.55')
+        >>> to_decimal('1.556')
+        Decimal('1.56')
         >>> to_decimal('spam')
 
     Returns:
@@ -234,7 +242,8 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
     except InvalidOperation:
         quantized = None
     else:
-        rounding = ROUND_UP if kwargs.get('roundup', True) else ROUND_DOWN
+        roundup = kwargs.get('roundup', True)
+        rounding = ROUND_HALF_UP if roundup else ROUND_HALF_DOWN
         places = int(kwargs.get('places', 2))
         precision = '.%s1' % ''.join(it.repeat('0', places - 1))
         quantized = decimalized.quantize(Decimal(precision), rounding=rounding)

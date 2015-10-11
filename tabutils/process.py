@@ -28,8 +28,11 @@ from __future__ import (
 import itertools as it
 
 from functools import partial
+from collections import defaultdict
+from operator import itemgetter
+from math import log1p
 
-from . import convert as cv, fntools as ft
+from . import convert as cv, fntools as ft, typetools as tt
 
 
 def type_cast(records, types):
@@ -55,7 +58,6 @@ def type_cast(records, types):
         `convert.to_bool`
 
     Examples:
-        >>> from .typetools import guess_type_by_value
         >>> import datetime
         >>> record = {
         ...     'null': 'None',
@@ -67,7 +69,7 @@ def type_cast(records, types):
         ...     'time': '2:30',
         ...     'datetime': '5/4/82 2pm',
         ... }
-        >>> types = guess_type_by_value(record)
+        >>> types = tt.guess_type_by_value(record)
         >>> type_cast([record], types).next() == {
         ...     u'null': None,
         ...     u'bool': False,
@@ -96,6 +98,178 @@ def type_cast(records, types):
 
     for row in records:
         yield {k: switch.get(field_types[k])(v) for k, v in row.items()}
+
+
+def gen_confidences(tally, types, a=1):
+    """Calculates confidence using a logarithmic function which asymptotically
+    approaches 1.
+
+    Args:
+        tally (dict): Rows of data whose keys are the field names and whose
+            data is a dict of types and counts.
+
+        types (Iter[dicts]): Field types (`guess_type_by_field` or
+            `guess_type_by_value` output).
+
+        a (int): logarithmic weighting, a higher value will converge faster
+            (default: 1)
+
+    Returns:
+        Iter(decimal): Generator of confidences
+
+    Examples:
+        >>> record = {'field_1': 'None', 'field_2': 'false'}
+        >>> types = list(tt.guess_type_by_value(record))
+        >>> tally = {'field_1': {'null': 3}, 'field_2': {'bool': 2}}
+        >>> list(gen_confidences(tally, types))
+        [Decimal('0.52'), Decimal('0.58')]
+        >>> list(gen_confidences(tally, types, 5))
+        [Decimal('0.85'), Decimal('0.87')]
+    """
+    # http://math.stackexchange.com/a/354879
+    calc = lambda x: cv.to_decimal(a * x / (1 + a * x))
+    return (calc(log1p(tally[t['id']][t['type']])) for t in types)
+
+
+def gen_types(tally):
+    """Selects the field type with the highest count.
+
+    Args:
+        tally (dict): Rows of data whose keys are the field names and whose
+            data is a dict of types and counts.
+
+    Yields:
+        dict: Field type. The parsed field and its type.
+
+    Examples:
+        >>> tally = {
+        ...     'field_1': {'null': 3, 'bool': 1},
+        ...     'field_2': {'bool': 2, 'int': 4}}
+        >>> types = sorted(list(gen_types(tally)), key=itemgetter('id'))
+        >>> types[0] == {u'id': u'field_1', u'type': u'null'}
+        True
+        >>> types[1] == {u'id': u'field_2', u'type': u'int'}
+        True
+    """
+    for key, value in tally.items():
+        ttypes = [{'type': k, 'count': v} for k, v in value.items()]
+        highest = sorted(ttypes, key=itemgetter('count'), reverse=True)[0]
+        yield {'id': key, 'type': highest['type']}
+
+
+def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
+    """Detects record types.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        min_conf (float): minimum confidence level (default: 0.95)
+        hweight (int): weight to give header row, a higher value will
+            converge faster (default: 6). E.g.,
+
+        max_iter (int): maximum number of iterations to perform (default: 100)
+
+            detect_types(records, 0.9, 3)['count'] == 23
+            detect_types(records, 0.9, 4)['count'] == 10
+            detect_types(records, 0.9, 5)['count'] == 6
+            detect_types(records, 0.95, 5)['count'] == 31
+            detect_types(records, 0.95, 6)['count'] == 17
+            detect_types(records, 0.95, 7)['count'] == 11
+
+    Returns:
+        tuple(Iter[dict], dict): Tuple of records and the result
+
+    Examples:
+        >>> record = {
+        ...     'null': 'None',
+        ...     'bool': 'false',
+        ...     'int': '1',
+        ...     'float': '1.5',
+        ...     'unicode': 'Iñtërnâtiônàližætiøn',
+        ...     'date': '5/4/82',
+        ...     'time': '2:30',
+        ...     'datetime': '5/4/82 2pm',
+        ... }
+        >>> records = it.repeat(record)
+        >>> records, result = detect_types(records)
+        >>> result['count']
+        17
+        >>> result['confidence']
+        Decimal('0.95')
+        >>> result['accurate']
+        True
+        >>> {r['id']: r['type'] for r in result['types']} == {
+        ...     u'null': u'null',
+        ...     u'bool': u'bool',
+        ...     u'int': u'int',
+        ...     u'float': u'float',
+        ...     u'unicode': u'unicode',
+        ...     u'date': u'date',
+        ...     u'time': u'time',
+        ...     u'datetime': u'datetime',
+        ... }
+        True
+        >>> records.next() == record
+        True
+        >>> result = detect_types(records, 0.99)[1]
+        >>> result['count']
+        100
+        >>> result['confidence']
+        Decimal('0.97')
+        >>> result['accurate']
+        False
+        >>> result = detect_types([record, record])[1]
+        >>> result['count']
+        2
+        >>> result['confidence']
+        Decimal('0.87')
+        >>> result['accurate']
+        False
+    """
+    records = iter(records)
+    tally = {}
+    consumed = []
+
+    if hweight < 1:
+        raise ValueError('`hweight` must be greater than or equal to 1!')
+
+    if min_conf >= 1:
+        raise ValueError('`min_conf must` be less than 1!')
+
+    for record in records:
+        if not tally:
+            # take a first guess using the header
+            ftypes = tt.guess_type_by_field(record.keys())
+            tally = {t['id']: defaultdict(int) for t in ftypes}
+
+            for t in ftypes:
+                # TODO: figure out using the below in place of above alters the
+                # result
+                # tally[t['id']] = defaultdict(int)
+                tally[t['id']][t['type']] += hweight
+
+        # now guess using the values
+        for t in tt.guess_type_by_value(record):
+            tally[t['id']][t['type']] += 1
+
+        types = list(gen_types(tally))
+        confidence = min(gen_confidences(tally, types, hweight))
+        consumed.append(record)
+        count = len(consumed)
+
+        if (confidence >= min_conf) or count >= max_iter:
+            break
+
+    records = it.chain(consumed, records)
+
+    result = {
+        'confidence': confidence,
+        'types': types,
+        'count': count,
+        'accurate': confidence >= min_conf}
+
+    return records, result
 
 
 def fillempty(records, value=None, method=None, limit=None, fields=None):
@@ -446,7 +620,6 @@ def pivot(records, **kwargs):
     Examples:
         >>> from os import path as p
         >>> from . import io
-        >>> from .typetools import guess_type_by_field
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'iris.csv')
         >>> records = list(io.read_csv(filepath))
@@ -454,7 +627,7 @@ def pivot(records, **kwargs):
         >>> sorted(header)
         [u'petal_length', u'petal_width', u'sepal_length', u'sepal_width', \
 u'species']
-        >>> fields = guess_type_by_field(header)
+        >>> fields = tt.guess_type_by_field(header)
         >>> casted_records = type_cast(records, fields)
         >>> table_records = pivot(
         ...     casted_records, values='sepal_length',

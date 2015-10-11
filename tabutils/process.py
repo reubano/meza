@@ -32,14 +32,15 @@ from functools import partial
 from . import convert as cv, fntools as ft
 
 
-def type_cast(records, fields):
+def type_cast(records, types):
     """Casts record entries based on field types.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        fields (Iter[dicts]): Field types (`guess_type_by_field` output).
+        types (Iter[dicts]): Field types (`guess_type_by_field` or
+            `guess_type_by_value` output).
 
     Yields:
         dict: Type casted record. A row of data whose keys are the field names.
@@ -51,38 +52,32 @@ def type_cast(records, fields):
         `convert.to_date`
         `convert.to_time`
         `convert.to_datetime`
+        `convert.to_bool`
 
     Examples:
+        >>> from .typetools import guess_type_by_value
         >>> import datetime
-        >>> from os import path as p
-        >>> from . import io
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> csv_filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
-        >>> csv_records = list(io.read_csv(csv_filepath, sanitize=True))
-        >>> csv_header = csv_records[0].keys()
-        >>> csv_fields = ft.guess_type_by_field(csv_header)
-        >>> csv_records[0]['some_date']
-        u'05/04/82'
-        >>> casted_csv_row = type_cast(csv_records, csv_fields).next()
-        >>> casted_csv_values = [casted_csv_row[h] for h in csv_header]
-        >>>
-        >>> xls_filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
-        >>> xls_records = list(io.read_xls(xls_filepath, sanitize=True))
-        >>> xls_header = xls_records[0].keys()
-        >>> set(csv_header) == set(xls_header)
-        True
-        >>> xls_fields = ft.guess_type_by_field(xls_header)
-        >>> xls_records[0]['some_date']
-        '1982-05-04'
-        >>> casted_xls_row = type_cast(xls_records, xls_fields).next()
-        >>> casted_xls_values = [casted_xls_row[h] for h in xls_header]
-        >>>
-        >>> set(casted_csv_values) == set(casted_xls_values)
-        True
-        >>> casted_csv_values == [
-        ...     u'Iñtërnâtiônàližætiøn', datetime.date(1982, 5, 4), 234.0,
-        ...     u'Ādam']
-        ...
+        >>> record = {
+        ...     'null': 'None',
+        ...     'bool': 'false',
+        ...     'int': '10',
+        ...     'float': '1.5',
+        ...     'unicode': 'Iñtërnâtiônàližætiøn',
+        ...     'date': '5/4/82',
+        ...     'time': '2:30',
+        ...     'datetime': '5/4/82 2pm',
+        ... }
+        >>> types = guess_type_by_value(record)
+        >>> type_cast([record], types).next() == {
+        ...     u'null': None,
+        ...     u'bool': False,
+        ...     u'int': 10,
+        ...     u'float': 1.5,
+        ...     u'unicode': u'Iñtërnâtiônàližætiøn',
+        ...     u'date': datetime.date(1982, 5, 4),
+        ...     u'time': datetime.time(2, 30),
+        ...     u'datetime': datetime.datetime(1982, 5, 4, 14, 0),
+        ... }
         True
     """
     switch = {
@@ -92,10 +87,12 @@ def type_cast(records, fields):
         'date': cv.to_date,
         'time': cv.to_time,
         'datetime': cv.to_datetime,
-        'text': lambda v: unicode(v) if v and v.strip() else None
+        'unicode': lambda v: unicode(v) if v and v.strip() else '',
+        'null': lambda x: None,
+        'bool': cv.to_bool,
     }
 
-    field_types = {f['id']: f['type'] for f in fields}
+    field_types = {t['id']: t['type'] for t in types}
 
     for row in records:
         yield {k: switch.get(field_types[k])(v) for k, v in row.items()}
@@ -449,6 +446,7 @@ def pivot(records, **kwargs):
     Examples:
         >>> from os import path as p
         >>> from . import io
+        >>> from .typetools import guess_type_by_field
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'iris.csv')
         >>> records = list(io.read_csv(filepath))
@@ -456,7 +454,7 @@ def pivot(records, **kwargs):
         >>> sorted(header)
         [u'petal_length', u'petal_width', u'sepal_length', u'sepal_width', \
 u'species']
-        >>> fields = ft.guess_type_by_field(header)
+        >>> fields = guess_type_by_field(header)
         >>> casted_records = type_cast(records, fields)
         >>> table_records = pivot(
         ...     casted_records, values='sepal_length',

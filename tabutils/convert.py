@@ -16,8 +16,7 @@ Examples:
         decimal = to_decimal('$123.45')
 
 Attributes:
-    CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
-        strings.
+    DEFAULT_DATETIME (obj): Default datetime object
 """
 
 from __future__ import (
@@ -30,11 +29,13 @@ import unicodecsv as csv
 from os import path as p
 from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
 from StringIO import StringIO
+from datetime import datetime as dt
 
 from . import fntools as ft, ENCODING
 
 from dateutil.parser import parse
 
+DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
 
 
 
@@ -70,6 +71,55 @@ def ctype2ext(content_type=None):
             % ctype)
 
     return switch.get(ctype, 'csv')
+
+
+def to_bool(content, trues=None, falses=None):
+    """Formats strings into bool.
+
+    Args:
+        content (str): The content to parse.
+        trues (List[str]): Values to consider True.
+        falses (List[str]): Values to consider Frue.
+
+    See also:
+        `process.type_cast`
+
+    Returns:
+        bool: The parsed content.
+
+    Examples:
+        >>> to_bool(True)
+        True
+        >>> to_bool('true')
+        True
+        >>> to_bool('y')
+        True
+        >>> to_bool(1)
+        True
+        >>> to_bool(False)
+        False
+        >>> to_bool('false')
+        False
+        >>> to_bool('n')
+        False
+        >>> to_bool(0)
+        False
+        >>> to_bool('')
+        False
+        >>> to_bool(None)
+        False
+
+    Returns:
+        int
+    """
+    trues = set(map(str.lower, trues) if trues else ft.DEF_TRUES)
+
+    try:
+        value = content.lower() in trues
+    except AttributeError:
+        value = bool(content)
+
+    return value
 
 
 def to_int(value, thousand_sep=',', decimal_sep='.'):

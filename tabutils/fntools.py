@@ -17,8 +17,8 @@ Examples:
         underscored = list(underscorify(header))
 
 Attributes:
-    CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
-        strings.
+    DEF_TRUES (tuple[str]): Values to be consider True
+    DEF_FALSES (tuple[str]): Values to be consider False
 """
 
 from __future__ import (
@@ -31,6 +31,9 @@ from functools import partial
 from slugify import slugify
 
 from . import CURRENCIES, ENCODING
+
+DEF_TRUES = ('yes', 'y', 'true', 't')
+DEF_FALSES = ('no', 'n', 'false', 'f')
 
 
 class Objectify(object):
@@ -60,32 +63,6 @@ class Objectify(object):
 
     def __getattr__(self, name):
         return None
-
-
-def isempty(content):
-    """ Returns whether or not content is empty
-
-    Args:
-        content (scalar): the content to check
-
-    Returns:
-        (bool): True if content is empty
-
-    Examples:
-        >>> isempty(None)
-        True
-        >>> isempty('')
-        True
-        >>> isempty(False)
-        False
-        >>> isempty(' ')
-        False
-        >>> isempty('0')
-        False
-        >>> isempty(0)
-        False
-    """
-    return content is None or content == ''
 
 
 def underscorify(content):
@@ -158,7 +135,7 @@ def strip(value, thousand_sep=',', decimal_sep='.'):
     return stripped
 
 
-def is_numeric_like(content, thousand_sep=',', decimal_sep='.', **kwargs):
+def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
     """ Determines whether or not content can be converted into a number
 
     Args:
@@ -166,20 +143,27 @@ def is_numeric_like(content, thousand_sep=',', decimal_sep='.', **kwargs):
         thousand_sep (char): thousand's separator (default: ',')
         decimal_sep (char): decimal separator (default: '.')
 
-    >>> is_numeric_like('$123.45')
+    >>> is_numeric('$123.45')
     True
-    >>> is_numeric_like('123€')
+    >>> is_numeric('123€')
     True
-    >>> is_numeric_like('2,123.45')
+    >>> is_numeric('2,123.45')
     True
-    >>> is_numeric_like('2.123,45')
+    >>> is_numeric('2.123,45')
     True
-    >>> is_numeric_like('10e5')
+    >>> is_numeric('10e5')
     True
-    >>> is_numeric_like('spam')
+    >>> is_numeric('spam')
     False
+    >>> is_numeric('02139')
+    False
+    >>> is_numeric('02139', strip_zeros=True)
+    True
     """
-    stripped = strip(content, thousand_sep, decimal_sep)
+    try:
+        stripped = strip(content, thousand_sep, decimal_sep)
+    except TypeError:
+        stripped = content
 
     try:
         passed = bool(float(stripped))
@@ -188,6 +172,120 @@ def is_numeric_like(content, thousand_sep=',', decimal_sep='.', **kwargs):
     else:
         if not kwargs.get('strip_zeros') and str(stripped)[0] == '0':
             passed = int(content) == 0
+
+    return passed
+
+
+def is_int(content, strip_zeros=False, thousand_sep=',', decimal_sep='.'):
+    """ Determines whether or not content can be converted into an int
+
+    Args:
+        content (scalar): the content to analyze
+        strip_zeros (bool): Remove leading zeros (default: False)
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
+
+
+    Examples:
+        >>> is_int('$123.45')
+        False
+        >>> is_int('123')
+        True
+        >>> is_int('5/4/82')
+        False
+    """
+    passed = is_numeric(content, thousand_sep, decimal_sep)
+
+    try:
+        stripped = strip(content, thousand_sep, decimal_sep)
+    except TypeError:
+        stripped = content
+
+    return passed and float(stripped).is_integer()
+
+
+def is_bool(content, trues=None, falses=None):
+    """ Determines whether or not content can be converted into a bool
+
+    Args:
+        content (scalar): the content to analyze
+        trues (List[str]): Values to consider True.
+        falses (List[str]): Values to consider Frue.
+
+    Examples:
+        >>> is_bool(True)
+        True
+        >>> is_bool('true')
+        True
+        >>> is_bool('y')
+        True
+        >>> is_bool(1)
+        True
+        >>> is_bool(False)
+        True
+        >>> is_bool('false')
+        True
+        >>> is_bool('n')
+        True
+        >>> is_bool(0)
+        True
+        >>> is_bool('')
+        False
+        >>> is_bool(None)
+        False
+    """
+    trues = set(map(str.lower, trues) if trues else DEF_TRUES)
+    falses = set(map(str.lower, falses) if falses else DEF_FALSES)
+
+    try:
+        passed = content.lower() in trues.union(falses)
+    except AttributeError:
+        passed = content in {True, False}
+
+    return passed
+
+
+def is_null(content, nulls=None, blanks_as_nulls=False):
+    """ Determines whether or not content can be converted into a null
+
+    Args:
+        content (scalar): the content to analyze
+        nulls (List[str]): Values to consider null.
+        blanks_as_nulls (bool): Treat empty strings as null (default: False).
+
+    Examples:
+        >>> is_null('n/a')
+        True
+        >>> is_null(None)
+        True
+        >>> is_null('')
+        False
+        >>> is_null(' ')
+        False
+        >>> is_null(False)
+        False
+        >>> is_null('0')
+        False
+        >>> is_null(0)
+        False
+        >>> is_null('', blanks_as_nulls=True)
+        True
+        >>> is_null(' ', blanks_as_nulls=True)
+        True
+    """
+    def_nulls = ('na', 'n/a', 'none', 'null', '.')
+    nulls = set(map(str.lower, nulls) if nulls else def_nulls)
+
+    try:
+        passed = content.lower() in nulls
+    except AttributeError:
+        passed = content is None
+
+    try:
+        if not (passed or content.strip()):
+            passed = blanks_as_nulls
+    except AttributeError:
+        pass
 
     return passed
 
@@ -328,61 +426,6 @@ def xmlize(content):
                 yield mreplace(item, replacements) if item else ''
 
 
-def type_test(test, _type, key, value):
-    try:
-        passed = test(value)
-    except AttributeError:
-        replacements = [('type', ''), ('datetime.', '')]
-        real_type = mreplace(str(type(value)), replacements).strip(" '<>")
-        result = {'id': key, 'type': real_type}
-    else:
-       result = {'id': key, 'type': _type} if passed else None
-
-    return result
-
-
-def guess_type_by_field(content):
-    """Tries to determine field types based on field names.
-
-    Args:
-        content (Iter[str]): Field names.
-
-    Yields:
-        dict: Field type. The parsed field and its type.
-
-    Examples:
-        >>> fields = ['date', 'raw_value', 'date_and_time', 'length', 'field']
-        >>> {r['id']: r['type'] for r in guess_type_by_field(fields)} == {
-        ...     u'date': u'date',
-        ...     u'raw_value': u'float',
-        ...     u'date_and_time': u'datetime',
-        ...     u'length': u'float',
-        ...     u'field': u'text',
-        ... }
-        ...
-        True
-    """
-    floats = ('value', 'length', 'width', 'days')
-    datetime_func = lambda x: ('date' in x) and ('time' in x)
-
-    guess_funcs = [
-        {'type': 'datetime', 'func': datetime_func},
-        {'type': 'date', 'func': lambda x: 'date' in x},
-        {'type': 'time', 'func': lambda x: 'time' in x},
-        {'type': 'float', 'func': lambda x: find(floats, [x], method='fuzzy')},
-        {'type': 'int', 'func': lambda x: 'count' in x},
-        {'type': 'text', 'func': lambda x: True},
-    ]
-
-    for item in content:
-        for g in guess_funcs:
-            result = type_test(g['func'], g['type'], item, item)
-
-            if result:
-                yield result
-                break
-
-
 def afterish(content, separator=',', exclude=None):
     """Calculates the number of digits after a given separator.
 
@@ -415,12 +458,12 @@ def afterish(content, separator=',', exclude=None):
         Traceback (most recent call last):
         TypeError: Not able to convert eggs to a number
     """
-    numeric_like = is_numeric_like(content)
+    numeric = is_numeric(content)
 
-    if numeric_like and separator in content:
+    if numeric and separator in content:
         excluded = [s for s in content.split(exclude) if separator in s][0]
         after = len(excluded) - excluded.rfind(separator) - 1
-    elif numeric_like:
+    elif numeric:
         after = -1
     else:
         raise TypeError('Not able to convert %s to a number' % content)
@@ -568,6 +611,8 @@ def fill(previous, current, **kwargs):
         count (dict): The number of consecutive records of missing data that
             have filled for each column.
 
+        blanks_as_nulls (bool): Treat empty strings as null (default: True).
+
     Yields:
         Tuple[str, str]: A tuple of (key, value).
         dict: The updated count.
@@ -620,7 +665,9 @@ def fill(previous, current, **kwargs):
         ... }
         True
     """
-    predicate = kwargs.get('predicate', isempty)
+    pkwargs = {'blanks_as_nulls': kwargs.get('blanks_as_nulls', True)}
+    def_predicate = partial(is_null, **pkwargs)
+    predicate = kwargs.get('predicate', def_predicate)
     value = kwargs.get('value')
     limit = kwargs.get('limit')
     fields = kwargs.get('fields')

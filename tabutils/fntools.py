@@ -28,8 +28,9 @@ from __future__ import (
 import itertools as it
 
 from functools import partial
-from slugify import slugify
+from collections import defaultdict
 
+from slugify import slugify
 from . import CURRENCIES, ENCODING
 
 DEF_TRUES = ('yes', 'y', 'true', 't')
@@ -79,6 +80,27 @@ def underscorify(content):
         [u'all_caps', u'illegal', u'lots_of_space']
     """
     return (slugify(item, separator='_') for item in content)
+
+
+def dedupe(content):
+    """ Deduplicates elements of an array
+
+    Args:
+        content (Iter[str]): the content to dedupe
+
+    Returns:
+        (generator): the deduped content
+
+    Examples:
+        >>> list(dedupe(['field', 'field', 'field']))
+        [u'field', u'field_2', u'field_3']
+    """
+    seen = defaultdict(int)
+
+    for f in content:
+        new_field = '%s_%i' % (f, seen[f] + 1) if f in seen else f
+        seen[f] += 1
+        yield new_field
 
 
 def mreplace(content, replacements):

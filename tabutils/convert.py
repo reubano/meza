@@ -161,14 +161,11 @@ def to_int(value, thousand_sep=',', decimal_sep='.'):
     return value
 
 
-def to_float(value, thousand_sep=',', decimal_sep='.'):
+def to_float(content, thousand_sep=',', decimal_sep='.'):
     """Formats strings into floats.
 
     Args:
-        value (str): The number to parse.
-        kwargs (dict): Keyword arguments.
-
-    Kwargs:
+        content (str): The number to parse.
         thousand_sep (char): thousand's separator (default: ',')
         decimal_sep (char): decimal separator (default: '.')
 
@@ -193,18 +190,18 @@ def to_float(value, thousand_sep=',', decimal_sep='.'):
         float
     """
     try:
-        value = float(ft.strip(value, thousand_sep, decimal_sep))
+        value = float(ft.strip(content, thousand_sep, decimal_sep))
     except ValueError:
         value = None
 
     return value
 
 
-def to_decimal(value, thousand_sep=',', decimal_sep='.', **kwargs):
+def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
     """Formats strings into decimals
 
     Args:
-        value (str): The string to parse.
+        content (str): The string to parse.
         thousand_sep (char): thousand's separator (default: ',')
         decimal_sep (char): decimal separator (default: '.')
         kwargs (dict): Keyword arguments.
@@ -233,7 +230,7 @@ def to_decimal(value, thousand_sep=',', decimal_sep='.', **kwargs):
         decimal
     """
     try:
-        decimalized = Decimal(ft.strip(value, thousand_sep, decimal_sep))
+        decimalized = Decimal(ft.strip(content, thousand_sep, decimal_sep))
     except InvalidOperation:
         quantized = None
     else:
@@ -245,11 +242,11 @@ def to_decimal(value, thousand_sep=',', decimal_sep='.', **kwargs):
     return quantized
 
 
-def _to_datetime(value):
+def _to_datetime(content):
     """Parses and formats strings into datetimes.
 
     Args:
-        value (str): The date to parse.
+        content (str): The date to parse.
 
     Returns:
         [tuple(str, bool)]: Tuple of the formatted date string and retry value.
@@ -263,8 +260,9 @@ def _to_datetime(value):
         (None, False)
     """
     try:
-        value = parse(value)
+        value = parse(content, default=DEFAULT_DATETIME)
     except ValueError:  # impossible date, e.g., 2/31/15
+        value = content
         retry = True
     except TypeError:  # unparseable date, e.g., Novmbr 4
         value = None
@@ -275,11 +273,11 @@ def _to_datetime(value):
     return (value, retry)
 
 
-def to_datetime(value, dt_format=None):
+def to_datetime(content, dt_format=None):
     """Parses and formats strings into datetimes.
 
     Args:
-        value (str): The string to parse.
+        content (str): The string to parse.
 
     Kwargs:
         dt_format (str): Date format passed to `strftime()`
@@ -304,12 +302,12 @@ def to_datetime(value, dt_format=None):
     good_nums = it.imap(str, xrange(31, 27, -1))
 
     try:
-        bad_num = it.ifilter(lambda x: x in value, bad_nums).next()
+        bad_num = it.ifilter(lambda x: x in content, bad_nums).next()
     except StopIteration:
-        options = [value]
+        options = [content]
     else:
-        possibilities = (value.replace(bad_num, x) for x in good_nums)
-        options = it.chain([value], possibilities)
+        possibilities = (content.replace(bad_num, x) for x in good_nums)
+        options = it.chain([content], possibilities)
 
     # Fix impossible dates, e.g., 2/31/15
     results = it.ifilterfalse(lambda x: x[1], it.imap(_to_datetime, options))
@@ -324,11 +322,11 @@ def to_datetime(value, dt_format=None):
     return datetime
 
 
-def to_date(value, date_format=None):
+def to_date(content, date_format=None):
     """Parses and formats strings into dates.
 
     Args:
-        value (str): The string to parse.
+        content (str): The string to parse.
 
     Kwargs:
         date_format (str): Time format passed to `strftime()` (default: None).
@@ -347,15 +345,15 @@ def to_date(value, date_format=None):
         >>> to_date('2/32/82', '%Y-%m-%d')
         '1982-02-28'
     """
-    value = to_datetime(value).date()
+    value = to_datetime(content).date()
     return value.strftime(date_format) if date_format else value
 
 
-def to_time(value, time_format=None):
+def to_time(content, time_format=None):
     """Parses and formats strings into times.
 
     Args:
-        value (str): The string to parse.
+        content (str): The string to parse.
 
     Kwargs:
         time_format (str): Time format passed to `strftime()` (default: None).
@@ -374,7 +372,7 @@ def to_time(value, time_format=None):
         >>> to_time('2/32/82 12:15', '%H:%M:%S')
         '12:15:00'
     """
-    value = to_datetime(value).time()
+    value = to_datetime(content).time()
     return value.strftime(time_format) if time_format else value
 
 

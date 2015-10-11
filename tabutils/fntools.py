@@ -129,8 +129,7 @@ def strip(value, thousand_sep=',', decimal_sep='.'):
     try:
         stripped = mreplace(value, it.chain(currencies, separators))
     except AttributeError:
-        # We don't have a string
-        stripped = value
+        stripped = value  # We don't have a string
 
     return stripped
 
@@ -142,6 +141,10 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
         content (scalar): the content to analyze
         thousand_sep (char): thousand's separator (default: ',')
         decimal_sep (char): decimal separator (default: '.')
+        kwargs (dict): Keyword arguments passed to the search function
+
+    Kwargs:
+        strip_zeros (bool): Remove leading zeros (default: False)
 
     >>> is_numeric('$123.45')
     True
@@ -431,8 +434,6 @@ def afterish(content, separator=',', exclude=None):
 
     Args:
         content (str): Field names.
-
-    Kwargs:
         separator (char): Character to start counting from (default: ',').
         exclude (char): Character to ignore from the calculation (default: '').
 

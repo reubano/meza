@@ -31,15 +31,17 @@ import hashlib
 
 from StringIO import StringIO
 from io import TextIOBase
+from json import loads, dumps
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 
+from ijson import items
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from chardet.universaldetector import UniversalDetector
 from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
     XL_CELL_ERROR)
 
-from . import fntools as ft, dbf, ENCODING
+from . import fntools as ft, process as pr, dbf, ENCODING
 
 
 class IterStringIO(TextIOBase):
@@ -650,6 +652,86 @@ def read_xls(filepath, **kwargs):
         # Remove empty rows
         if any(v and v.strip() for v in values):
             yield dict(zip(header, values))
+
+
+def read_json(filepath, mode='rU', path='item', newline=False):
+    """Reads a json file (both regular and newline-delimited)
+
+    Args:
+        filepath (str): The file path or file like object to write to.
+        mode (Optional[str]): The file open mode (default: 'rU').
+        path (Optional[str]): Path to the content you wish to read
+            (default: 'item', i.e., the root list). Note: `path` must refer to
+            a list.
+
+        newline (Optional[bool]): Interpret file as newline-delimited
+            (default: False).
+
+    Returns:
+        Iterable: The parsed records
+
+    See also:
+        `io.read_any`
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.json')
+        >>> records = read_json(filepath)
+        >>> records.next() == {
+        ...     u'text': u'Chicago Reader',
+        ...     u'float': 1,
+        ...     u'datetime': u'1971-01-01T04:14:00',
+        ...     u'boolean': True,
+        ...     u'time': u'04:14:00',
+        ...     u'date': u'1971-01-01',
+        ...     u'integer': 40}
+        ...
+        True
+    """
+    reader = lambda f: it.map(loads, f) if newline else items(f, path)
+    return read_any(filepath, reader, mode)
+
+
+def read_geojson(filepath, mode='rU'):
+    """Reads a geojson file
+
+    Args:
+        filepath (str): The file path or file like object to write to.
+        mode (Optional[str]): The file open mode (default: 'rU').
+
+    Returns:
+        Iterable: The parsed records
+
+    See also:
+        `io.read_any`
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.geojson')
+        >>> records = read_geojson(filepath)
+        >>> records.next() == {
+        ...     u'prop0': u'value0',
+        ...     u'id': None,
+        ...     u'geojson': '{"type": "Point", "coordinates": [102, 0.5]}'}
+        ...
+        True
+    """
+    def reader(f):
+        try:
+            features = items(f, 'features.item')
+        except KeyError:
+            raise TypeError('Only GeoJSON with features are supported.')
+        else:
+            for feature in features:
+                _id = {'id': feature.get('id')}
+                record = feature.get('properties') or {}
+                dumped = dumps(feature['geometry'], cls=ft.CustomEncoder)
+                geojson = {'geojson': dumped}
+                yield pr.merge([_id, record, geojson])
+
+    return read_any(filepath, reader, mode)
 
 
 def write(filepath, content, mode='wb', **kwargs):

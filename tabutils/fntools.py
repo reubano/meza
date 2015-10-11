@@ -29,6 +29,7 @@ import itertools as it
 
 from functools import partial
 from collections import defaultdict
+from json import JSONEncoder
 
 from slugify import slugify
 from . import CURRENCIES, ENCODING
@@ -64,6 +65,20 @@ class Objectify(object):
 
     def __getattr__(self, name):
         return None
+
+
+class CustomEncoder(JSONEncoder):
+    def default(self, obj):
+        if hasattr(obj, 'real'):
+            encoded = float(obj)
+        elif set(['quantize', 'year']).intersection(dir(obj)):
+            encoded = str(obj)
+        elif set(['next', 'union']).intersection(dir(obj)):
+            encoded = list(obj)
+        else:
+            encoded = JSONEncoder.default(self, obj)
+
+        return encoded
 
 
 def underscorify(content):

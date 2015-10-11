@@ -29,7 +29,7 @@ import unicodecsv as csv
 from os import path as p
 from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_DOWN
 from StringIO import StringIO
-from json import dumps, JSONEncoder
+from json import dumps
 from datetime import datetime as dt
 from collections import OrderedDict
 from operator import itemgetter
@@ -40,15 +40,6 @@ from . import fntools as ft, ENCODING
 from dateutil.parser import parse
 
 DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
-
-
-class CustomEncoder(JSONEncoder):
-    def default(self, obj):
-        if set(['quantize', 'year']).intersection(dir(obj)):
-            return str(obj)
-        elif set(['next', 'union']).intersection(dir(obj)):
-            return list(obj)
-        return JSONEncoder.default(self, obj)
 
 
 def ctype2ext(content_type=None):
@@ -637,7 +628,7 @@ def records2json(records, **kwargs):
 "wikipedia_url": "wikipedia.org/wiki/Iris_versicolor"}]'
     """
     newline = kwargs.pop('newline', False)
-    jd = partial(dumps, cls=CustomEncoder, **kwargs)
+    jd = partial(dumps, cls=ft.CustomEncoder, **kwargs)
     json = '\n'.join(map(jd, records)) if newline else jd(records)
     return StringIO(json)
 
@@ -748,5 +739,5 @@ def records2geojson(records, **kwargs):
         output = order_dict(output, output_order)
 
     dkwargs = ft.dfilter(kwargs, ['indent', 'sort_keys'], True)
-    json = dumps(output, cls=CustomEncoder, **dkwargs)
+    json = dumps(output, cls=ft.CustomEncoder, **dkwargs)
     return StringIO(json)

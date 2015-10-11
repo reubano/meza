@@ -132,6 +132,17 @@ def patch_http_response_read(func):
 httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 
+def read_any(filepath, reader, mode, **kwargs):
+    """Reads any file"""
+    if hasattr(filepath, 'read'):
+        for row in reader(filepath, **kwargs):
+            yield row
+    else:
+        with open(filepath, mode) as f:
+            for row in reader(f, **kwargs):
+                yield row
+
+
 def _read_csv(f, encoding, header=None, has_header=True):
     """Helps read a csv file.
 
@@ -384,11 +395,11 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...
         True
     """
-    encoding = kwargs.pop('encoding', ENCODING)
-    sanitize = kwargs.pop('sanitize', False)
-    has_header = kwargs.pop('has_header', True)
+    def reader(f, **kwargs):
+        encoding = kwargs.pop('encoding', ENCODING)
+        sanitize = kwargs.pop('sanitize', False)
+        has_header = kwargs.pop('has_header', True)
 
-    def read_file(f):
         # Get header row and remove empty columns
         names = csv.reader(f, encoding=encoding, **kwargs).next()
 
@@ -407,13 +418,7 @@ def read_csv(filepath, mode='rU', **kwargs):
 
         return records
 
-    if hasattr(filepath, 'read'):
-        for row in read_file(filepath):
-            yield row
-    else:
-        with open(filepath, mode) as f:
-            for row in read_file(f):
-                yield row
+    return read_any(filepath, reader, mode, **kwargs)
 
 
 def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
@@ -463,11 +468,11 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         ...
         True
     """
-    sanitize = kwargs.get('sanitize')
-    has_header = kwargs.get('has_header')
-    schema = tuple(it.izip_longest(widths, widths[1:]))
+    def reader(f, **kwargs):
+        sanitize = kwargs.get('sanitize')
+        has_header = kwargs.get('has_header')
+        schema = tuple(it.izip_longest(widths, widths[1:]))
 
-    def read_file(f):
         if has_header:
             line = f.readline()
             names = filter(None, (line[s:e].strip() for s, e in schema))
@@ -480,13 +485,7 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         get_row = lambda line: {k: line[v[0]:v[1]].strip() for k, v in zipped}
         return it.imap(get_row, f)
 
-    if hasattr(filepath, 'read'):
-        for row in read_file(filepath):
-            yield row
-    else:
-        with open(filepath, mode) as f:
-            for row in read_file(f):
-                yield row
+    return read_any(filepath, reader, mode, **kwargs)
 
 
 def sanitize_sheet(sheet, mode, date_format):
@@ -715,7 +714,7 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
         >>> hash_file(TemporaryFile())
         'da39a3ee5e6b4b0d3255bfef95601890afd80709'
     """
-    def read_file(f, hasher):
+    def reader(f, hasher):
         if chunksize:
             while True:
                 data = f.read(chunksize)
@@ -731,10 +730,10 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
     hasher = getattr(hashlib, hasher)()
 
     if hasattr(filepath, 'read'):
-        file_hash = read_file(filepath, hasher)
+        file_hash = reader(filepath, hasher)
     else:
         with open(filepath, 'rb') as f:
-            file_hash = read_file(f, hasher)
+            file_hash = reader(f, hasher)
 
     if verbose:
         print('File %s hash is %s.' % (filepath, file_hash))

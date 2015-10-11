@@ -29,6 +29,7 @@ import unicodecsv as csv
 from os import path as p
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_HALF_DOWN
 from StringIO import StringIO
+from json import dumps, JSONEncoder
 from datetime import datetime as dt
 
 from . import fntools as ft, ENCODING
@@ -37,6 +38,14 @@ from dateutil.parser import parse
 
 DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
 
+
+class CustomEncoder(JSONEncoder):
+    def default(self, obj):
+        if set(['quantize', 'year']).intersection(dir(obj)):
+            return str(obj)
+        elif set(['next', 'union']).intersection(dir(obj)):
+            return list(obj)
+        return JSONEncoder.default(self, obj)
 
 
 def ctype2ext(content_type=None):
@@ -513,3 +522,37 @@ def records2csv(records, header=None, encoding=ENCODING, bom=False):
     w.writerows(records)
     f.seek(0)
     return f
+
+
+def records2json(records, header=None, **kwargs):
+    """
+    Converts records into a json file like object.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+    Kwargs:
+        header (List[str]): The header row (default: None)
+        indent (int): Number of spaces to indent (default: 2).
+        sort_keys (bool): Sort rows by keys (default: True).
+        ensure_ascii (bool): Sort response dict by keys (default: False).
+
+    Returns:
+        obj: StringIO.StringIO instance
+
+    Examples:
+        >>> from json import loads
+        >>> records = [
+        ...     {
+        ...         u'usda_id': u'IRVE2',
+        ...         u'species': u'Iris-versicolor',
+        ...         u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}]
+        ...
+        >>> header = records[0].keys()
+        >>> json_str = records2json(records, header)
+        >>> sorted(loads(json_str.next().strip())[0].keys())
+        [u'species', u'usda_id', u'wikipedia_url']
+    """
+    json = dumps(records, cls=CustomEncoder, **kwargs)
+    return StringIO(json)

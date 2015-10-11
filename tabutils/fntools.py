@@ -123,15 +123,48 @@ def mreplace(content, replacements):
     return reduce(func, replacements, content)
 
 
-def is_numeric_like(content, separators=('.', ',')):
+def strip(value, thousand_sep=',', decimal_sep='.'):
+    """Strips a string of all non-numeric characters.
+
+    Args:
+        value (str): The string to parse.
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
+
+    Examples:
+        >>> strip('$123.45')
+        u'123.45'
+        >>> strip('123€')
+        u'123'
+        >>> strip('2,123.45')
+        u'2123.45'
+        >>> strip('2.123,45', thousand_sep='.', decimal_sep=',')
+        u'2123.45'
+        >>> strip('spam')
+        u'spam'
+
+    Returns:
+        str
+    """
+    currencies = it.izip(CURRENCIES, it.repeat(''))
+    separators = [(thousand_sep, ''), (decimal_sep, '.')]
+
+    try:
+        stripped = mreplace(value, it.chain(currencies, separators))
+    except AttributeError:
+        # We don't have a string
+        stripped = value
+
+    return stripped
+
+
+def is_numeric_like(content, thousand_sep=',', decimal_sep='.', **kwargs):
     """ Determines whether or not content can be converted into a number
 
     Args:
         content (scalar): the content to analyze
-
-    Kwargs:
-        separators (tuple[str]): An iterable of characters that should be
-            considered a thousand's separator (default: ('.', ','))
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
 
     >>> is_numeric_like('$123.45')
     True
@@ -146,15 +179,17 @@ def is_numeric_like(content, separators=('.', ',')):
     >>> is_numeric_like('spam')
     False
     """
-    replacements = it.izip(it.chain(CURRENCIES, separators), it.repeat(''))
-    stripped = mreplace(content, replacements)
+    stripped = strip(content, thousand_sep, decimal_sep)
 
     try:
-        float(stripped)
+        passed = bool(float(stripped))
     except (ValueError, TypeError):
-        return False
+        passed = False
     else:
-        return True
+        if not kwargs.get('strip_zeros') and str(stripped)[0] == '0':
+            passed = int(content) == 0
+
+    return passed
 
 
 def byte(content):

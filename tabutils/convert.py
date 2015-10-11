@@ -31,49 +31,11 @@ from os import path as p
 from decimal import Decimal, InvalidOperation, ROUND_UP, ROUND_DOWN
 from StringIO import StringIO
 
-from . import fntools as ft, CURRENCIES, ENCODING
+from . import fntools as ft, ENCODING
 
 from dateutil.parser import parse
 
 
-def _strip(value, **kwargs):
-    """Strips a string of all non-numeric characters.
-
-    Args:
-        value (str): The string to parse.
-        kwargs (dict): Keyword arguments.
-
-    Kwargs:
-        thousand_sep (char): .
-        decimal_sep (char): .
-
-    Examples:
-        >>> _strip('$123.45')
-        u'123.45'
-        >>> _strip('123€')
-        u'123'
-        >>> _strip('2,123.45')
-        u'2123.45'
-        >>> _strip('2.123,45', thousand_sep='.', decimal_sep=',')
-        u'2123.45'
-        >>> _strip('spam')
-        u'spam'
-
-    Returns:
-        str
-    """
-    currencies = it.izip(CURRENCIES, it.repeat(''))
-    thousand_sep = kwargs.get('thousand_sep', ',')
-    decimal_sep = kwargs.get('decimal_sep', '.')
-    separators = [(thousand_sep, ''), (decimal_sep, '.')]
-
-    try:
-        stripped = ft.mreplace(value, it.chain(currencies, separators))
-    except AttributeError:
-        # We don't have a string
-        stripped = value
-
-    return stripped
 
 
 def ctype2ext(content_type=None):
@@ -110,7 +72,7 @@ def ctype2ext(content_type=None):
     return switch.get(ctype, 'csv')
 
 
-def to_int(value, **kwargs):
+def to_int(value, thousand_sep=',', decimal_sep='.'):
     """Formats strings into integers.
 
     Args:
@@ -118,8 +80,8 @@ def to_int(value, **kwargs):
         kwargs (dict): Keyword arguments.
 
     Kwargs:
-        thousand_sep (char): .
-        decimal_sep (char): .
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
 
     See also:
         `process.type_cast`
@@ -142,14 +104,14 @@ def to_int(value, **kwargs):
         int
     """
     try:
-        value = int(float(_strip(value, **kwargs)))
+        value = int(float(ft.strip(value, thousand_sep, decimal_sep)))
     except ValueError:
         value = None
 
     return value
 
 
-def to_float(value, **kwargs):
+def to_float(value, thousand_sep=',', decimal_sep='.'):
     """Formats strings into floats.
 
     Args:
@@ -157,8 +119,8 @@ def to_float(value, **kwargs):
         kwargs (dict): Keyword arguments.
 
     Kwargs:
-        thousand_sep (char): .
-        decimal_sep (char): .
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
 
     Returns:
         flt: The parsed number.
@@ -181,23 +143,23 @@ def to_float(value, **kwargs):
         float
     """
     try:
-        value = float(_strip(value, **kwargs))
+        value = float(ft.strip(value, thousand_sep, decimal_sep))
     except ValueError:
         value = None
 
     return value
 
 
-def to_decimal(value, **kwargs):
+def to_decimal(value, thousand_sep=',', decimal_sep='.', **kwargs):
     """Formats strings into decimals
 
     Args:
         value (str): The string to parse.
+        thousand_sep (char): thousand's separator (default: ',')
+        decimal_sep (char): decimal separator (default: '.')
         kwargs (dict): Keyword arguments.
 
     Kwargs:
-        thousand_sep (char): .
-        decimal_sep (char): .
         roundup (bool): Round up to the desired number of decimal places (
             default: True).
 
@@ -221,7 +183,7 @@ def to_decimal(value, **kwargs):
         decimal
     """
     try:
-        decimalized = Decimal(_strip(value, **kwargs))
+        decimalized = Decimal(ft.strip(value, thousand_sep, decimal_sep))
     except InvalidOperation:
         quantized = None
     else:

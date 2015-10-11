@@ -328,7 +328,7 @@ def xmlize(content):
                 yield mreplace(item, replacements) if item else ''
 
 
-def guess_field_types(content):
+def guess_type_by_field(content):
     """Tries to determine field types based on field names.
 
     Args:
@@ -339,7 +339,7 @@ def guess_field_types(content):
 
     Examples:
         >>> fields = ['date', 'raw_value', 'date_and_time']
-        >>> [t['type'] for t in guess_field_types(fields)]
+        >>> [t['type'] for t in guess_type_by_field(fields)]
         [u'date', u'float', u'datetime', u'date']
     """
     for item in content:

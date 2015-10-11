@@ -38,7 +38,7 @@ def type_cast(records, fields):
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        fields (Iter[dicts]): Field types (`guess_field_types` output).
+        fields (Iter[dicts]): Field types (`guess_type_by_field` output).
 
     Yields:
         dict: Type casted record. A row of data whose keys are the field names.
@@ -59,7 +59,7 @@ def type_cast(records, fields):
         >>> csv_filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> csv_records = list(io.read_csv(csv_filepath, sanitize=True))
         >>> csv_header = csv_records[0].keys()
-        >>> csv_fields = ft.guess_field_types(csv_header)
+        >>> csv_fields = ft.guess_type_by_field(csv_header)
         >>> csv_records[0]['some_date']
         u'05/04/82'
         >>> casted_csv_row = type_cast(csv_records, csv_fields).next()
@@ -70,7 +70,7 @@ def type_cast(records, fields):
         >>> xls_header = xls_records[0].keys()
         >>> set(csv_header) == set(xls_header)
         True
-        >>> xls_fields = ft.guess_field_types(xls_header)
+        >>> xls_fields = ft.guess_type_by_field(xls_header)
         >>> xls_records[0]['some_date']
         '1982-05-04'
         >>> casted_xls_row = type_cast(xls_records, xls_fields).next()
@@ -455,7 +455,7 @@ def pivot(records, **kwargs):
         >>> sorted(header)
         [u'petal_length', u'petal_width', u'sepal_length', u'sepal_width', \
 u'species']
-        >>> fields = ft.guess_field_types(header)
+        >>> fields = ft.guess_type_by_field(header)
         >>> casted_records = type_cast(records, fields)
         >>> table_records = pivot(
         ...     casted_records, values='sepal_length',

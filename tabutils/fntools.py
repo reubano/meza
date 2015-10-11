@@ -328,6 +328,19 @@ def xmlize(content):
                 yield mreplace(item, replacements) if item else ''
 
 
+def type_test(test, _type, key, value):
+    try:
+        passed = test(value)
+    except AttributeError:
+        replacements = [('type', ''), ('datetime.', '')]
+        real_type = mreplace(str(type(value)), replacements).strip(" '<>")
+        result = {'id': key, 'type': real_type}
+    else:
+       result = {'id': key, 'type': _type} if passed else None
+
+    return result
+
+
 def guess_type_by_field(content):
     """Tries to determine field types based on field names.
 
@@ -349,19 +362,25 @@ def guess_type_by_field(content):
         ...
         True
     """
+    floats = ('value', 'length', 'width', 'days')
+    datetime_func = lambda x: ('date' in x) and ('time' in x)
+
+    guess_funcs = [
+        {'type': 'datetime', 'func': datetime_func},
+        {'type': 'date', 'func': lambda x: 'date' in x},
+        {'type': 'time', 'func': lambda x: 'time' in x},
+        {'type': 'float', 'func': lambda x: find(floats, [x], method='fuzzy')},
+        {'type': 'int', 'func': lambda x: 'count' in x},
+        {'type': 'text', 'func': lambda x: True},
+    ]
+
     for item in content:
-        if ('date' in item) and ('time' in item):
-            yield {'id': item, 'type': 'datetime'}
-        elif 'date' in item:
-            yield {'id': item, 'type': 'date'}
-        elif 'time' in item:
-            yield {'id': item, 'type': 'time'}
-        elif find(['value', 'length', 'width', 'days'], [item], method='fuzzy'):
-            yield {'id': item, 'type': 'float'}
-        elif 'count' in item:
-            yield {'id': item, 'type': 'int'}
-        else:
-            yield {'id': item, 'type': 'text'}
+        for g in guess_funcs:
+            result = type_test(g['func'], g['type'], item, item)
+
+            if result:
+                yield result
+                break
 
 
 def afterish(content, separator=',', exclude=None):

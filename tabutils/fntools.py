@@ -643,8 +643,8 @@ def fill(previous, current, **kwargs):
         kwargs (dict): Keyword arguments
 
     Kwargs:
-        predicate (func): Receives a value and should return `True`
-            if the value should be filled. If predicate is None, it returns
+        pred (func): Receives a value and should return `True`
+            if the value should be filled. If pred is None, it returns
             `True` for empty values (default: None).
 
         value (str): Value to use to fill holes (default: None).
@@ -714,8 +714,8 @@ def fill(previous, current, **kwargs):
         True
     """
     pkwargs = {'blanks_as_nulls': kwargs.get('blanks_as_nulls', True)}
-    def_predicate = partial(is_null, **pkwargs)
-    predicate = kwargs.get('predicate', def_predicate)
+    def_pred = partial(is_null, **pkwargs)
+    predicate = kwargs.get('pred', def_pred)
     value = kwargs.get('value')
     limit = kwargs.get('limit')
     fields = kwargs.get('fields')
@@ -746,7 +746,7 @@ def fill(previous, current, **kwargs):
     yield count
 
 
-def combine(x, y, key, value=None, predicate=None, op=None, default=0):
+def combine(x, y, key, value=None, pred=None, op=None, default=0):
     """Applies a binary operator to the value of an entry in two `records`.
 
     Args:
@@ -761,7 +761,7 @@ def combine(x, y, key, value=None, predicate=None, op=None, default=0):
         key (str): Current key.
         value (Optional[scalar]): The 2nd record's value of the given `key`.
 
-        predicate (func): Receives `key` and should return `True`
+        pred (func): Receives `key` and should return `True`
             if the values from both records should be combined. Can optionally
             be a keyfunc which receives the 2nd record and should return the
             value that `value` needs to equal in order to be combined.
@@ -771,7 +771,7 @@ def combine(x, y, key, value=None, predicate=None, op=None, default=0):
 
         op (func): Receives a list of the 2 values from the records and should
             return the combined value. Common operators are `sum`, `min`,
-            `max`, etc. Requires that `predicate` is set. If a key is not
+            `max`, etc. Requires that `pred` is set. If a key is not
             present in a record, the value from `default` will be used.
 
         default (int or str): default value to use in `op` for missing keys
@@ -789,55 +789,55 @@ def combine(x, y, key, value=None, predicate=None, op=None, default=0):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> predicate = lambda key: key == 'amount'
+        >>> pred = lambda key: key == 'amount'
         >>> x, y = records[0], records[1]
-        >>> combine(x, y, 'a', predicate=predicate, op=sum)
+        >>> combine(x, y, 'a', pred=pred, op=sum)
         u'item'
-        >>> combine(x, y, 'amount', predicate=predicate, op=sum)
+        >>> combine(x, y, 'amount', pred=pred, op=sum)
         500
         >>> records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
         >>>
         >>> # Combine all keys
-        >>> predicate = lambda key: True
+        >>> pred = lambda key: True
         >>> x, y = records[0], records[1]
-        >>> combine(x, y, 'a', predicate=predicate, op=sum)
+        >>> combine(x, y, 'a', pred=pred, op=sum)
         1
-        >>> combine(x, y, 'b', predicate=predicate, op=sum)
+        >>> combine(x, y, 'b', pred=pred, op=sum)
         6
-        >>> combine(x, y, 'c', predicate=predicate, op=sum)
+        >>> combine(x, y, 'c', pred=pred, op=sum)
         8
         >>> fltrer = lambda x: x is not None
         >>> first = lambda x: filter(fltrer, x)[0]
-        >>> kwargs = {'predicate': predicate, 'op': first, 'default': None}
+        >>> kwargs = {'pred': pred, 'op': first, 'default': None}
         >>> combine(x, y, 'b', **kwargs)
         2
         >>>
         >>> average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
-        >>> kwargs = {'predicate': predicate, 'op': average, 'default': None}
+        >>> kwargs = {'pred': pred, 'op': average, 'default': None}
         >>> combine(x, y, 'a', **kwargs)
         1.0
         >>> combine(x, y, 'b', **kwargs)
         3.0
         >>>
         >>> # Only combine key 'b'
-        >>> predicate = lambda key: key == 'b'
-        >>> combine(x, y, 'c', predicate=predicate, op=sum)
+        >>> pred = lambda key: key == 'b'
+        >>> combine(x, y, 'c', pred=pred, op=sum)
         5
         >>>
         >>> # Only combine keys that have the same value of 'b'
         >>> from operator import itemgetter
-        >>> predicate = itemgetter('b')
-        >>> combine(x, y, 'b', predicate=predicate, op=sum)
+        >>> pred = itemgetter('b')
+        >>> combine(x, y, 'b', pred=pred, op=sum)
         6
-        >>> combine(x, y, 'c', predicate=predicate, op=sum)
+        >>> combine(x, y, 'c', pred=pred, op=sum)
         5
     """
     value = y.get(key, default) if value is None else value
 
     try:
-        passed = predicate(key)
+        passed = pred(key)
     except TypeError:
-        passed = predicate(y) == value
+        passed = pred(y) == value
 
     return op([x.get(key, default), value]) if passed else value
 

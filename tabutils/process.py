@@ -468,18 +468,18 @@ def merge(records, **kwargs):
         kwargs (dict): keyword arguments
 
     Kwargs:
-        predicate (func): Receives the current key and should return `True`
-            if overlapping values should be combined. Can optionally be a
-            keyfunc which receives a record. In this case, the entries will be
-            combined if the value obtained after applying keyfunc to the record
-            equals the current value.
+        pred (func): Predicate. Receives the current key and should return
+            `True` if overlapping values should be combined. Can optionally be
+            a keyfunc which receives a record. In this case, the entries will
+            be combined if the value obtained after applying keyfunc to the
+            record equals the current value.
 
             If a key occurs in multiple records and isn't combined, it will be
             overwritten by the last record. Requires that `op` is set.
 
         op (func): Receives a list of 2 values from overlapping keys and should
             return the combined value. Common operators are `sum`, `min`,
-            `max`, etc. Requires that `predicate` is set. If a key is not
+            `max`, etc. Requires that `pred` is set. If a key is not
             present in a record, the value from `default` will be used. Note,
             since `op` applied inside of `reduce`, it may not perform as
             expected for all functions for more than 2 records. E.g. an average
@@ -504,8 +504,8 @@ def merge(records, **kwargs):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> predicate = lambda key: key == 'amount'
-        >>> merge(records, predicate=predicate, op=sum)
+        >>> pred = lambda key: key == 'amount'
+        >>> merge(records, pred=pred, op=sum)
         {u'a': u'item', u'amount': 900}
         >>> merge(records)
         {u'a': u'item', u'amount': 400}
@@ -514,37 +514,37 @@ def merge(records, **kwargs):
         >>> records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
         >>>
         >>> # Combine all keys
-        >>> predicate = lambda key: True
-        >>> sorted(merge(records, predicate=predicate, op=sum).items())
+        >>> pred = lambda key: True
+        >>> sorted(merge(records, pred=pred, op=sum).items())
         [(u'a', 1), (u'b', 6), (u'c', 8), (u'd', 6)]
         >>> fltrer = lambda x: x is not None
         >>> first = lambda x: filter(fltrer, x)[0]
-        >>> kwargs = {'predicate': predicate, 'op': first, 'default': None}
+        >>> kwargs = {'pred': pred, 'op': first, 'default': None}
         >>> sorted(merge(records, **kwargs).items())
         [(u'a', 1), (u'b', 2), (u'c', 3), (u'd', 6)]
         >>>
         >>> # This will only reliably give the expected result for 2 records
         >>> average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
-        >>> kwargs = {'predicate': predicate, 'op': average, 'default': None}
+        >>> kwargs = {'pred': pred, 'op': average, 'default': None}
         >>> sorted(merge(records, **kwargs).items())
         [(u'a', 1), (u'b', 3.0), (u'c', 4.0), (u'd', 6.0)]
         >>>
         >>> # Only combine key 'b'
-        >>> predicate = lambda key: key == 'b'
-        >>> sorted(merge(records, predicate=predicate, op=sum).items())
+        >>> pred = lambda key: key == 'b'
+        >>> sorted(merge(records, pred=pred, op=sum).items())
         [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
         >>>
         >>> # Only combine keys that have the same value of 'b'
         >>> from operator import itemgetter
-        >>> predicate = itemgetter('b')
-        >>> sorted(merge(records, predicate=predicate, op=sum).items())
+        >>> pred = itemgetter('b')
+        >>> sorted(merge(records, pred=pred, op=sum).items())
         [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
         >>>
         >>> # This will reliably work for any number of records
         >>> from collections import defaultdict
         >>>
         >>> counted = defaultdict(int)
-        >>> predicate = lambda key: True
+        >>> pred = lambda key: True
         >>> divide = lambda x: x[0] / x[1]
         >>> records = [
         ...    {'a': 1, 'b': 4, 'c': 0},
@@ -557,10 +557,10 @@ def merge(records, **kwargs):
         ...
         >>> sorted(counted.items())
         [(u'a', 3), (u'b', 3), (u'c', 2), (u'd', 1)]
-        >>> summed = merge(records, predicate=predicate, op=sum)
+        >>> summed = merge(records, pred=pred, op=sum)
         >>> sorted(summed.items())
         [(u'a', 6), (u'b', 15), (u'c', 2), (u'd', 7)]
-        >>> kwargs = {'predicate': predicate, 'op': divide}
+        >>> kwargs = {'pred': pred, 'op': divide}
         >>> sorted(merge([summed, counted], **kwargs).items())
         [(u'a', 2.0), (u'b', 5.0), (u'c', 1.0), (u'd', 7.0)]
     """
@@ -569,7 +569,7 @@ def merge(records, **kwargs):
         new_y = ((k, _merge(k, v)) for k, v in y.iteritems())
         return dict(it.chain(x.iteritems(), new_y))
 
-    if kwargs.get('predicate') and kwargs.get('op'):
+    if kwargs.get('pred') and kwargs.get('op'):
         record = reduce(reducer, records)
     else:
         items = it.imap(dict.iteritems, records)
@@ -648,7 +648,7 @@ u'species']
         return cv.df2records(table)
 
 
-def tfilter(records, field, predicate=None):
+def tfilter(records, field, pred=None):
     """ Yields records for which the predicate is True for a given field.
 
     Args:
@@ -658,7 +658,7 @@ def tfilter(records, field, predicate=None):
         field (str): The column to to apply the predicate to.
 
     Kwargs:
-        predicate (func): Receives the value of `field` and should return
+        pred (func): Predicate. Receives the value of `field` and should return
             `True`  if the record should be included (default: None, i.e.,
             return the record if value is True).
 
@@ -679,8 +679,8 @@ u'Iñtërnâtiônàližætiøn'
         >>> tfilter(records, 'day', lambda x: x == 3).next()['name']
         u'rob'
     """
-    pred = lambda x: predicate(x.get(field)) if predicate else None
-    return it.ifilter(pred, records)
+    predicate = lambda x: pred(x.get(field)) if pred else None
+    return it.ifilter(predicate, records)
 
 
 def unique(records, fields=None):

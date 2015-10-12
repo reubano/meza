@@ -31,6 +31,8 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_HALF_DOWN
 from StringIO import StringIO
 from json import dumps, JSONEncoder
 from datetime import datetime as dt
+from collections import OrderedDict
+from operator import itemgetter
 
 from . import fntools as ft, ENCODING
 
@@ -80,6 +82,25 @@ def ctype2ext(content_type=None):
             % ctype)
 
     return switch.get(ctype, 'csv')
+
+
+def order_dict(content, order):
+    """Converts a dict into an OrderedDict
+
+    Args:
+        content (dict): The content to convert.
+        order (List[str]): The field order.
+
+    Returns:
+        OrderedDict: The ordered content.
+
+    Examples:
+        >>> order_dict({'a': 1, 'b': 2}, ['a', 'b'])
+        OrderedDict([(u'a', 1), (u'b', 2)])
+    """
+    get_order = {field: pos for pos, field in enumerate(order)}
+    keyfunc = lambda x: get_order[x[0]]
+    return OrderedDict(sorted(content.items(), key=keyfunc))
 
 
 def to_bool(content, trues=None, falses=None):
@@ -548,4 +569,114 @@ def records2json(records, **kwargs):
 "wikipedia_url": "wikipedia.org/wiki/Iris_versicolor"}]'
     """
     json = dumps(records, cls=CustomEncoder, **kwargs)
+    return StringIO(json)
+
+
+def _records2geojson(records, kw):
+    """Helper function for converting records into a GeoJSON file like object.
+
+     Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        kw (obj): `fntools.Objectify` instance with the following Attributes:
+            key (str): GeoJSON Feature ID
+            lat (str): latitude field name
+            lon (str): longitude field name
+            sort_keys (bool): Sort rows by keys
+
+    Yields:
+        tuple(dict, float, float): tuple of feature, lon, and lat
+
+    Examples:
+        >>> record = {'geoid': 'geoid', 'lat': 22, 'lon': 12.2, 'p1': 'prop'}
+        >>> kw = ft.Objectify({'key': 'geoid', 'lat': 'lat', 'lon': 'lon'})
+        >>> _records2geojson([record], kw).next() == (
+        ...     {
+        ...         u'type': u'Feature',
+        ...         u'id': u'geoid',
+        ...         u'geometry': {
+        ...             u'type': u'Point', u'coordinates': [12.2, 22.0]},
+        ...         u'properties': {u'p1': u'prop'}},
+        ...     12.2,
+        ...     22.0)
+        True
+    """
+    for row in records:
+        black_list = {kw.lon, kw.lat, kw.key}
+        lon = to_float(row[kw.lon])
+        lat = to_float(row[kw.lat])
+        geometry = {'type': 'Point', 'coordinates': [lon, lat]}
+        properties = dict(filter(lambda x: x[0] not in black_list, row.items()))
+
+        if kw.sort_keys:
+            geometry = order_dict(geometry, ['type', 'coordinates'])
+
+        feature = {
+            'type': 'Feature',
+            'id': row.get(kw.key),
+            'geometry': geometry,
+            'properties': properties}
+
+        if kw.sort_keys:
+            feature_order = ['type', 'id', 'geometry', 'properties']
+            feature = order_dict(feature, feature_order)
+
+        yield (feature, lon, lat)
+
+
+def records2geojson(records, **kwargs):
+    """Converts records into a GeoJSON file like object.
+
+     Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        kwargs (dict): Keyword arguments.
+
+    Kwargs:
+        key (str): GeoJSON Feature ID (default: 'geoid').
+        lat (str): latitude field name (default: 'lat').
+        lon (str): longitude field name (default: 'lon').
+        crs (str): coordinate reference system field name (default: 'crs').
+        indent (int): Number of spaces to indent (default: 2).
+        sort_keys (bool): Sort rows by keys (default: True).
+        ensure_ascii (bool): Sort response dict by keys (default: False).
+
+    Returns:
+        obj: StringIO.StringIO instance
+
+    Examples:
+        >>> record = {'geoid': 'geoid', 'lat': 22, 'lon': 12.2, 'p1': 'prop'}
+        >>> records2geojson([record]).next()
+        '{"type": "FeatureCollection", "bbox": [12.2, 22.0, 12.2, 22.0], \
+"features": [{"type": "Feature", "id": "geoid", "geometry": {"type": "Point", \
+"coordinates": [12.2, 22.0]}, "properties": {"p1": "prop"}}], "crs": {"type": \
+"name", "properties": {"name": null}}}'
+    """
+    defaults = {
+        'key': 'geoid', 'lat': 'lat', 'lon': 'lon', 'indent': 2,
+        'sort_keys': True}
+
+    kw = ft.Objectify(kwargs, **defaults)
+    results = list(_records2geojson(records, kw))
+    lons = map(itemgetter(1), results)
+    lats = map(itemgetter(2), results)
+    crs = {'type': 'name', 'properties': {'name': kw.crs}}
+
+    if kw.sort_keys:
+        crs = order_dict(crs, ['type', 'properties'])
+
+    output = {
+        'type': 'FeatureCollection',
+        'bbox': [min(lons), min(lats), max(lons), max(lats)],
+        'features': map(itemgetter(0), results),
+        'crs': crs}
+
+    if kw.sort_keys:
+        output_order = ['type', 'bbox', 'features', 'crs']
+        output = order_dict(output, output_order)
+
+    dkwargs = ft.dfilter(kwargs, ['indent', 'sort_keys'], True)
+    json = dumps(output, cls=CustomEncoder, **dkwargs)
     return StringIO(json)

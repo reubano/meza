@@ -315,6 +315,31 @@ def is_null(content, nulls=None, blanks_as_nulls=False):
     return passed
 
 
+def dfilter(content, blacklist=None, inverse=False):
+    """ Filters content
+
+    Args:
+        content (dict): The content to filter
+        blacklist (List(str)): The fields to remove (default: None)
+        inverse (bool): Keep fields in blacklist (default: False)
+
+    Returns:
+        dict: The filtered content
+
+    Examples:
+        >>> content = {'keep': 'Hello', 'strip': 'World'}
+        >>> dfilter(content) == {'keep': 'Hello', 'strip': 'World'}
+        True
+        >>> dfilter(content, ['strip'])
+        {u'keep': u'Hello'}
+        >>> dfilter(content, ['strip'], True)
+        {u'strip': u'World'}
+    """
+    blackset = set(blacklist or [])
+    func = it.ifilterfalse if inverse else filter
+    return dict(func(lambda x: x[0] not in blackset, content.items()))
+
+
 def byte(content):
     """ Creates a bytearray from a string or iterable of characters
 

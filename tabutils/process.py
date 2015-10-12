@@ -770,10 +770,10 @@ def cut(records, **kwargs):
         >>> cut(records, include=['field_2'], exclude=['field_2']).next()
         {u'field_2': u'bill'}
     """
-    include = set(kwargs.get('include') or [])
-    exclude = set(kwargs.get('exclude') or [])
-    included = lambda x: x[0] in include if include else x[0] not in exclude
-    filtered = (dict(filter(included, r.items())) for r in records)
+    include = kwargs.get('include')
+    exclude = kwargs.get('exclude')
+    blacklist = include or exclude
+    filtered = (ft.dfilter(r, blacklist, include) for r in records)
     return it.ifilter(None, filtered) if kwargs.get('prune') else filtered
 
 

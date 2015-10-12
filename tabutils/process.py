@@ -683,7 +683,7 @@ u'Iñtërnâtiônàližætiøn'
     return it.ifilter(predicate, records)
 
 
-def unique(records, fields=None):
+def unique(records, fields=None, pred=None):
     """ Yields unique records
 
     Args:
@@ -691,7 +691,10 @@ def unique(records, fields=None):
             E.g., output from any `tabutils.io` read function.
 
         fields (List[str]): The columns to use for testing uniqueness
-            (default: None, i.e., all columns)
+            (default: None, i.e., all columns). Overridden by `pred`.
+
+        pred (func): Predicate. Receives a record and should return a value for
+            testing uniqueness. Overrides `fields`.
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
@@ -713,12 +716,18 @@ def unique(records, fields=None):
         >>> it.islice(unique(records, ['name']), 3, 4).next()['name'] == \
 u'Iñtërnâtiônàližætiøn'
         True
+        >>> pred = lambda x: x['name'][0]
+        >>> it.islice(unique(records, pred=pred), 3, 4).next()['name']
+        u'rob'
     """
     seen = set()
 
     for r in records:
-        unique = set(fields or r.keys())
-        entry = tuple(sorted((k, v) for k, v in r.items() if k in unique))
+        if not pred:
+            unique = set(fields or r.keys())
+            items = tuple(sorted((k, v) for k, v in r.items() if k in unique))
+
+        entry = pred(r) if pred else items
 
         if entry not in seen:
             seen.add(entry)

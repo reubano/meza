@@ -578,6 +578,33 @@ def merge(records, **kwargs):
     return record
 
 
+def group(records, keyfunc=None):
+    """Groups records by keyfunc
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        keyfunc (func): Function which receives a record and selects which
+            value to sort/group by.
+
+    Returns:
+        Iter(tuple[key, group]): Generator of tuples
+
+    Examples:
+        >>> records = [
+        ...     {'a': 'item', 'amount': 200},
+        ...     {'a': 'item', 'amount': 300},
+        ...     {'a': 'item', 'amount': 400}]
+        ...
+        >>> group(records, itemgetter('amount')).next()[1]
+        [{u'a': u'item', u'amount': 200}]
+    """
+    sorted_records = sorted(records, key=keyfunc)
+    grouped = it.groupby(sorted_records, keyfunc)
+    return ((key, list(group)) for key, group in grouped)
+
+
 def pivot(records, **kwargs):
     """
     Create a spreadsheet-style pivot table as a DataFrame. The levels in the

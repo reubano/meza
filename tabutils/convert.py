@@ -136,9 +136,6 @@ def to_int(value, thousand_sep=',', decimal_sep='.'):
 
     Args:
         value (str): The number to parse.
-        kwargs (dict): Keyword arguments.
-
-    Kwargs:
         thousand_sep (char): thousand's separator (default: ',')
         decimal_sep (char): decimal separator (default: '.')
 
@@ -524,7 +521,7 @@ def records2csv(records, header=None, encoding=ENCODING, bom=False):
     return f
 
 
-def records2json(records, header=None, **kwargs):
+def records2json(records, **kwargs):
     """
     Converts records into a json file like object.
 
@@ -533,7 +530,6 @@ def records2json(records, header=None, **kwargs):
             E.g., output from any `tabutils.io` read function.
 
     Kwargs:
-        header (List[str]): The header row (default: None)
         indent (int): Number of spaces to indent (default: 2).
         sort_keys (bool): Sort rows by keys (default: True).
         ensure_ascii (bool): Sort response dict by keys (default: False).
@@ -542,17 +538,14 @@ def records2json(records, header=None, **kwargs):
         obj: StringIO.StringIO instance
 
     Examples:
-        >>> from json import loads
-        >>> records = [
-        ...     {
-        ...         u'usda_id': u'IRVE2',
-        ...         u'species': u'Iris-versicolor',
-        ...         u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}]
+        >>> record = {
+        ...     u'usda_id': u'IRVE2',
+        ...     u'species': u'Iris-versicolor',
+        ...     u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}
         ...
-        >>> header = records[0].keys()
-        >>> json_str = records2json(records, header)
-        >>> sorted(loads(json_str.next().strip())[0].keys())
-        [u'species', u'usda_id', u'wikipedia_url']
+        >>> records2json([record]).next()
+        '[{"usda_id": "IRVE2", "species": "Iris-versicolor", \
+"wikipedia_url": "wikipedia.org/wiki/Iris_versicolor"}]'
     """
     json = dumps(records, cls=CustomEncoder, **kwargs)
     return StringIO(json)

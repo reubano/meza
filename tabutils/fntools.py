@@ -176,6 +176,8 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
     True
     >>> is_numeric('2.123,45')
     True
+    >>> is_numeric('0.45')
+    True
     >>> is_numeric('10e5')
     True
     >>> is_numeric('spam')
@@ -195,7 +197,8 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
     except (ValueError, TypeError):
         passed = False
     else:
-        if not kwargs.get('strip_zeros') and str(stripped)[0] == '0':
+        s = str(stripped)
+        if not kwargs.get('strip_zeros') and s[0] == '0' and s[1] != '.':
             passed = int(content) == 0
 
     return passed

@@ -35,7 +35,7 @@ from math import log1p
 from . import convert as cv, fntools as ft, typetools as tt
 
 
-def type_cast(records, types):
+def type_cast(records, types, warn=False):
     """Casts record entries based on field types.
 
     Args:
@@ -44,6 +44,8 @@ def type_cast(records, types):
 
         types (Iter[dicts]): Field types (`guess_type_by_field` or
             `guess_type_by_value` output).
+
+        warn (bool): Raise error if value can't be cast (default: False).
 
     Yields:
         dict: Type casted record. A row of data whose keys are the field names.
@@ -81,6 +83,14 @@ def type_cast(records, types):
         ...     u'datetime': datetime.datetime(1982, 5, 4, 14, 0),
         ... }
         True
+        >>> records = [{'float': '1.5'}]
+        >>> types = [{'id': 'float', 'type': 'bool'}]
+        >>> type_cast(records, types).next()
+        {u'float': False}
+        >>> type_cast(records, types, warn=True).next()
+        Traceback (most recent call last):
+        ValueError: Invalid bool value: `1.5`.
+
     """
     switch = {
         'int': cv.to_int,
@@ -89,15 +99,16 @@ def type_cast(records, types):
         'date': cv.to_date,
         'time': cv.to_time,
         'datetime': cv.to_datetime,
-        'unicode': lambda v: unicode(v) if v and v.strip() else '',
-        'null': lambda x: None,
+        'unicode': lambda v, warn=None: unicode(v) if v and v.strip() else '',
+        'null': lambda x, warn=None: None,
         'bool': cv.to_bool,
     }
 
     field_types = {t['id']: t['type'] for t in types}
 
     for row in records:
-        yield {k: switch.get(field_types[k])(v) for k, v in row.items()}
+        items = row.items()
+        yield {k: switch.get(field_types[k])(v, warn=warn) for k, v in items}
 
 
 def gen_confidences(tally, types, a=1):

@@ -27,7 +27,7 @@ import itertools as it
 import unicodecsv as csv
 
 from os import path as p
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_HALF_DOWN
+from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_DOWN
 from StringIO import StringIO
 from json import dumps, JSONEncoder
 from datetime import datetime as dt
@@ -103,13 +103,15 @@ def order_dict(content, order):
     return OrderedDict(sorted(content.items(), key=keyfunc))
 
 
-def to_bool(content, trues=None, falses=None):
+def to_bool(content, trues=None, falses=None, warn=False):
     """Formats strings into bool.
 
     Args:
         content (str): The content to parse.
         trues (List[str]): Values to consider True.
         falses (List[str]): Values to consider Frue.
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     See also:
         `process.type_cast`
@@ -138,27 +140,37 @@ def to_bool(content, trues=None, falses=None):
         False
         >>> to_bool(None)
         False
+        >>> to_bool(None, warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid bool value: `None`.
 
     Returns:
         bool
     """
     trues = set(map(str.lower, trues) if trues else ft.DEF_TRUES)
 
-    try:
-        value = content.lower() in trues
-    except AttributeError:
-        value = bool(content)
+    if ft.is_bool(content):
+        try:
+            value = content.lower() in trues
+        except (TypeError, AttributeError):
+            value = bool(content)
+    elif warn:
+        raise ValueError('Invalid bool value: `%s`.' % content)
+    else:
+        value = False
 
     return value
 
 
-def to_int(value, thousand_sep=',', decimal_sep='.'):
+def to_int(content, thousand_sep=',', decimal_sep='.', warn=False):
     """Formats strings into integers.
 
     Args:
-        value (str): The number to parse.
+        content (str): The number to parse.
         thousand_sep (char): thousand's separator (default: ',')
         decimal_sep (char): decimal separator (default: '.')
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     See also:
         `process.type_cast`
@@ -175,26 +187,41 @@ def to_int(value, thousand_sep=',', decimal_sep='.'):
         2123
         >>> to_int('2.123,45', thousand_sep='.', decimal_sep=',')
         2123
+        >>> to_int('2,123.45', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid int value: `2,123.45`.
         >>> to_int('spam')
+        0
+        >>> to_int('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid int value: `spam`.
 
     Returns:
         int
     """
+    if warn and not ft.is_int(content):
+        raise ValueError('Invalid int value: `%s`.' % content)
+
     try:
-        value = int(float(ft.strip(value, thousand_sep, decimal_sep)))
+        value = int(float(ft.strip(content, thousand_sep, decimal_sep)))
     except ValueError:
-        value = None
+        if warn:
+            raise ValueError('Invalid int value: `%s`.' % content)
+        else:
+            value = 0
 
     return value
 
 
-def to_float(content, thousand_sep=',', decimal_sep='.'):
+def to_float(content, thousand_sep=',', decimal_sep='.', warn=False):
     """Formats strings into floats.
 
     Args:
         content (str): The number to parse.
         thousand_sep (char): thousand's separator (default: ',')
         decimal_sep (char): decimal separator (default: '.')
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     Returns:
         flt: The parsed number.
@@ -212,14 +239,20 @@ def to_float(content, thousand_sep=',', decimal_sep='.'):
         >>> to_float('2.123,45', thousand_sep='.', decimal_sep=',')
         2123.45
         >>> to_float('spam')
+        0.0
+        >>> to_float('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid float value: `spam`.
 
     Returns:
         float
     """
-    try:
+    if ft.is_numeric(content):
         value = float(ft.strip(content, thousand_sep, decimal_sep))
-    except ValueError:
-        value = None
+    elif warn:
+        raise ValueError('Invalid float value: `%s`.' % content)
+    else:
+        value = 0.0
 
     return value
 
@@ -234,6 +267,9 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
         kwargs (dict): Keyword arguments.
 
     Kwargs:
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
+
         roundup (bool): Round up to the desired number of decimal places
              from 5 to 9 (default: True). If False, round up from 6 to 9.
 
@@ -260,22 +296,26 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
         >>> to_decimal('1.556')
         Decimal('1.56')
         >>> to_decimal('spam')
+        Decimal('0.00')
+        >>> to_decimal('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid numeric value: `spam`.
 
     Returns:
         decimal
     """
-    try:
+    if ft.is_numeric(content):
         decimalized = Decimal(ft.strip(content, thousand_sep, decimal_sep))
-    except InvalidOperation:
-        quantized = None
+    elif kwargs.get('warn'):
+        raise ValueError('Invalid numeric value: `%s`.' % content)
     else:
-        roundup = kwargs.get('roundup', True)
-        rounding = ROUND_HALF_UP if roundup else ROUND_HALF_DOWN
-        places = int(kwargs.get('places', 2))
-        precision = '.%s1' % ''.join(it.repeat('0', places - 1))
-        quantized = decimalized.quantize(Decimal(precision), rounding=rounding)
+        decimalized = Decimal(0)
 
-    return quantized
+    roundup = kwargs.get('roundup', True)
+    rounding = ROUND_HALF_UP if roundup else ROUND_HALF_DOWN
+    places = int(kwargs.get('places', 2))
+    precision = '.%s1' % ''.join(it.repeat('0', places - 1))
+    return decimalized.quantize(Decimal(precision), rounding=rounding)
 
 
 def _to_datetime(content):
@@ -292,32 +332,31 @@ def _to_datetime(content):
         (datetime.datetime(1982, 5, 4, 0, 0), False)
         >>> _to_datetime('2/32/82')
         (u'2/32/82', True)
-        >>> _to_datetime('Novmbr 4')
-        (None, False)
+        >>> _to_datetime('spam')
+        (datetime.datetime(9999, 12, 31, 0, 0), False)
     """
     try:
         value = parse(content, default=DEFAULT_DATETIME)
-    except ValueError:  # impossible date, e.g., 2/31/15
-        value = content
-        retry = True
-    except TypeError:  # unparseable date, e.g., Novmbr 4
-        value = None
-        retry = False
+    except ValueError as e:
+        retry = 'out of range' in str(e)  # impossible date, e.g., 2/31/15
+        value = content if retry else DEFAULT_DATETIME
     else:
         retry = False
 
     return (value, retry)
 
 
-def to_datetime(content, dt_format=None):
+def to_datetime(content, dt_format=None, warn=False):
     """Parses and formats strings into datetimes.
 
     Args:
         content (str): The string to parse.
 
-    Kwargs:
         dt_format (str): Date format passed to `strftime()`
             (default: None).
+
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     Returns:
         obj: The datetime object or formatted datetime string.
@@ -332,7 +371,14 @@ def to_datetime(content, dt_format=None):
         '1982-05-04 10:00:00'
         >>> to_datetime('2/32/82 12:15', '%Y-%m-%d %H:%M:%S')
         '1982-02-28 12:15:00'
-        >>> to_datetime('Novmbr 4')
+        >>> to_datetime('spam')
+        datetime.datetime(9999, 12, 31, 0, 0)
+        >>> to_datetime('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid datetime value: `spam`.
+
+    Returns:
+        datetime
     """
     bad_nums = it.imap(str, xrange(29, 33))
     good_nums = it.imap(str, xrange(31, 27, -1))
@@ -347,25 +393,26 @@ def to_datetime(content, dt_format=None):
 
     # Fix impossible dates, e.g., 2/31/15
     results = it.ifilterfalse(lambda x: x[1], it.imap(_to_datetime, options))
+    value = results.next()[0]
 
-    try:
-        good_value = results.next()[0]
-    except StopIteration:
-        datetime = None
+    if warn and value == DEFAULT_DATETIME:
+        raise ValueError('Invalid datetime value: `%s`.' % content)
     else:
-        datetime = good_value.strftime(dt_format) if dt_format else good_value
+        datetime = value.strftime(dt_format) if dt_format else value
 
     return datetime
 
 
-def to_date(content, date_format=None):
+def to_date(content, date_format=None, warn=False):
     """Parses and formats strings into dates.
 
     Args:
         content (str): The string to parse.
 
-    Kwargs:
         date_format (str): Time format passed to `strftime()` (default: None).
+
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     Returns:
         obj: The date object or formatted date string.
@@ -380,19 +427,27 @@ def to_date(content, date_format=None):
         '1982-05-04'
         >>> to_date('2/32/82', '%Y-%m-%d')
         '1982-02-28'
+        >>> to_date('spam')
+        datetime.date(9999, 12, 31)
+        >>> to_date('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid datetime value: `spam`.
+
+    Returns:
+        date
     """
-    value = to_datetime(content).date()
+    value = to_datetime(content, warn=warn).date()
     return value.strftime(date_format) if date_format else value
 
 
-def to_time(content, time_format=None):
+def to_time(content, time_format=None, warn=False):
     """Parses and formats strings into times.
 
     Args:
         content (str): The string to parse.
-
-    Kwargs:
         time_format (str): Time format passed to `strftime()` (default: None).
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     Returns:
         obj: The time object or formatted time string.
@@ -407,8 +462,16 @@ def to_time(content, time_format=None):
         '10:00:00'
         >>> to_time('2/32/82 12:15', '%H:%M:%S')
         '12:15:00'
+        >>> to_time('spam')
+        datetime.time(0, 0)
+        >>> to_time('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid datetime value: `spam`.
+
+    Returns:
+        time
     """
-    value = to_datetime(content).time()
+    value = to_datetime(content, warn=warn).time()
     return value.strftime(time_format) if time_format else value
 
 

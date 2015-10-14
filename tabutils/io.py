@@ -52,7 +52,7 @@ class IterStringIO(TextIOBase):
         """ IterStringIO constructor
 
         Args:
-            iterable (dict): bank mapper (see csv2vcard.mappings)
+            iterable (Iter(str)): Iterable of strings
 
         Examples:
             >>> iter_content = iter('Hello World')

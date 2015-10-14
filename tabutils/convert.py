@@ -140,7 +140,7 @@ def to_bool(content, trues=None, falses=None):
         False
 
     Returns:
-        int
+        bool
     """
     trues = set(map(str.lower, trues) if trues else ft.DEF_TRUES)
 
@@ -234,8 +234,8 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
         kwargs (dict): Keyword arguments.
 
     Kwargs:
-        roundup (bool): Round up to the desired number of decimal places (
-            default: True).
+        roundup (bool): Round up to the desired number of decimal places
+             from 5 to 9 (default: True). If False, round up from 6 to 9.
 
         places (int): Number of decimal places to display (default: 2).
 

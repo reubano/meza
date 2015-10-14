@@ -33,6 +33,7 @@ from json import dumps, JSONEncoder
 from datetime import datetime as dt
 from collections import OrderedDict
 from operator import itemgetter
+from functools import partial
 
 from . import fntools as ft, ENCODING
 
@@ -618,6 +619,7 @@ def records2json(records, **kwargs):
 
     Kwargs:
         indent (int): Number of spaces to indent (default: 2).
+        newline (bool): Output newline delimited json (default: False)
         sort_keys (bool): Sort rows by keys (default: True).
         ensure_ascii (bool): Sort response dict by keys (default: False).
 
@@ -634,7 +636,9 @@ def records2json(records, **kwargs):
         '[{"usda_id": "IRVE2", "species": "Iris-versicolor", \
 "wikipedia_url": "wikipedia.org/wiki/Iris_versicolor"}]'
     """
-    json = dumps(records, cls=CustomEncoder, **kwargs)
+    newline = kwargs.pop('newline', False)
+    jd = partial(dumps, cls=CustomEncoder, **kwargs)
+    json = '\n'.join(map(jd, records)) if newline else jd(records)
     return StringIO(json)
 
 

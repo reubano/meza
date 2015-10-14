@@ -502,7 +502,7 @@ def df2records(df):
             yield dict(zip(keys, values[1:]))
 
 
-def records2csv(records, header=None, encoding=ENCODING, bom=False):
+def records2csv(records, encoding=ENCODING, bom=False):
     """
     Converts records into a csv file like object.
 
@@ -523,20 +523,23 @@ def records2csv(records, header=None, encoding=ENCODING, bom=False):
         ...         u'species': u'Iris-versicolor',
         ...         u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}]
         ...
-        >>> header = records[0].keys()
-        >>> csv_str = records2csv(records, header)
+        >>> csv_str = records2csv(records)
         >>> csv_str.next().strip()
         'usda_id,species,wikipedia_url'
         >>> csv_str.next().strip()
         'IRVE2,Iris-versicolor,wikipedia.org/wiki/Iris_versicolor'
     """
     f = StringIO()
+    records = iter(records)
 
     if bom:
         f.write(u'\ufeff'.encode(ENCODING))  # BOM for Windows
 
+    row = records.next()
+    header = row.keys()
     w = csv.DictWriter(f, header, encoding=encoding)
     w.writer.writerow(header)
+    w.writerow(row)
     w.writerows(records)
     f.seek(0)
     return f

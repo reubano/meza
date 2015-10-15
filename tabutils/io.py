@@ -134,15 +134,41 @@ def patch_http_response_read(func):
 httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 
-def read_any(filepath, reader, mode, **kwargs):
-    """Reads any file"""
+def read_any(filepath, reader, mode, *args, **kwargs):
+    """Reads a file or filepath
+
+    Args:
+        filepath (str): The file path or file like object.
+        reader (func): The processing function.
+        mode (Optional[str]): The file open mode (default: 'rU').
+        kwargs (dict): Keyword arguments that are passed to the reader.
+
+    See also:
+        `io.read_csv`
+        `io.read_fixed_csv`
+        `io.read_json`
+        `io.read_geojson`
+        `io.write`
+        `io.hash_file`
+
+    Yields:
+        scalar: Result of applying the reader func to the file.
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
+        >>> reader = lambda f: (l.strip().split(',') for l in f)
+        >>> read_any(filepath, reader, 'rU').next()
+        [u'Some Date', u'Sparse Data', u'Some Value', u'Unicode Test', u'']
+    """
     if hasattr(filepath, 'read'):
-        for row in reader(filepath, **kwargs):
-            yield row
+        for r in reader(filepath, *args, **kwargs):
+            yield r
     else:
         with open(filepath, mode) as f:
-            for row in reader(f, **kwargs):
-                yield row
+            for r in reader(f, *args, **kwargs):
+                yield r
 
 
 def _read_csv(f, encoding, header=None, has_header=True):
@@ -158,27 +184,28 @@ def _read_csv(f, encoding, header=None, has_header=True):
     Yields:
         dict: A csv record.
 
+    See also:
+        `io.read_csv`
+
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> with_header = p.join(parent_dir, 'data', 'test', 'test.csv')
-        >>> no_header = p.join(parent_dir, 'data', 'test', 'no_header_row.csv')
-        >>> f = open(with_header, 'rU')
-        >>> sorted(_read_csv(f, 'utf-8').next().items()) == [(u'Some Date', \
-u'05/04/82'), (u'Some Value', u'234'), (u'Sparse Data', \
-u'Iñtërnâtiônàližætiøn'), (u'Unicode Test', u'Ādam')]
-        True
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
-        >>> sorted(_read_csv(f, 'utf-8', header).next().items()) == [\
-(u'some_date', u'05/04/82'), (u'some_value', u'234'), (u'sparse_data', \
-u'Iñtërnâtiônàližætiøn'), (u'unicode_test', u'Ādam')]
+        >>> with open(filepath, 'rU') as f:
+        ...     sorted(_read_csv(f, 'utf-8').next().items()) == [
+        ...         (u'Some Date', u'05/04/82'),
+        ...         (u'Some Value', u'234'),
+        ...         (u'Sparse Data', u'Iñtërnâtiônàližætiøn'),
+        ...         (u'Unicode Test', u'Ādam')]
         True
-        >>> f.close()
-        >>> header = ['col_1', 'col_2', 'col_3']
-        >>> with open(no_header, 'rU') as f:
-        ...     records = _read_csv(f, 'utf-8', header, has_header=False)
-        ...     sorted(records.next().items())
-        [(u'col_1', u'1'), (u'col_2', u'2'), (u'col_3', u'3')]
+        >>> with open(filepath, 'rU') as f:
+        ...     sorted(_read_csv(f, 'utf-8', header).next().items()) == [
+        ...         (u'some_date', u'05/04/82'),
+        ...         (u'some_value', u'234'),
+        ...         (u'sparse_data', u'Iñtërnâtiônàližætiøn'),
+        ...         (u'unicode_test', u'Ādam')]
+        True
     """
     f.seek(0)
 
@@ -368,25 +395,16 @@ def read_csv(filepath, mode='rU', **kwargs):
     Raises:
         NotFound: If unable to find the resource.
 
+    See also:
+        `io.read_any`
+        `io._read_csv`
+
     Examples:
         >>> from os import path as p
-        >>> from tempfile import TemporaryFile
-        >>> read_csv(TemporaryFile()).next()
-        Traceback (most recent call last):
-        StopIteration
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
         >>> records = read_csv(filepath, sanitize=True)
         >>> records.next() == {
-        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
-        ...     u'some_date': u'05/04/82',
-        ...     u'some_value': u'234',
-        ...     u'unicode_test': u'Ādam'}
-        ...
-        True
-        >>> with open(filepath, 'rU') as f:
-        ...     records = read_csv(f, sanitize=True)
-        ...     records.next() == {
         ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
         ...     u'some_date': u'05/04/82',
         ...     u'some_value': u'234',
@@ -451,6 +469,9 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
 
     Raises:
         NotFound: If unable to find the resource.
+
+    See also:
+        `io.read_any`
 
     Examples:
         >>> from os import path as p
@@ -577,10 +598,6 @@ def read_xls(filepath, **kwargs):
 
     Examples:
         >>> from os import path as p
-        >>> from tempfile import TemporaryFile
-        >>> read_xls(TemporaryFile()).next()
-        Traceback (most recent call last):
-        ValueError: cannot mmap an empty file
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
         >>> records = read_xls(filepath, sanitize=True)
@@ -740,10 +757,10 @@ def write(filepath, content, mode='wb', **kwargs):
     Args:
         filepath (str): The file path or file like object to write to.
         content (obj): File like object or `requests` iterable response.
+        mode (Optional[str]): The file open mode (default: 'wb').
         kwargs: Keyword arguments.
 
     Kwargs:
-        mode (Optional[str]): The file open mode (default: 'wb').
         chunksize (Optional[int]): Number of bytes to write at a time (default:
             None, i.e., all).
         length (Optional[int]): Length of content (default: 0).
@@ -751,6 +768,9 @@ def write(filepath, content, mode='wb', **kwargs):
 
     Returns:
         int: bytes written
+
+    See also:
+        `io.read_any`
 
     Examples:
         >>> import requests
@@ -781,13 +801,10 @@ chunksize=2)
                 print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
                 sys.stdout.flush()
 
-        return progress
+        yield progress
 
-    if hasattr(filepath, 'read'):
-        return _write(filepath, content, **kwargs)
-    else:
-        with open(filepath, mode) as f:
-            return _write(f, content, **kwargs)
+    args = [content]
+    return read_any(filepath, _write, mode, *args, **kwargs).next()
 
 
 def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
@@ -806,6 +823,9 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
     Returns:
         str: File hash.
 
+    See also:
+        `io.read_any`
+
     Examples:
         >>> from tempfile import TemporaryFile
         >>> hash_file(TemporaryFile())
@@ -822,15 +842,10 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
         else:
             hasher.update(f.read())
 
-        return hasher.hexdigest()
+        yield hasher.hexdigest()
 
-    hasher = getattr(hashlib, hasher)()
-
-    if hasattr(filepath, 'read'):
-        file_hash = reader(filepath, hasher)
-    else:
-        with open(filepath, 'rb') as f:
-            file_hash = reader(f, hasher)
+    args = [getattr(hashlib, hasher)()]
+    file_hash = read_any(filepath, reader, 'rb', *args).next()
 
     if verbose:
         print('File %s hash is %s.' % (filepath, file_hash))
@@ -838,11 +853,13 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
     return file_hash
 
 
-def detect_encoding(f, verbose=False):
+def detect_encoding(filepath, verbose=False, mode='rU'):
     """Detects a file's encoding.
 
     Args:
-        f (obj): The file like object to detect.
+        filepath (str): The file path or file like object to hash.
+        verbose (Optional[bool]): The file open mode (default: False).
+        mode (Optional[str]): The file open mode (default: 'rU').
 
     Returns:
         dict: The encoding result
@@ -851,23 +868,25 @@ def detect_encoding(f, verbose=False):
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
-        >>> with open(filepath, 'rU') as f:
-        ...     detect_encoding(f)
-        ...
-        {'confidence': 0.99, 'encoding': 'utf-8'}
+        >>> result = detect_encoding(filepath)
+        >>> result == {'confidence': 0.99, 'encoding': 'utf-8'}
+        True
     """
-    f.seek(0)
-    detector = UniversalDetector()
+    def reader(f):
+        detector = UniversalDetector()
 
-    for line in f:
-        detector.feed(line)
+        for line in f:
+            detector.feed(line)
 
-        if detector.done:
-            break
+            if detector.done:
+                break
 
-    detector.close()
+        detector.close()
+        return detector.result.iteritems()
+
+    result = dict(read_any(filepath, reader, mode))
 
     if verbose:
-        print('detector.result', detector.result)
+        print('result', result)
 
-    return detector.result
+    return result

@@ -4,4 +4,3 @@
 # Run nose and script tests
 
 python `which nosetests` $@
-python tests/test.py

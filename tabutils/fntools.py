@@ -687,11 +687,12 @@ def fill(previous, current, **kwargs):
         `process.fillempty`
 
     Examples:
-        >>> from os import path as p
+        >>> from StringIO import StringIO
         >>> from . import io
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'bad.csv')
-        >>> records = io.read_csv(filepath)
+        >>> content = 'column_a,column_b,column_c\\n1,27,,too long!\\n,too \
+short!\\n0,mixed types.... uh oh,17'
+        >>> f = StringIO(content)
+        >>> records = io.read_csv(f)
         >>> previous = {}
         >>> current = records.next()
         >>> current == {
@@ -715,7 +716,7 @@ def fill(previous, current, **kwargs):
         >>> current = records.next()
         >>> current == {
         ...     u'column_a': u'',
-        ...     u'column_b': u"I'm too short!",
+        ...     u'column_b': u"too short!",
         ...     u'column_c': None,
         ... }
         True
@@ -725,9 +726,9 @@ def fill(previous, current, **kwargs):
         >>> count == {u'column_a': 1, u'column_b': 0, u'column_c': 2}
         True
         >>> previous == {
-        ...     u'column_a': u"I'm too short!",
-        ...     u'column_b': u"I'm too short!",
-        ...     u'column_c': u"I'm too short!",
+        ...     u'column_a': u"too short!",
+        ...     u'column_b': u"too short!",
+        ...     u'column_c': u"too short!",
         ... }
         True
     """

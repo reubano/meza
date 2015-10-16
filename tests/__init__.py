@@ -1,18 +1,14 @@
 # -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
-
 """
 tests
 ~~~~~
 
 Provides application unit tests
 """
-
 from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
-
-initialized = False
 
 
 def setup_package():

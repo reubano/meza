@@ -32,6 +32,7 @@ import hashlib
 from StringIO import StringIO
 from io import TextIOBase
 from json import loads, dumps
+from mmap import mmap
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 
 from ijson import items
@@ -644,8 +645,6 @@ def read_xls(filepath, **kwargs):
     date_format = kwargs.get('date_format', '%Y-%m-%d')
 
     try:
-        from mmap import mmap
-
         mm = mmap(filepath.fileno(), 0)
         book = xlrd.open_workbook(file_contents=mm, **xlrd_kwargs)
     except AttributeError:

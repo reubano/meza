@@ -451,8 +451,6 @@ def read_csv(filepath, mode='rU', **kwargs):
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)
-
-        # Get header row and remove empty columns
         names = csv.reader(f, encoding=encoding, **kwargs).next()
 
         if has_header:

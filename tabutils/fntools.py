@@ -252,8 +252,8 @@ def is_bool(content, trues=None, falses=None):
 
     Args:
         content (scalar): the content to analyze
-        trues (List[str]): Values to consider True.
-        falses (List[str]): Values to consider Frue.
+        trues (Seq[str]): Values to consider True.
+        falses (Seq[str]): Values to consider Frue.
 
     Examples:
         >>> is_bool(True)
@@ -293,7 +293,7 @@ def is_null(content, nulls=None, blanks_as_nulls=False):
 
     Args:
         content (scalar): the content to analyze
-        nulls (List[str]): Values to consider null.
+        nulls (Seq[str]): Values to consider null.
         blanks_as_nulls (bool): Treat empty strings as null (default: False).
 
     Examples:
@@ -338,7 +338,7 @@ def dfilter(content, blacklist=None, inverse=False):
 
     Args:
         content (dict): The content to filter
-        blacklist (List(str)): The fields to remove (default: None)
+        blacklist (Seq[str]): The fields to remove (default: None)
         inverse (bool): Keep fields in blacklist (default: False)
 
     Returns:
@@ -671,7 +671,7 @@ def fill(previous, current, **kwargs):
 
         limit (int): Max number of consecutive records to fill (default: None).
 
-        fields (List[str]): Names of the columns to fill (default: None, i.e.,
+        fields (Seq[str]): Names of the columns to fill (default: None, i.e.,
             all).
 
         count (dict): The number of consecutive records of missing data that

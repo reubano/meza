@@ -179,7 +179,7 @@ def _read_csv(f, encoding, header=None, has_header=True):
         encoding (str): File encoding.
 
     Kwargs:
-        header (List[str]): The column names.
+        header (Seq[str]): Sequence of column names.
 
     Yields:
         dict: A csv record.
@@ -293,8 +293,8 @@ def read_mdb(filepath, table=None, **kwargs):
     with Popen(['mdb-export', filepath, table], **pkwargs).stdout as pipe:
         first_line = pipe.readline()
         names = csv.reader(StringIO(first_line), **kwargs).next()
-        _scored = list(ft.underscorify(names)) if sanitize else names
-        header = list(ft.dedupe(_scored)) if dedupe else _scored
+        uscored = list(ft.underscorify(names)) if sanitize else names
+        header = list(ft.dedupe(uscored)) if dedupe else uscored
 
         for line in iter(pipe.readline, b''):
             values = csv.reader(StringIO(line), **kwargs).next()
@@ -431,8 +431,8 @@ def read_csv(filepath, mode='rU', **kwargs):
 
         if has_header:
             stripped = [name for name in names if name.strip()]
-            _scored = list(ft.underscorify(stripped)) if sanitize else stripped
-            header = list(ft.dedupe(_scored)) if dedupe else _scored
+            uscored = list(ft.underscorify(stripped)) if sanitize else stripped
+            header = list(ft.dedupe(uscored)) if dedupe else uscored
         else:
             header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
@@ -509,8 +509,8 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         if has_header:
             line = f.readline()
             names = filter(None, (line[s:e].strip() for s, e in schema))
-            _scored = list(ft.underscorify(names)) if sanitize else names
-            header = list(ft.dedupe(_scored)) if dedupe else _scored
+            uscored = list(ft.underscorify(names)) if sanitize else names
+            header = list(ft.dedupe(uscored)) if dedupe else uscored
         else:
             header = ['column_%i' % (n + 1) for n in xrange(len(widths))]
 
@@ -565,7 +565,7 @@ def read_xls(filepath, **kwargs):
     """Reads an xls/xlsx file.
 
     Args:
-        filepath (str): The xls/xlsx file path or file like object.
+        filepath (str): The xls/xlsx file path, file, or SpooledTemporaryFile.
         kwargs (dict): Keyword arguments that are passed to the xls reader.
 
     Kwargs:
@@ -652,8 +652,8 @@ def read_xls(filepath, **kwargs):
     if has_header:
         names = sheet.row_values(0)
         stripped = [name for name in names if name.strip()]
-        _scored = list(ft.underscorify(stripped)) if sanitize else stripped
-        header = list(ft.dedupe(_scored)) if dedupe else _scored
+        uscored = list(ft.underscorify(stripped)) if sanitize else stripped
+        header = list(ft.dedupe(uscored)) if dedupe else uscored
     else:
         header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
@@ -675,7 +675,7 @@ def read_json(filepath, mode='rU', path='item', newline=False):
     """Reads a json file (both regular and newline-delimited)
 
     Args:
-        filepath (str): The file path or file like object to write to.
+        filepath (str): The json file path or file like object.
         mode (Optional[str]): The file open mode (default: 'rU').
         path (Optional[str]): Path to the content you wish to read
             (default: 'item', i.e., the root list). Note: `path` must refer to
@@ -714,7 +714,7 @@ def read_geojson(filepath, mode='rU'):
     """Reads a geojson file
 
     Args:
-        filepath (str): The file path or file like object to write to.
+        filepath (str): The geojson file path or file like object.
         mode (Optional[str]): The file open mode (default: 'rU').
 
     Returns:

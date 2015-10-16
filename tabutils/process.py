@@ -305,7 +305,7 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
             *************************************************
 
         limit (int): Max number of consecutive rows to fill (default: None).
-        fields (List[str]): Names of the columns to fill (default: None, i.e.,
+        fields (Seq[str]): Names of the columns to fill (default: None, i.e.,
             all).
 
     Yields:
@@ -632,10 +632,10 @@ def pivot(records, **kwargs):
         values (str): column to aggregate (default: All columns not included in
             `index` or `columns`)
 
-        index (List[str]): Keys to group by on the pivot table index
+        index (Seq[str]): Keys to group by on the pivot table index
             (default: None).
 
-        columns (List[str]): Keys to group by on the pivot table column
+        columns (Seq[str]): Keys to group by on the pivot table column
             (default: None).
 
         aggfunc (func): Aggregation function (default: numpy.mean)
@@ -728,7 +728,7 @@ def unique(records, fields=None, pred=None):
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        fields (List[str]): The columns to use for testing uniqueness
+        fields (Seq[str]): The columns to use for testing uniqueness
             (default: None, i.e., all columns). Overridden by `pred`.
 
         pred (func): Predicate. Receives a record and should return a value for

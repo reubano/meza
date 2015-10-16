@@ -81,7 +81,7 @@ def order_dict(content, order):
 
     Args:
         content (dict): The content to convert.
-        order (List[str]): The field order.
+        order (Seq[str]): The field order.
 
     Returns:
         OrderedDict: The ordered content.
@@ -100,8 +100,8 @@ def to_bool(content, trues=None, falses=None, warn=False):
 
     Args:
         content (str): The content to parse.
-        trues (List[str]): Values to consider True.
-        falses (List[str]): Values to consider Frue.
+        trues (Seq[str]): Values to consider True.
+        falses (Seq[str]): Values to consider Frue.
         warn (bool): raise error if content can't be safely converted
             (default: False)
 
@@ -566,7 +566,7 @@ def records2csv(records, encoding=ENCODING, bom=False):
             E.g., output from any `tabutils.io` read function.
 
     Kwargs:
-        header (List[str]): The header row (default: None)
+        header (Seq[str]): The header row (default: None)
 
     Returns:
         obj: StringIO.StringIO instance
@@ -623,7 +623,7 @@ def records2json(records, **kwargs):
         ...     u'species': u'Iris-versicolor',
         ...     u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}
         ...
-        >>> records2json([record]).next()
+        >>> records2json([record]).read()
         '[{"usda_id": "IRVE2", "species": "Iris-versicolor", \
 "wikipedia_url": "wikipedia.org/wiki/Iris_versicolor"}]'
     """

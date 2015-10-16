@@ -97,6 +97,7 @@ bytearray(b'line three')]
     def lines(self):
         # TODO: what about a csv with embedded newlines?
         newlines = {'\n', '\r', '\r\n'}
+
         for k, g in it.groupby(self.iter, lambda s: s not in newlines):
             if k:
                 yield g

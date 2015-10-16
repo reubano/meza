@@ -626,6 +626,9 @@ def records2json(records, **kwargs):
         >>> records2json([record]).read()
         '[{"usda_id": "IRVE2", "species": "Iris-versicolor", \
 "wikipedia_url": "wikipedia.org/wiki/Iris_versicolor"}]'
+        >>> records2json([record], newline=True).readline()
+        u'{"usda_id": "IRVE2", "species": "Iris-versicolor", \
+"wikipedia_url": "wikipedia.org/wiki/Iris_versicolor"}'
     """
     newline = kwargs.pop('newline', False)
     jd = partial(dumps, cls=ft.CustomEncoder, **kwargs)

@@ -162,13 +162,26 @@ def read_any(filepath, reader, mode, *args, **kwargs):
         >>> read_any(filepath, reader, 'rU').next()
         [u'Some Date', u'Sparse Data', u'Some Value', u'Unicode Test', u'']
     """
-    if hasattr(filepath, 'read'):
-        for r in reader(filepath, *args, **kwargs):
-            yield r
-    else:
-        with open(filepath, mode) as f:
+    try:
+        if hasattr(filepath, 'read'):
+            for r in reader(filepath, *args, **kwargs):
+                yield r
+        else:
+            with open(filepath, mode) as f:
+                for r in reader(f, *args, **kwargs):
+                    yield r
+    except UnicodeDecodeError:
+        if hasattr(filepath, 'read'):
+            kwargs['encoding'] = detect_encoding(filepath)['encoding']
+
             for r in reader(f, *args, **kwargs):
                 yield r
+        else:
+            with open(filepath, mode) as f:
+                kwargs['encoding'] = detect_encoding(filepath)['encoding']
+
+                for r in reader(f, *args, **kwargs):
+                    yield r
 
 
 def _read_csv(f, encoding, header=None, has_header=True):
@@ -207,8 +220,6 @@ def _read_csv(f, encoding, header=None, has_header=True):
         ...         (u'unicode_test', u'Ādam')]
         True
     """
-    f.seek(0)
-
     if header and has_header:
         f.next()
         reader = csv.DictReader(f, header, encoding=encoding)
@@ -434,16 +445,10 @@ def read_csv(filepath, mode='rU', **kwargs):
             uscored = list(ft.underscorify(stripped)) if sanitize else stripped
             header = list(ft.dedupe(uscored)) if dedupe else uscored
         else:
+            f.seek(0)
             header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
-        try:
-            records = _read_csv(f, encoding, header, has_header)
-        except UnicodeDecodeError:
-            # Try to detect the encoding
-            new_encoding = detect_encoding(f)['encoding']
-            records = _read_csv(f, new_encoding, header, has_header)
-
-        return records
+        return _read_csv(f, encoding, header, False)
 
     return read_any(filepath, reader, mode, **kwargs)
 
@@ -853,11 +858,11 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
     return file_hash
 
 
-def detect_encoding(filepath, verbose=False, mode='rU'):
+def detect_encoding(f, verbose=False):
     """Detects a file's encoding.
 
     Args:
-        filepath (str): The file path or file like object to hash.
+        f (obj): The file like object to detect.
         verbose (Optional[bool]): The file open mode (default: False).
         mode (Optional[str]): The file open mode (default: 'rU').
 
@@ -868,25 +873,24 @@ def detect_encoding(filepath, verbose=False, mode='rU'):
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
-        >>> result = detect_encoding(filepath)
-        >>> result == {'confidence': 0.99, 'encoding': 'utf-8'}
+        >>> with open(filepath, mode='rU') as f:
+        ...     result = detect_encoding(f)
+        ...     result == {'confidence': 0.99, 'encoding': 'utf-8'}
+        ...
         True
     """
-    def reader(f):
-        detector = UniversalDetector()
+    detector = UniversalDetector()
 
-        for line in f:
-            detector.feed(line)
+    for line in f:
+        detector.feed(line)
 
-            if detector.done:
-                break
+        if detector.done:
+            break
 
-        detector.close()
-        return detector.result.iteritems()
-
-    result = dict(read_any(filepath, reader, mode))
+    detector.close()
+    f.seek(0)
 
     if verbose:
-        print('result', result)
+        print('result', detector.result)
 
-    return result
+    return detector.result

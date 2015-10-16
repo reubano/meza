@@ -29,6 +29,7 @@ import itertools as it
 
 from functools import partial
 from collections import defaultdict
+from json import JSONEncoder
 
 from slugify import slugify
 from . import CURRENCIES, ENCODING
@@ -64,6 +65,20 @@ class Objectify(object):
 
     def __getattr__(self, name):
         return None
+
+
+class CustomEncoder(JSONEncoder):
+    def default(self, obj):
+        if hasattr(obj, 'real'):
+            encoded = float(obj)
+        elif set(['quantize', 'year']).intersection(dir(obj)):
+            encoded = str(obj)
+        elif set(['next', 'union']).intersection(dir(obj)):
+            encoded = list(obj)
+        else:
+            encoded = JSONEncoder.default(self, obj)
+
+        return encoded
 
 
 def underscorify(content):
@@ -176,6 +191,8 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
     True
     >>> is_numeric('2.123,45')
     True
+    >>> is_numeric('0.45')
+    True
     >>> is_numeric('10e5')
     True
     >>> is_numeric('spam')
@@ -195,7 +212,8 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
     except (ValueError, TypeError):
         passed = False
     else:
-        if not kwargs.get('strip_zeros') and str(stripped)[0] == '0':
+        s = str(stripped)
+        if not kwargs.get('strip_zeros') and s[0] == '0' and s[1] != '.':
             passed = int(content) == 0
 
     return passed
@@ -234,8 +252,8 @@ def is_bool(content, trues=None, falses=None):
 
     Args:
         content (scalar): the content to analyze
-        trues (List[str]): Values to consider True.
-        falses (List[str]): Values to consider Frue.
+        trues (Seq[str]): Values to consider True.
+        falses (Seq[str]): Values to consider Frue.
 
     Examples:
         >>> is_bool(True)
@@ -275,7 +293,7 @@ def is_null(content, nulls=None, blanks_as_nulls=False):
 
     Args:
         content (scalar): the content to analyze
-        nulls (List[str]): Values to consider null.
+        nulls (Seq[str]): Values to consider null.
         blanks_as_nulls (bool): Treat empty strings as null (default: False).
 
     Examples:
@@ -313,6 +331,31 @@ def is_null(content, nulls=None, blanks_as_nulls=False):
         pass
 
     return passed
+
+
+def dfilter(content, blacklist=None, inverse=False):
+    """ Filters content
+
+    Args:
+        content (dict): The content to filter
+        blacklist (Seq[str]): The fields to remove (default: None)
+        inverse (bool): Keep fields in blacklist (default: False)
+
+    Returns:
+        dict: The filtered content
+
+    Examples:
+        >>> content = {'keep': 'Hello', 'strip': 'World'}
+        >>> dfilter(content) == {'keep': 'Hello', 'strip': 'World'}
+        True
+        >>> dfilter(content, ['strip'])
+        {u'keep': u'Hello'}
+        >>> dfilter(content, ['strip'], True)
+        {u'strip': u'World'}
+    """
+    blackset = set(blacklist or [])
+    func = it.ifilterfalse if inverse else filter
+    return dict(func(lambda x: x[0] not in blackset, content.items()))
 
 
 def byte(content):
@@ -618,8 +661,8 @@ def fill(previous, current, **kwargs):
         kwargs (dict): Keyword arguments
 
     Kwargs:
-        predicate (func): Receives a value and should return `True`
-            if the value should be filled. If predicate is None, it returns
+        pred (func): Receives a value and should return `True`
+            if the value should be filled. If pred is None, it returns
             `True` for empty values (default: None).
 
         value (str): Value to use to fill holes (default: None).
@@ -628,7 +671,7 @@ def fill(previous, current, **kwargs):
 
         limit (int): Max number of consecutive records to fill (default: None).
 
-        fields (List[str]): Names of the columns to fill (default: None, i.e.,
+        fields (Seq[str]): Names of the columns to fill (default: None, i.e.,
             all).
 
         count (dict): The number of consecutive records of missing data that
@@ -644,11 +687,12 @@ def fill(previous, current, **kwargs):
         `process.fillempty`
 
     Examples:
-        >>> from os import path as p
+        >>> from StringIO import StringIO
         >>> from . import io
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'bad.csv')
-        >>> records = io.read_csv(filepath)
+        >>> content = 'column_a,column_b,column_c\\n1,27,,too long!\\n,too \
+short!\\n0,mixed types.... uh oh,17'
+        >>> f = StringIO(content)
+        >>> records = io.read_csv(f)
         >>> previous = {}
         >>> current = records.next()
         >>> current == {
@@ -672,7 +716,7 @@ def fill(previous, current, **kwargs):
         >>> current = records.next()
         >>> current == {
         ...     u'column_a': u'',
-        ...     u'column_b': u"I'm too short!",
+        ...     u'column_b': u"too short!",
         ...     u'column_c': None,
         ... }
         True
@@ -682,15 +726,15 @@ def fill(previous, current, **kwargs):
         >>> count == {u'column_a': 1, u'column_b': 0, u'column_c': 2}
         True
         >>> previous == {
-        ...     u'column_a': u"I'm too short!",
-        ...     u'column_b': u"I'm too short!",
-        ...     u'column_c': u"I'm too short!",
+        ...     u'column_a': u"too short!",
+        ...     u'column_b': u"too short!",
+        ...     u'column_c': u"too short!",
         ... }
         True
     """
     pkwargs = {'blanks_as_nulls': kwargs.get('blanks_as_nulls', True)}
-    def_predicate = partial(is_null, **pkwargs)
-    predicate = kwargs.get('predicate', def_predicate)
+    def_pred = partial(is_null, **pkwargs)
+    predicate = kwargs.get('pred', def_pred)
     value = kwargs.get('value')
     limit = kwargs.get('limit')
     fields = kwargs.get('fields')
@@ -721,7 +765,7 @@ def fill(previous, current, **kwargs):
     yield count
 
 
-def combine(x, y, key, value=None, predicate=None, op=None, default=0):
+def combine(x, y, key, value=None, pred=None, op=None, default=0):
     """Applies a binary operator to the value of an entry in two `records`.
 
     Args:
@@ -736,7 +780,7 @@ def combine(x, y, key, value=None, predicate=None, op=None, default=0):
         key (str): Current key.
         value (Optional[scalar]): The 2nd record's value of the given `key`.
 
-        predicate (func): Receives `key` and should return `True`
+        pred (func): Receives `key` and should return `True`
             if the values from both records should be combined. Can optionally
             be a keyfunc which receives the 2nd record and should return the
             value that `value` needs to equal in order to be combined.
@@ -746,7 +790,7 @@ def combine(x, y, key, value=None, predicate=None, op=None, default=0):
 
         op (func): Receives a list of the 2 values from the records and should
             return the combined value. Common operators are `sum`, `min`,
-            `max`, etc. Requires that `predicate` is set. If a key is not
+            `max`, etc. Requires that `pred` is set. If a key is not
             present in a record, the value from `default` will be used.
 
         default (int or str): default value to use in `op` for missing keys
@@ -764,55 +808,55 @@ def combine(x, y, key, value=None, predicate=None, op=None, default=0):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> predicate = lambda key: key == 'amount'
+        >>> pred = lambda key: key == 'amount'
         >>> x, y = records[0], records[1]
-        >>> combine(x, y, 'a', predicate=predicate, op=sum)
+        >>> combine(x, y, 'a', pred=pred, op=sum)
         u'item'
-        >>> combine(x, y, 'amount', predicate=predicate, op=sum)
+        >>> combine(x, y, 'amount', pred=pred, op=sum)
         500
         >>> records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
         >>>
         >>> # Combine all keys
-        >>> predicate = lambda key: True
+        >>> pred = lambda key: True
         >>> x, y = records[0], records[1]
-        >>> combine(x, y, 'a', predicate=predicate, op=sum)
+        >>> combine(x, y, 'a', pred=pred, op=sum)
         1
-        >>> combine(x, y, 'b', predicate=predicate, op=sum)
+        >>> combine(x, y, 'b', pred=pred, op=sum)
         6
-        >>> combine(x, y, 'c', predicate=predicate, op=sum)
+        >>> combine(x, y, 'c', pred=pred, op=sum)
         8
         >>> fltrer = lambda x: x is not None
         >>> first = lambda x: filter(fltrer, x)[0]
-        >>> kwargs = {'predicate': predicate, 'op': first, 'default': None}
+        >>> kwargs = {'pred': pred, 'op': first, 'default': None}
         >>> combine(x, y, 'b', **kwargs)
         2
         >>>
         >>> average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
-        >>> kwargs = {'predicate': predicate, 'op': average, 'default': None}
+        >>> kwargs = {'pred': pred, 'op': average, 'default': None}
         >>> combine(x, y, 'a', **kwargs)
         1.0
         >>> combine(x, y, 'b', **kwargs)
         3.0
         >>>
         >>> # Only combine key 'b'
-        >>> predicate = lambda key: key == 'b'
-        >>> combine(x, y, 'c', predicate=predicate, op=sum)
+        >>> pred = lambda key: key == 'b'
+        >>> combine(x, y, 'c', pred=pred, op=sum)
         5
         >>>
         >>> # Only combine keys that have the same value of 'b'
         >>> from operator import itemgetter
-        >>> predicate = itemgetter('b')
-        >>> combine(x, y, 'b', predicate=predicate, op=sum)
+        >>> pred = itemgetter('b')
+        >>> combine(x, y, 'b', pred=pred, op=sum)
         6
-        >>> combine(x, y, 'c', predicate=predicate, op=sum)
+        >>> combine(x, y, 'c', pred=pred, op=sum)
         5
     """
     value = y.get(key, default) if value is None else value
 
     try:
-        passed = predicate(key)
+        passed = pred(key)
     except TypeError:
-        passed = predicate(y) == value
+        passed = pred(y) == value
 
     return op([x.get(key, default), value]) if passed else value
 

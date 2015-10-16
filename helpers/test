@@ -1,0 +1,6 @@
+#!/usr/bin/env bash -eu
+# -*- coding: utf-8 -*-
+
+# Run nose and script tests
+
+python `which nosetests` $@

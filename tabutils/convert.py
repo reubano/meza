@@ -27,25 +27,19 @@ import itertools as it
 import unicodecsv as csv
 
 from os import path as p
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_HALF_DOWN
+from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_DOWN
 from StringIO import StringIO
-from json import dumps, JSONEncoder
+from json import dumps
 from datetime import datetime as dt
+from collections import OrderedDict
+from operator import itemgetter
+from functools import partial
 
 from . import fntools as ft, ENCODING
 
 from dateutil.parser import parse
 
 DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
-
-
-class CustomEncoder(JSONEncoder):
-    def default(self, obj):
-        if set(['quantize', 'year']).intersection(dir(obj)):
-            return str(obj)
-        elif set(['next', 'union']).intersection(dir(obj)):
-            return list(obj)
-        return JSONEncoder.default(self, obj)
 
 
 def ctype2ext(content_type=None):
@@ -82,13 +76,34 @@ def ctype2ext(content_type=None):
     return switch.get(ctype, 'csv')
 
 
-def to_bool(content, trues=None, falses=None):
+def order_dict(content, order):
+    """Converts a dict into an OrderedDict
+
+    Args:
+        content (dict): The content to convert.
+        order (Seq[str]): The field order.
+
+    Returns:
+        OrderedDict: The ordered content.
+
+    Examples:
+        >>> order_dict({'a': 1, 'b': 2}, ['a', 'b'])
+        OrderedDict([(u'a', 1), (u'b', 2)])
+    """
+    get_order = {field: pos for pos, field in enumerate(order)}
+    keyfunc = lambda x: get_order[x[0]]
+    return OrderedDict(sorted(content.items(), key=keyfunc))
+
+
+def to_bool(content, trues=None, falses=None, warn=False):
     """Formats strings into bool.
 
     Args:
         content (str): The content to parse.
-        trues (List[str]): Values to consider True.
-        falses (List[str]): Values to consider Frue.
+        trues (Seq[str]): Values to consider True.
+        falses (Seq[str]): Values to consider Frue.
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     See also:
         `process.type_cast`
@@ -117,30 +132,37 @@ def to_bool(content, trues=None, falses=None):
         False
         >>> to_bool(None)
         False
+        >>> to_bool(None, warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid bool value: `None`.
 
     Returns:
-        int
+        bool
     """
     trues = set(map(str.lower, trues) if trues else ft.DEF_TRUES)
 
-    try:
-        value = content.lower() in trues
-    except AttributeError:
-        value = bool(content)
+    if ft.is_bool(content):
+        try:
+            value = content.lower() in trues
+        except (TypeError, AttributeError):
+            value = bool(content)
+    elif warn:
+        raise ValueError('Invalid bool value: `%s`.' % content)
+    else:
+        value = False
 
     return value
 
 
-def to_int(value, thousand_sep=',', decimal_sep='.'):
+def to_int(content, thousand_sep=',', decimal_sep='.', warn=False):
     """Formats strings into integers.
 
     Args:
-        value (str): The number to parse.
-        kwargs (dict): Keyword arguments.
-
-    Kwargs:
+        content (str): The number to parse.
         thousand_sep (char): thousand's separator (default: ',')
         decimal_sep (char): decimal separator (default: '.')
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     See also:
         `process.type_cast`
@@ -157,26 +179,41 @@ def to_int(value, thousand_sep=',', decimal_sep='.'):
         2123
         >>> to_int('2.123,45', thousand_sep='.', decimal_sep=',')
         2123
+        >>> to_int('2,123.45', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid int value: `2,123.45`.
         >>> to_int('spam')
+        0
+        >>> to_int('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid int value: `spam`.
 
     Returns:
         int
     """
+    if warn and not ft.is_int(content):
+        raise ValueError('Invalid int value: `%s`.' % content)
+
     try:
-        value = int(float(ft.strip(value, thousand_sep, decimal_sep)))
+        value = int(float(ft.strip(content, thousand_sep, decimal_sep)))
     except ValueError:
-        value = None
+        if warn:
+            raise ValueError('Invalid int value: `%s`.' % content)
+        else:
+            value = 0
 
     return value
 
 
-def to_float(content, thousand_sep=',', decimal_sep='.'):
+def to_float(content, thousand_sep=',', decimal_sep='.', warn=False):
     """Formats strings into floats.
 
     Args:
         content (str): The number to parse.
         thousand_sep (char): thousand's separator (default: ',')
         decimal_sep (char): decimal separator (default: '.')
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     Returns:
         flt: The parsed number.
@@ -194,14 +231,20 @@ def to_float(content, thousand_sep=',', decimal_sep='.'):
         >>> to_float('2.123,45', thousand_sep='.', decimal_sep=',')
         2123.45
         >>> to_float('spam')
+        0.0
+        >>> to_float('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid float value: `spam`.
 
     Returns:
         float
     """
-    try:
+    if ft.is_numeric(content):
         value = float(ft.strip(content, thousand_sep, decimal_sep))
-    except ValueError:
-        value = None
+    elif warn:
+        raise ValueError('Invalid float value: `%s`.' % content)
+    else:
+        value = 0.0
 
     return value
 
@@ -216,8 +259,11 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
         kwargs (dict): Keyword arguments.
 
     Kwargs:
-        roundup (bool): Round up to the desired number of decimal places (
-            default: True).
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
+
+        roundup (bool): Round up to the desired number of decimal places
+             from 5 to 9 (default: True). If False, round up from 6 to 9.
 
         places (int): Number of decimal places to display (default: 2).
 
@@ -242,22 +288,26 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
         >>> to_decimal('1.556')
         Decimal('1.56')
         >>> to_decimal('spam')
+        Decimal('0.00')
+        >>> to_decimal('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid numeric value: `spam`.
 
     Returns:
         decimal
     """
-    try:
+    if ft.is_numeric(content):
         decimalized = Decimal(ft.strip(content, thousand_sep, decimal_sep))
-    except InvalidOperation:
-        quantized = None
+    elif kwargs.get('warn'):
+        raise ValueError('Invalid numeric value: `%s`.' % content)
     else:
-        roundup = kwargs.get('roundup', True)
-        rounding = ROUND_HALF_UP if roundup else ROUND_HALF_DOWN
-        places = int(kwargs.get('places', 2))
-        precision = '.%s1' % ''.join(it.repeat('0', places - 1))
-        quantized = decimalized.quantize(Decimal(precision), rounding=rounding)
+        decimalized = Decimal(0)
 
-    return quantized
+    roundup = kwargs.get('roundup', True)
+    rounding = ROUND_HALF_UP if roundup else ROUND_HALF_DOWN
+    places = int(kwargs.get('places', 2))
+    precision = '.%s1' % ''.join(it.repeat('0', places - 1))
+    return decimalized.quantize(Decimal(precision), rounding=rounding)
 
 
 def _to_datetime(content):
@@ -274,32 +324,31 @@ def _to_datetime(content):
         (datetime.datetime(1982, 5, 4, 0, 0), False)
         >>> _to_datetime('2/32/82')
         (u'2/32/82', True)
-        >>> _to_datetime('Novmbr 4')
-        (None, False)
+        >>> _to_datetime('spam')
+        (datetime.datetime(9999, 12, 31, 0, 0), False)
     """
     try:
         value = parse(content, default=DEFAULT_DATETIME)
-    except ValueError:  # impossible date, e.g., 2/31/15
-        value = content
-        retry = True
-    except TypeError:  # unparseable date, e.g., Novmbr 4
-        value = None
-        retry = False
+    except ValueError as e:
+        retry = 'out of range' in str(e)  # impossible date, e.g., 2/31/15
+        value = content if retry else DEFAULT_DATETIME
     else:
         retry = False
 
     return (value, retry)
 
 
-def to_datetime(content, dt_format=None):
+def to_datetime(content, dt_format=None, warn=False):
     """Parses and formats strings into datetimes.
 
     Args:
         content (str): The string to parse.
 
-    Kwargs:
         dt_format (str): Date format passed to `strftime()`
             (default: None).
+
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     Returns:
         obj: The datetime object or formatted datetime string.
@@ -314,7 +363,14 @@ def to_datetime(content, dt_format=None):
         '1982-05-04 10:00:00'
         >>> to_datetime('2/32/82 12:15', '%Y-%m-%d %H:%M:%S')
         '1982-02-28 12:15:00'
-        >>> to_datetime('Novmbr 4')
+        >>> to_datetime('spam')
+        datetime.datetime(9999, 12, 31, 0, 0)
+        >>> to_datetime('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid datetime value: `spam`.
+
+    Returns:
+        datetime
     """
     bad_nums = it.imap(str, xrange(29, 33))
     good_nums = it.imap(str, xrange(31, 27, -1))
@@ -329,25 +385,26 @@ def to_datetime(content, dt_format=None):
 
     # Fix impossible dates, e.g., 2/31/15
     results = it.ifilterfalse(lambda x: x[1], it.imap(_to_datetime, options))
+    value = results.next()[0]
 
-    try:
-        good_value = results.next()[0]
-    except StopIteration:
-        datetime = None
+    if warn and value == DEFAULT_DATETIME:
+        raise ValueError('Invalid datetime value: `%s`.' % content)
     else:
-        datetime = good_value.strftime(dt_format) if dt_format else good_value
+        datetime = value.strftime(dt_format) if dt_format else value
 
     return datetime
 
 
-def to_date(content, date_format=None):
+def to_date(content, date_format=None, warn=False):
     """Parses and formats strings into dates.
 
     Args:
         content (str): The string to parse.
 
-    Kwargs:
         date_format (str): Time format passed to `strftime()` (default: None).
+
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     Returns:
         obj: The date object or formatted date string.
@@ -362,19 +419,27 @@ def to_date(content, date_format=None):
         '1982-05-04'
         >>> to_date('2/32/82', '%Y-%m-%d')
         '1982-02-28'
+        >>> to_date('spam')
+        datetime.date(9999, 12, 31)
+        >>> to_date('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid datetime value: `spam`.
+
+    Returns:
+        date
     """
-    value = to_datetime(content).date()
+    value = to_datetime(content, warn=warn).date()
     return value.strftime(date_format) if date_format else value
 
 
-def to_time(content, time_format=None):
+def to_time(content, time_format=None, warn=False):
     """Parses and formats strings into times.
 
     Args:
         content (str): The string to parse.
-
-    Kwargs:
         time_format (str): Time format passed to `strftime()` (default: None).
+        warn (bool): raise error if content can't be safely converted
+            (default: False)
 
     Returns:
         obj: The time object or formatted time string.
@@ -389,8 +454,16 @@ def to_time(content, time_format=None):
         '10:00:00'
         >>> to_time('2/32/82 12:15', '%H:%M:%S')
         '12:15:00'
+        >>> to_time('spam')
+        datetime.time(0, 0)
+        >>> to_time('spam', warn=True)
+        Traceback (most recent call last):
+        ValueError: Invalid datetime value: `spam`.
+
+    Returns:
+        time
     """
-    value = to_datetime(content).time()
+    value = to_datetime(content, warn=warn).time()
     return value.strftime(time_format) if time_format else value
 
 
@@ -484,7 +557,7 @@ def df2records(df):
             yield dict(zip(keys, values[1:]))
 
 
-def records2csv(records, header=None, encoding=ENCODING, bom=False):
+def records2csv(records, encoding=ENCODING, bom=False):
     """
     Converts records into a csv file like object.
 
@@ -493,7 +566,7 @@ def records2csv(records, header=None, encoding=ENCODING, bom=False):
             E.g., output from any `tabutils.io` read function.
 
     Kwargs:
-        header (List[str]): The header row (default: None)
+        header (Seq[str]): The header row (default: None)
 
     Returns:
         obj: StringIO.StringIO instance
@@ -505,26 +578,29 @@ def records2csv(records, header=None, encoding=ENCODING, bom=False):
         ...         u'species': u'Iris-versicolor',
         ...         u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}]
         ...
-        >>> header = records[0].keys()
-        >>> csv_str = records2csv(records, header)
+        >>> csv_str = records2csv(records)
         >>> csv_str.next().strip()
         'usda_id,species,wikipedia_url'
         >>> csv_str.next().strip()
         'IRVE2,Iris-versicolor,wikipedia.org/wiki/Iris_versicolor'
     """
     f = StringIO()
+    records = iter(records)
 
     if bom:
         f.write(u'\ufeff'.encode(ENCODING))  # BOM for Windows
 
+    row = records.next()
+    header = row.keys()
     w = csv.DictWriter(f, header, encoding=encoding)
     w.writer.writerow(header)
+    w.writerow(row)
     w.writerows(records)
     f.seek(0)
     return f
 
 
-def records2json(records, header=None, **kwargs):
+def records2json(records, **kwargs):
     """
     Converts records into a json file like object.
 
@@ -533,7 +609,100 @@ def records2json(records, header=None, **kwargs):
             E.g., output from any `tabutils.io` read function.
 
     Kwargs:
-        header (List[str]): The header row (default: None)
+        indent (int): Number of spaces to indent (default: 2).
+        newline (bool): Output newline delimited json (default: False)
+        sort_keys (bool): Sort rows by keys (default: True).
+        ensure_ascii (bool): Sort response dict by keys (default: False).
+
+    Returns:
+        obj: StringIO.StringIO instance
+
+    Examples:
+        >>> record = {
+        ...     u'usda_id': u'IRVE2',
+        ...     u'species': u'Iris-versicolor',
+        ...     u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}
+        ...
+        >>> records2json([record]).read()
+        '[{"usda_id": "IRVE2", "species": "Iris-versicolor", \
+"wikipedia_url": "wikipedia.org/wiki/Iris_versicolor"}]'
+        >>> records2json([record], newline=True).readline()
+        u'{"usda_id": "IRVE2", "species": "Iris-versicolor", \
+"wikipedia_url": "wikipedia.org/wiki/Iris_versicolor"}'
+    """
+    newline = kwargs.pop('newline', False)
+    jd = partial(dumps, cls=ft.CustomEncoder, **kwargs)
+    json = '\n'.join(map(jd, records)) if newline else jd(records)
+    return StringIO(json)
+
+
+def _records2geojson(records, kw):
+    """Helper function for converting records into a GeoJSON file like object.
+
+     Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        kw (obj): `fntools.Objectify` instance with the following Attributes:
+            key (str): GeoJSON Feature ID
+            lat (str): latitude field name
+            lon (str): longitude field name
+            sort_keys (bool): Sort rows by keys
+
+    Yields:
+        tuple(dict, float, float): tuple of feature, lon, and lat
+
+    Examples:
+        >>> record = {'geoid': 'geoid', 'lat': 22, 'lon': 12.2, 'p1': 'prop'}
+        >>> kw = ft.Objectify({'key': 'geoid', 'lat': 'lat', 'lon': 'lon'})
+        >>> _records2geojson([record], kw).next() == (
+        ...     {
+        ...         u'type': u'Feature',
+        ...         u'id': u'geoid',
+        ...         u'geometry': {
+        ...             u'type': u'Point', u'coordinates': [12.2, 22.0]},
+        ...         u'properties': {u'p1': u'prop'}},
+        ...     12.2,
+        ...     22.0)
+        True
+    """
+    for row in records:
+        black_list = {kw.lon, kw.lat, kw.key}
+        lon = to_float(row[kw.lon])
+        lat = to_float(row[kw.lat])
+        geometry = {'type': 'Point', 'coordinates': [lon, lat]}
+        properties = dict(filter(lambda x: x[0] not in black_list, row.items()))
+
+        if kw.sort_keys:
+            geometry = order_dict(geometry, ['type', 'coordinates'])
+
+        feature = {
+            'type': 'Feature',
+            'id': row.get(kw.key),
+            'geometry': geometry,
+            'properties': properties}
+
+        if kw.sort_keys:
+            feature_order = ['type', 'id', 'geometry', 'properties']
+            feature = order_dict(feature, feature_order)
+
+        yield (feature, lon, lat)
+
+
+def records2geojson(records, **kwargs):
+    """Converts records into a GeoJSON file like object.
+
+     Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        kwargs (dict): Keyword arguments.
+
+    Kwargs:
+        key (str): GeoJSON Feature ID (default: 'geoid').
+        lat (str): latitude field name (default: 'lat').
+        lon (str): longitude field name (default: 'lon').
+        crs (str): coordinate reference system field name (default: 'crs').
         indent (int): Number of spaces to indent (default: 2).
         sort_keys (bool): Sort rows by keys (default: True).
         ensure_ascii (bool): Sort response dict by keys (default: False).
@@ -542,17 +711,36 @@ def records2json(records, header=None, **kwargs):
         obj: StringIO.StringIO instance
 
     Examples:
-        >>> from json import loads
-        >>> records = [
-        ...     {
-        ...         u'usda_id': u'IRVE2',
-        ...         u'species': u'Iris-versicolor',
-        ...         u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}]
-        ...
-        >>> header = records[0].keys()
-        >>> json_str = records2json(records, header)
-        >>> sorted(loads(json_str.next().strip())[0].keys())
-        [u'species', u'usda_id', u'wikipedia_url']
+        >>> record = {'geoid': 'geoid', 'lat': 22, 'lon': 12.2, 'p1': 'prop'}
+        >>> records2geojson([record]).next()
+        '{"type": "FeatureCollection", "bbox": [12.2, 22.0, 12.2, 22.0], \
+"features": [{"type": "Feature", "id": "geoid", "geometry": {"type": "Point", \
+"coordinates": [12.2, 22.0]}, "properties": {"p1": "prop"}}], "crs": {"type": \
+"name", "properties": {"name": null}}}'
     """
-    json = dumps(records, cls=CustomEncoder, **kwargs)
+    defaults = {
+        'key': 'geoid', 'lat': 'lat', 'lon': 'lon', 'indent': 2,
+        'sort_keys': True}
+
+    kw = ft.Objectify(kwargs, **defaults)
+    results = list(_records2geojson(records, kw))
+    lons = map(itemgetter(1), results)
+    lats = map(itemgetter(2), results)
+    crs = {'type': 'name', 'properties': {'name': kw.crs}}
+
+    if kw.sort_keys:
+        crs = order_dict(crs, ['type', 'properties'])
+
+    output = {
+        'type': 'FeatureCollection',
+        'bbox': [min(lons), min(lats), max(lons), max(lats)],
+        'features': map(itemgetter(0), results),
+        'crs': crs}
+
+    if kw.sort_keys:
+        output_order = ['type', 'bbox', 'features', 'crs']
+        output = order_dict(output, output_order)
+
+    dkwargs = ft.dfilter(kwargs, ['indent', 'sort_keys'], True)
+    json = dumps(output, cls=ft.CustomEncoder, **dkwargs)
     return StringIO(json)

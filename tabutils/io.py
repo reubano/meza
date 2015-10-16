@@ -33,6 +33,7 @@ from StringIO import StringIO
 from io import TextIOBase
 from json import loads, dumps
 from mmap import mmap
+from collections import deque
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 
 from ijson import items
@@ -51,11 +52,12 @@ class IterStringIO(TextIOBase):
     http://stackoverflow.com/a/32020108/408556
     """
 
-    def __init__(self, iterable=None):
+    def __init__(self, iterable=None, bufsize=4096):
         """ IterStringIO constructor
 
         Args:
-            iterable (Iter(str)): Iterable of strings
+            iterable (Seq[str]): Iterable of strings
+            bufsize (Int): Buffer size for seeking
 
         Examples:
             >>> iter_content = iter('Hello World')
@@ -76,6 +78,9 @@ class IterStringIO(TextIOBase):
             bytearray(b'line one')
             >>> iter_sio.next()
             bytearray(b'line two')
+            >>> iter_sio.seek(0)
+            >>> iter_sio.next()
+            bytearray(b'line one')
             >>> list(IterStringIO(content).readlines())
             [bytearray(b'line one'), bytearray(b'line two'), \
 bytearray(b'line three')]
@@ -83,6 +88,7 @@ bytearray(b'line three')]
         iterable = iterable or []
         chained = self._chain(iterable)
         self.iter = self._encode(chained)
+        self.last = deque('', bufsize)
 
     def __next__(self):
         return self._read(self.lines.next())
@@ -103,7 +109,11 @@ bytearray(b'line three')]
         return it.chain.from_iterable(it.ifilter(None, iterable))
 
     def _read(self, iterable, n=None):
-        return ft.byte(it.islice(iterable, n)) if n else ft.byte(iterable)
+        # TODO: what about cases when a whole line isn't read?
+        byte = ft.byte(it.islice(iterable, n) if n else iterable)
+        self.last.extend(byte)
+        self.last.append('\n')
+        return byte
 
     def write(self, iterable):
         chained = self._chain(iterable)
@@ -117,6 +127,9 @@ bytearray(b'line three')]
 
     def readlines(self):
         return it.imap(self._read, self.lines)
+
+    def seek(self, n):
+        self.iter = it.chain.from_iterable([list(self.last)[n:], self.iter])
 
 
 def patch_http_response_read(func):

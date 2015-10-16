@@ -555,7 +555,7 @@ def sanitize_sheet(sheet, mode, date_format):
     """
     switch = {
         XL_CELL_DATE: lambda v: xl2dt(v, mode).strftime(date_format),
-        XL_CELL_EMPTY: lambda v: None,
+        XL_CELL_EMPTY: lambda v: '',
         XL_CELL_NUMBER: lambda v: unicode(v),
         XL_CELL_BOOLEAN: lambda v: unicode(bool(v)),
         XL_CELL_ERROR: lambda v: xlrd.error_text_from_code[v],
@@ -654,8 +654,9 @@ def read_xls(filepath, **kwargs):
     sheet = book.sheet_by_index(kwargs.get('sheet', 0))
 
     # Get header row and remove empty columns
+    names = sheet.row_values(0)
+
     if has_header:
-        names = sheet.row_values(0)
         stripped = [name for name in names if name.strip()]
         uscored = list(ft.underscorify(stripped)) if sanitize else stripped
         header = list(ft.dedupe(uscored)) if dedupe else uscored

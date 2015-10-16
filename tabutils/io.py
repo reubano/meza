@@ -30,6 +30,7 @@ import sys
 import hashlib
 
 from StringIO import StringIO
+from datetime import time
 from io import TextIOBase
 from json import loads
 from mmap import mmap
@@ -41,7 +42,7 @@ from xlrd.xldate import xldate_as_datetime as xl2dt
 from chardet.universaldetector import UniversalDetector
 from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
-    XL_CELL_ERROR)
+    XL_CELL_ERROR, xldate_as_tuple)
 
 from . import fntools as ft, process as pr, dbf, ENCODING
 
@@ -565,14 +566,19 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
     return read_any(filepath, reader, mode, **kwargs)
 
 
-def sanitize_sheet(sheet, mode, date_format):
+def sanitize_sheet(sheet, mode, **kwargs):
     """Formats content from xls/xslx files as strings according to its cell
     type.
 
     Args:
         sheet (obj): `xlrd` sheet object.
         mode (str): `xlrd` workbook datemode property.
+        kwargs (dict): Keyword arguments
+
+    Kwargs:
         date_format (str): `strftime()` date format.
+        dt_format (str): `strftime()` datetime format.
+        time_format (str): `strftime()` time format.
 
     Yields:
         Tuple[int, str]: A tuple of (row_number, value).
@@ -586,13 +592,23 @@ def sanitize_sheet(sheet, mode, date_format):
         >>> sheet.row_values(1) == [
         ...     30075.0, u'Iñtërnâtiônàližætiøn', 234.0, u'Ādam', u' ']
         True
-        >>> sanitized = sanitize_sheet(sheet, book.datemode, '%Y-%m-%d')
+        >>> sanitized = sanitize_sheet(sheet, book.datemode)
         >>> [v for i, v in sanitized if i == 1] == [
         ...     '1982-05-04', u'Iñtërnâtiônàližætiøn', u'234.0', u'Ādam', u' ']
         True
     """
+    date_format = kwargs.get('date_format', '%Y-%m-%d')
+    dt_format = kwargs.get('date_format', '%Y-%m-%d %H:%M:%S')
+    time_format = kwargs.get('date_format', '%H:%M:%S')
+
+    def time_func(value):
+        args = xldate_as_tuple(value, mode)[3:]
+        return time(*args).strftime(time_format)
+
     switch = {
         XL_CELL_DATE: lambda v: xl2dt(v, mode).strftime(date_format),
+        'datetime': lambda v: xl2dt(v, mode).strftime(dt_format),
+        'time': time_func,
         XL_CELL_EMPTY: lambda v: '',
         XL_CELL_NUMBER: lambda v: unicode(v),
         XL_CELL_BOOLEAN: lambda v: unicode(bool(v)),
@@ -601,7 +617,17 @@ def sanitize_sheet(sheet, mode, date_format):
 
     for i in xrange(sheet.nrows):
         for ctype, value in it.izip(sheet.row_types(i), sheet.row_values(i)):
-            yield (i, switch.get(ctype, lambda v: v)(value))
+            if ctype == XL_CELL_DATE and value < 1:
+                ctype = 'time'
+            elif ctype == XL_CELL_DATE and not value.is_integer:
+                ctype = 'datetime'
+
+            try:
+                yield (i, switch.get(ctype, lambda v: v)(value))
+            except ValueError:
+                print(i, ctype, value)
+                yield(i, value)
+
 
 
 def read_xls(filepath, **kwargs):
@@ -653,7 +679,7 @@ def read_xls(filepath, **kwargs):
         ...
         True
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xlsx')
-        >>> records = read_xls(filepath, sanitize=True)
+        >>> records = read_xls(filepath, sanitize=True, sheet=0)
         >>> records.next() == {
         ...     u'some_value': u'234.0',
         ...     u'some_date': '1982-05-04',
@@ -681,15 +707,13 @@ def read_xls(filepath, **kwargs):
         'encoding_override': kwargs.get('encoding', True)
     }
 
-    date_format = kwargs.get('date_format', '%Y-%m-%d')
-
     try:
         mm = mmap(filepath.fileno(), 0)
         book = xlrd.open_workbook(file_contents=mm, **xlrd_kwargs)
     except AttributeError:
         book = xlrd.open_workbook(filepath, **xlrd_kwargs)
 
-    sheet = book.sheet_by_index(kwargs.get('sheet', 0))
+    sheet = book.sheet_by_index(kwargs.pop('sheet', 0))
 
     # Get header row and remove empty columns
     names = sheet.row_values(first_row)
@@ -702,7 +726,7 @@ def read_xls(filepath, **kwargs):
         header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
     # Convert to strings
-    sanitized = sanitize_sheet(sheet, book.datemode, date_format)
+    sanitized = sanitize_sheet(sheet, book.datemode, **kwargs)
 
     for key, group in it.groupby(sanitized, lambda v: v[0]):
         if has_header and key == first_row:
@@ -796,6 +820,7 @@ def read_geojson(filepath, mode='rU'):
 
 def write(filepath, content, mode='wb+', **kwargs):
     """Writes content to a file path or file like object.
+    # TODO: add encoding kwarg
 
     Args:
         filepath (str): The file path or file like object to write to.

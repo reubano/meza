@@ -70,11 +70,20 @@ class TestUnicodeReader:
 class TestIO:
     def __init__(self):
         self.cls_initialized = False
-        self.value = {
+        self.sheet0 = {
             u'sparse_data': u'Iñtërnâtiônàližætiøn',
-            u'some_date': u'05/04/82',
-            u'some_value': u'234',
+            u'some_date': u'1982-05-04',
+            u'some_value': u'234.0',
             u'unicode_test': u'Ādam'}
+
+        self.sheet1 = {
+            u'boolean': u'False',
+            u'date': '1915-12-31',
+            u'datetime': '1915-12-31',
+            u'float': u'41800000.01',
+            u'integer': u'164.0',
+            u'text': u'Chicago Tribune',
+            u'time': '00:00:00'}
 
     def test_newline_json(self):
         value = (
@@ -90,6 +99,13 @@ class TestIO:
         records = io.read_json(filepath, newline=True)
         nt.assert_equal({'a': 2, 'b': 3}, records.next())
 
+    def test_xls(self):
+        filepath = p.join(test_dir, 'test.xlsx')
+        records = io.read_xls(filepath, sanitize=True, sheet=0)
+        nt.assert_equal(self.sheet0, records.next())
+
+        records = io.read_xls(filepath, sanitize=True, sheet=1)
+        nt.assert_equal(self.sheet1, records.next())
 
 class TestGeoJSON:
     def __init__(self):

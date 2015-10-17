@@ -447,7 +447,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         True
     """
     def reader(f, **kwargs):
-        encoding = kwargs.pop('encoding', ENCODING)
+        encoding = kwargs.pop('encoding', False) or ENCODING
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)

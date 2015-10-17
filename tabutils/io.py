@@ -179,7 +179,8 @@ def read_any(filepath, reader, mode, *args, **kwargs):
     """
     try:
         if hasattr(filepath, 'read'):
-            for r in reader(filepath, *args, **kwargs):
+            f = filepath
+            for r in reader(f, *args, **kwargs):
                 yield r
         else:
             with open(filepath, mode) as f:
@@ -187,13 +188,14 @@ def read_any(filepath, reader, mode, *args, **kwargs):
                     yield r
     except UnicodeDecodeError:
         if hasattr(filepath, 'read'):
-            kwargs['encoding'] = detect_encoding(filepath)['encoding']
+            f = filepath
+            kwargs['encoding'] = detect_encoding(f)['encoding']
 
             for r in reader(f, *args, **kwargs):
                 yield r
         else:
             with open(filepath, mode) as f:
-                kwargs['encoding'] = detect_encoding(filepath)['encoding']
+                kwargs['encoding'] = detect_encoding(f)['encoding']
 
                 for r in reader(f, *args, **kwargs):
                     yield r

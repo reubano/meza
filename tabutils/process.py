@@ -679,7 +679,8 @@ u'species']
     try:
         import pandas as pd
     except ImportError:
-        raise ImportError("pandas is required to use this function")
+        print("pandas is required to use this function")
+        return None
     else:
         df = pd.DataFrame.from_records(records)
         table = df.pivot_table(**kwargs)

@@ -565,8 +565,8 @@ def records2csv(records, encoding=ENCODING, bom=False):
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-    Kwargs:
-        header (Seq[str]): The header row (default: None)
+        encoding (str): File encoding (default: ENCODING constant)
+        bom (bool): Add Byte order marker (default: False)
 
     Returns:
         obj: StringIO.StringIO instance

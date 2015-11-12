@@ -35,9 +35,10 @@ from dbfread.ifiles import ifind
 
 
 class DBF2(DBF):
-    """DBF table."""
+    """Reads DBF tables (dBase, Visual FoxPro, or FoxBase+ files)
+    """
     def __init__(self, filepath, **kwargs):
-        """Reads a dBase, Visual FoxPro, or FoxBase+ file
+        """DBF2 constructor
 
         Args:
             filepath (str): The dbf file path or file like object.

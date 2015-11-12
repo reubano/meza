@@ -340,7 +340,7 @@ def dfilter(content, blacklist=None, inverse=False):
     Args:
         content (dict): The content to filter
         blacklist (Seq[str]): The fields to remove (default: None)
-        inverse (bool): Keep fields in blacklist (default: False)
+        inverse (bool): Keep fields instead of removing them (default: False)
 
     Returns:
         dict: The filtered content

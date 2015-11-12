@@ -978,24 +978,27 @@ def op_everseen(iterable, key=None, pad=False, op='lt'):
     >>> list(op_everseen([4, 6, 3, 8, 2, 1]))
     [4, 3, 2, 1]
     >>> list(op_everseen([('a', 6), ('b', 4), ('c', 8)], itemgetter(1)))
-    ('a', 6) ('b', 4)
+    [(u'a', 6), (u'b', 4)]
     >>> list(op_everseen([4, 6, 3, 8, 2, 1], pad=True))
     [4, 4, 3, 3, 2, 1]
     >>> list(op_everseen([4, 6, 3, 8, 2, 1], op='gt'))
     [4, 6, 8]
     """
     current = None
+    current_key = None
     compare = getattr(operator, op)
 
     for element in iterable:
         k = element if key is None else key(element)
 
         if current is None:
-            current = k
+            current = element
+            current_key = k
             valid = True
         else:
-            valid = compare(k, current)
-            current = k if valid else current
+            valid = compare(k, current_key)
+            current = element if valid else current
+            current_key = k if valid else current_key
 
         if valid or pad:
             yield current

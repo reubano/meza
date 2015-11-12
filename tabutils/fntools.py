@@ -65,8 +65,14 @@ class Objectify(object):
         defaults.update(kwargs)
         self.__dict__.update(defaults)
 
+    def __iter__(self):
+        return self.__dict__.itervalues()
+
     def __getattr__(self, name):
         return None
+
+    def iteritems(self):
+        return self.__dict__.iteritems()
 
 
 class CustomEncoder(JSONEncoder):

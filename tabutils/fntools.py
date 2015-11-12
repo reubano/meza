@@ -45,6 +45,7 @@ class Objectify(object):
     """
     def __init__(self, kwargs, **defaults):
         """ Objectify constructor
+
         Args:
             kwargs (dict): The attributes to set
             defaults (dict): The default attributes

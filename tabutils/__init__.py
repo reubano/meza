@@ -19,12 +19,14 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
+from datetime import datetime as dt
+
 __title__ = 'tabutils'
 __package_name__ = 'tabutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'tabular data utility methods'
 __email__ = 'reubano@gmail.com'
-__version__ = '0.19.0'
+__version__ = '0.19.1'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 

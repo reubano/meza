@@ -14,9 +14,6 @@ Examples:
         from tabutils.convert import to_decimal
 
         decimal = to_decimal('$123.45')
-
-Attributes:
-    DEFAULT_DATETIME (obj): Default datetime object
 """
 
 from __future__ import (
@@ -35,11 +32,9 @@ from collections import OrderedDict
 from operator import itemgetter
 from functools import partial
 
-from . import fntools as ft, ENCODING
+from . import fntools as ft, ENCODING, DEFAULT_DATETIME
 
 from dateutil.parser import parse
-
-DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
 
 
 def ctype2ext(content_type=None):

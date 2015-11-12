@@ -483,10 +483,12 @@ def merge(records, **kwargs):
             `True` if overlapping values should be combined. Can optionally be
             a keyfunc which receives a record. In this case, the entries will
             be combined if the value obtained after applying keyfunc to the
-            record equals the current value.
+            record equals the current value. Requires that `op` is set.
+
+            If not set, no records will be combined.
 
             If a key occurs in multiple records and isn't combined, it will be
-            overwritten by the last record. Requires that `op` is set.
+            overwritten by the last record.
 
         op (func): Receives a list of 2 values from overlapping keys and should
             return the combined value. Common operators are `sum`, `min`,
@@ -679,7 +681,8 @@ u'species']
     try:
         import pandas as pd
     except ImportError:
-        raise ImportError("pandas is required to use this function")
+        print("pandas is required to use this function")
+        return None
     else:
         df = pd.DataFrame.from_records(records)
         table = df.pivot_table(**kwargs)

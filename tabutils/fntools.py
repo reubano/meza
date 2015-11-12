@@ -26,6 +26,7 @@ from __future__ import (
     unicode_literals)
 
 import itertools as it
+import operator
 
 from functools import partial
 from collections import defaultdict
@@ -44,6 +45,7 @@ class Objectify(object):
     """
     def __init__(self, kwargs, **defaults):
         """ Objectify constructor
+
         Args:
             kwargs (dict): The attributes to set
             defaults (dict): The default attributes
@@ -63,8 +65,14 @@ class Objectify(object):
         defaults.update(kwargs)
         self.__dict__.update(defaults)
 
+    def __iter__(self):
+        return self.__dict__.itervalues()
+
     def __getattr__(self, name):
         return None
+
+    def iteritems(self):
+        return self.__dict__.iteritems()
 
 
 class CustomEncoder(JSONEncoder):
@@ -339,7 +347,7 @@ def dfilter(content, blacklist=None, inverse=False):
     Args:
         content (dict): The content to filter
         blacklist (Seq[str]): The fields to remove (default: None)
-        inverse (bool): Keep fields in blacklist (default: False)
+        inverse (bool): Keep fields instead of removing them (default: False)
 
     Returns:
         dict: The filtered content
@@ -910,3 +918,83 @@ def flatten(record, prefix=None):
                 yield flattened
     except AttributeError:
         yield (prefix, record)
+
+
+def array_search_type(needle, haystack, n=0):
+    """ Searches an array for the nth (zero based) occurrence of a given value
+     type and returns the corresponding key if successful.
+
+        Args:
+            needle (str): the type of element to find (i.e. 'numeric'
+                or 'string')
+            haystack (List[str]): the array to search
+
+        Returns:
+            (List[str]): array of the key(s) of the found element(s)
+
+        Examples:
+            >>> array_search_type('string', ('one', '2w', '3a'), 2).next()
+            u'3a'
+            >>> array_search_type('numeric', ('1', 2, 3), 2).next()
+            Traceback (most recent call last):
+            StopIteration
+            >>> array_search_type('numeric', ('one', 2, 3), 1).next()
+            3
+    """
+    switch = {'numeric': 'real', 'string': 'upper'}
+    func = lambda x: hasattr(x, switch[needle])
+    return it.islice(it.ifilter(func, haystack), n, None)
+
+
+def array_substitute(content, needle, replace):
+    """ Recursively replaces all occurrences of needle with replace
+
+    Args:
+        content (List[str]): the array to perform the replacement on
+        needle (str): the value being searched for (an array may
+            be used to designate multiple needles)
+
+        replace (scalar): the replacement value that replaces needle
+            (an array may be used to designate multiple replacements)
+
+    Returns:
+        List[str]: new array with replaced values
+
+    Examples:
+        >>> array_substitute([('one', 'two', 'three')], 'two', 2).next()
+        [u'one', u'2', u'three']
+    """
+    for item in content:
+        try:
+            yield item.replace(needle, str(replace))
+        except AttributeError:
+            yield list(array_substitute(item, needle, replace))
+
+
+def op_everseen(iterable, key=None, pad=False, op='lt'):
+    """List min/max/equal... elements, preserving order. Remember all
+    elements ever seen.
+    >>> list(op_everseen([4, 6, 3, 8, 2, 1]))
+    [4, 3, 2, 1]
+    >>> list(op_everseen([('a', 6), ('b', 4), ('c', 8)], itemgetter(1)))
+    ('a', 6) ('b', 4)
+    >>> list(op_everseen([4, 6, 3, 8, 2, 1], pad=True))
+    [4, 4, 3, 3, 2, 1]
+    >>> list(op_everseen([4, 6, 3, 8, 2, 1], op='gt'))
+    [4, 6, 8]
+    """
+    current = None
+    compare = getattr(operator, op)
+
+    for element in iterable:
+        k = element if key is None else key(element)
+
+        if current is None:
+            current = k
+            valid = True
+        else:
+            valid = compare(k, current)
+            current = k if valid else current
+
+        if valid or pad:
+            yield current

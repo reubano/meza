@@ -6,7 +6,7 @@ tabutils is a [Python library](#library) for reading and processing data from ta
 
 With tabutils, you can
 
-- Read CSV/XLS/XLSX/MDB/DBF files
+- Read CSV/XLS/XLSX/MDB/DBF files, and more!
 - Type cast records (date, float, text)
 - Read Uñicôdë text
 - Lazily read large files by default

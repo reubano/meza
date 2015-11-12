@@ -1,5 +1,4 @@
 chardet==2.3.0
-manage.py==0.2.10
 python-slugify==0.0.7
 python-dateutil==2.4.2
 requests==2.4.3

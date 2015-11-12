@@ -69,8 +69,7 @@ setup(
     packages=find_packages(exclude=['docs', 'tests']),
     include_package_data=True,
     package_data={
-        'data': 'data/*', 'helpers': 'helpers/*', 'tests': 'tests/*',
-        'temp': 'test.csv'
+        'data': 'data/*', 'helpers': 'helpers/*', 'tests': 'tests/*'
     },
     install_requires=requirements,
     dependency_links=dependencies,

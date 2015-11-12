@@ -14,9 +14,6 @@ Examples:
         from tabutils.convert import to_decimal
 
         decimal = to_decimal('$123.45')
-
-Attributes:
-    DEFAULT_DATETIME (obj): Default datetime object
 """
 
 from __future__ import (
@@ -35,11 +32,9 @@ from collections import OrderedDict
 from operator import itemgetter
 from functools import partial
 
-from . import fntools as ft, ENCODING
+from . import fntools as ft, ENCODING, DEFAULT_DATETIME
 
 from dateutil.parser import parse
-
-DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
 
 
 def ctype2ext(content_type=None):
@@ -565,8 +560,8 @@ def records2csv(records, encoding=ENCODING, bom=False):
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-    Kwargs:
-        header (Seq[str]): The header row (default: None)
+        encoding (str): File encoding (default: ENCODING constant)
+        bom (bool): Add Byte order marker (default: False)
 
     Returns:
         obj: StringIO.StringIO instance

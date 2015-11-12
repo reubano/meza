@@ -974,6 +974,7 @@ def array_substitute(content, needle, replace):
 def op_everseen(iterable, key=None, pad=False, op='lt'):
     """List min/max/equal... elements, preserving order. Remember all
     elements ever seen.
+    >>> from operator import itemgetter
     >>> list(op_everseen([4, 6, 3, 8, 2, 1]))
     [4, 3, 2, 1]
     >>> list(op_everseen([('a', 6), ('b', 4), ('c', 8)], itemgetter(1)))

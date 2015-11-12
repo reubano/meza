@@ -69,7 +69,9 @@ class TestIO:
             u'unicode_test': u'Ādam'}
 
     def test_newline_json(self):
-        value = u'{"sepal_width": "3.5", "petal_width": "0.2", "species": "Iris-setosa", "sepal_length": "5.1", "petal_length": "1.4"}'
+        value = (
+            '{"sepal_width": "3.5", "petal_width": "0.2", "species":'
+            ' "Iris-setosa", "sepal_length": "5.1", "petal_length": "1.4"}')
 
         filepath = p.join(test_dir, 'iris.csv')
         records = io.read_csv(filepath)

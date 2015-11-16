@@ -14,7 +14,7 @@ Examples:
         from tabutils.fntools import underscorify
 
         header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
-        underscored = list(underscorify(header))
+        list(underscorify(header))
 
 Attributes:
     DEF_TRUES (tuple[str]): Values to be consider True

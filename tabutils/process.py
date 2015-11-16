@@ -531,7 +531,7 @@ def merge(records, **kwargs):
         >>> sorted(merge(records, pred=pred, op=sum).items())
         [(u'a', 1), (u'b', 6), (u'c', 8), (u'd', 6)]
         >>> fltrer = lambda x: x is not None
-        >>> first = lambda x: filter(fltrer, x)[0]
+        >>> first = lambda pair: filter(fltrer, pair)[0]
         >>> kwargs = {'pred': pred, 'op': first, 'default': None}
         >>> sorted(merge(records, **kwargs).items())
         [(u'a', 1), (u'b', 2), (u'c', 3), (u'd', 6)]

@@ -149,7 +149,7 @@ def patch_http_response_read(func):
 httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 
-def read_any(filepath, reader, mode, *args, **kwargs):
+def read_any(filepath, reader, mode='rU', *args, **kwargs):
     """Reads a file or filepath
 
     Args:

@@ -770,13 +770,13 @@ def read_geojson(filepath, mode='rU'):
     return read_any(filepath, reader, mode)
 
 
-def write(filepath, content, mode='wb', **kwargs):
+def write(filepath, content, mode='wb+', **kwargs):
     """Writes content to a file path or file like object.
 
     Args:
         filepath (str): The file path or file like object to write to.
         content (obj): File like object or `requests` iterable response.
-        mode (Optional[str]): The file open mode (default: 'wb').
+        mode (Optional[str]): The file open mode (default: 'wb+').
         kwargs: Keyword arguments.
 
     Kwargs:

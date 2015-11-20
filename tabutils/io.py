@@ -812,7 +812,15 @@ chunksize=2)
         progress = 0
 
         for c in ft.chunk(content, chunksize):
-            f.write(c.encode(ENCODING) if hasattr(c, 'encode') else c)
+            if isinstance(c, unicode):
+                encoded = c.encode(ENCODING)
+            elif hasattr(c, 'sort'):
+                # it's a list so convert to a string
+                encoded = ft.byte(c)
+            else:
+                encoded = c
+
+            f.write(encoded)
             progress += chunksize or len(c)
 
             if length:

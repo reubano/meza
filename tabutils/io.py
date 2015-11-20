@@ -412,6 +412,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
+        first_row (int): First row (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -448,11 +449,13 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...
         True
     """
-    def reader(f, **kwargs):
+    def reader(f, first_row=0, **kwargs):
         encoding = kwargs.pop('encoding', False) or ENCODING
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)
+        [f.next() for _ in xrange(first_row)]
+        pos = f.tell()
         names = csv.reader(f, encoding=encoding, **kwargs).next()
 
         if has_header:
@@ -460,7 +463,7 @@ def read_csv(filepath, mode='rU', **kwargs):
             uscored = list(ft.underscorify(stripped)) if sanitize else stripped
             header = list(ft.dedupe(uscored)) if dedupe else uscored
         else:
-            f.seek(0)
+            f.seek(pos)
             header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
         return _read_csv(f, encoding, header, False)
@@ -479,6 +482,7 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
 
     Kwargs:
         has_header (bool): Has header row (default: False).
+        first_row (int): First row (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -524,7 +528,9 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         sanitize = kwargs.get('sanitize')
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.get('has_header')
+        first_row = kwargs.get('first_row', 0)
         schema = tuple(it.izip_longest(widths, widths[1:]))
+        [f.next() for _ in xrange(first_row)]
 
         if has_header:
             line = f.readline()
@@ -591,6 +597,7 @@ def read_xls(filepath, **kwargs):
     Kwargs:
         sheet (int): Zero indexed sheet to open (default: 0)
         has_header (bool): Has header row (default: True).
+        first_row (int): First row (zero based, default: 0).
         date_format (str): Date format passed to `strftime()` (default:
             '%Y-%m-%d', i.e, 'YYYY-MM-DD').
 
@@ -647,6 +654,7 @@ def read_xls(filepath, **kwargs):
         True
     """
     has_header = kwargs.get('has_header', True)
+    first_row = kwargs.get('first_row', 0)
     sanitize = kwargs.get('sanitize')
     dedupe = kwargs.pop('dedupe', False)
 
@@ -667,7 +675,7 @@ def read_xls(filepath, **kwargs):
     sheet = book.sheet_by_index(kwargs.get('sheet', 0))
 
     # Get header row and remove empty columns
-    names = sheet.row_values(0)
+    names = sheet.row_values(first_row)
 
     if has_header:
         stripped = [name for name in names if name.strip()]
@@ -680,7 +688,7 @@ def read_xls(filepath, **kwargs):
     sanitized = sanitize_sheet(sheet, book.datemode, date_format)
 
     for key, group in it.groupby(sanitized, lambda v: v[0]):
-        if has_header and key == 0:
+        if has_header and key == first_row:
             continue
 
         values = [g[1] for g in group]

@@ -17,9 +17,6 @@ from json import loads
 
 from tabutils import io, convert as cv
 
-parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-test_dir = p.join(parent_dir, 'data', 'test')
-
 
 def setup_module():
     """site initialization"""
@@ -37,31 +34,31 @@ class TestUnicodeReader:
         self.row3 = {'a': '4', 'b': '5', 'c': 'ʤ'}
 
     def test_utf8(self):
-        filepath = p.join(test_dir, 'utf8.csv')
+        filepath = p.join(io.DATA_DIR, 'utf8.csv')
         records = io.read_csv(filepath, sanitize=True)
         nt.assert_equal(self.row1, records.next())
         nt.assert_equal(self.row3, records.next())
 
     def test_latin1(self):
-        filepath = p.join(test_dir, 'latin1.csv')
+        filepath = p.join(io.DATA_DIR, 'latin1.csv')
         records = io.read_csv(filepath, encoding='latin1')
         nt.assert_equal(self.row1, records.next())
         nt.assert_equal(self.row2, records.next())
 
     def test_encoding_detection(self):
-        filepath = p.join(test_dir, 'latin1.csv')
+        filepath = p.join(io.DATA_DIR, 'latin1.csv')
         records = io.read_csv(filepath, encoding='ascii')
         nt.assert_equal(self.row1, records.next())
         nt.assert_equal(self.row2, records.next())
 
     def test_utf16_big(self):
-        filepath = p.join(test_dir, 'utf16_big.csv')
+        filepath = p.join(io.DATA_DIR, 'utf16_big.csv')
         records = io.read_csv(filepath, encoding='utf-16-be')
         nt.assert_equal(self.row1, records.next())
         nt.assert_equal(self.row3, records.next())
 
     def test_utf16_little(self):
-        filepath = p.join(test_dir, 'utf16_little.csv')
+        filepath = p.join(io.DATA_DIR, 'utf16_little.csv')
         records = io.read_csv(filepath, encoding='utf-16-le')
         nt.assert_equal(self.row1, records.next())
         nt.assert_equal(self.row3, records.next())
@@ -90,17 +87,17 @@ class TestIO:
             '{"sepal_width": "3.5", "petal_width": "0.2", "species":'
             ' "Iris-setosa", "sepal_length": "5.1", "petal_length": "1.4"}')
 
-        filepath = p.join(test_dir, 'iris.csv')
+        filepath = p.join(io.DATA_DIR, 'iris.csv')
         records = io.read_csv(filepath)
         json = cv.records2json(records, newline=True)
         nt.assert_equal(value, json.next().strip())
 
-        filepath = p.join(test_dir, 'newline.json')
+        filepath = p.join(io.DATA_DIR, 'newline.json')
         records = io.read_json(filepath, newline=True)
         nt.assert_equal({'a': 2, 'b': 3}, records.next())
 
     def test_xls(self):
-        filepath = p.join(test_dir, 'test.xlsx')
+        filepath = p.join(io.DATA_DIR, 'test.xlsx')
         records = io.read_xls(filepath, sanitize=True, sheet=0)
         nt.assert_equal(self.sheet0, records.next())
 
@@ -111,7 +108,7 @@ class TestGeoJSON:
     def __init__(self):
         self.cls_initialized = False
         self.bbox = [100, 0, 105, 1]
-        self.filepath = p.join(test_dir, 'test.geojson')
+        self.filepath = p.join(io.DATA_DIR, 'test.geojson')
 
     def test_geojson(self):
         value = {

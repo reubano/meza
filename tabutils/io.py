@@ -29,6 +29,7 @@ import httplib
 import sys
 import hashlib
 
+from os import path as p
 from StringIO import StringIO
 from datetime import time
 from io import TextIOBase
@@ -46,6 +47,8 @@ from xlrd import (
 
 from . import fntools as ft, process as pr, dbf, ENCODING
 
+PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
+DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
 
 class IterStringIO(TextIOBase):
     """A lazy StringIO that writes a generator of strings and reads bytearrays.
@@ -203,9 +206,7 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
         scalar: Result of applying the reader func to the file.
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
+        >>> filepath = p.join(DATA_DIR, 'test.csv')
         >>> reader = lambda f: (l.strip().split(',') for l in f)
         >>> read_any(filepath, reader, 'rU').next()
         [u'Some Date', u'Sparse Data', u'Some Value', u'Unicode Test', u'']
@@ -236,9 +237,7 @@ def _read_csv(f, encoding, header=None, has_header=True):
         `io.read_csv`
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
+        >>> filepath = p.join(DATA_DIR, 'test.csv')
         >>> header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
         >>> with open(filepath, 'rU') as f:
         ...     sorted(_read_csv(f, 'utf-8').next().items()) == [
@@ -297,9 +296,7 @@ def read_mdb(filepath, table=None, **kwargs):
         TypeError: If unable to read the db file.
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.mdb')
+        >>> filepath = p.join(DATA_DIR, 'test.mdb')
         >>> records = read_mdb(filepath, sanitize=True)
         >>> records.next() == {
         ...     u'surname': u'Aaron',
@@ -374,9 +371,7 @@ def read_dbf(filepath, **kwargs):
         DBFNotFound: If unable to find the db file.
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.dbf')
+        >>> filepath = p.join(DATA_DIR, 'test.dbf')
         >>> records = read_dbf(filepath, sanitize=True)
         >>> records.next() == {
         ...      u'awater10': 12416573076,
@@ -447,9 +442,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         `io._read_csv`
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
+        >>> filepath = p.join(DATA_DIR, 'test.csv')
         >>> records = read_csv(filepath, sanitize=True)
         >>> records.next() == {
         ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
@@ -458,7 +451,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...     u'unicode_test': u'Ādam'}
         ...
         True
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'no_header_row.csv')
+        >>> filepath = p.join(DATA_DIR, 'no_header_row.csv')
         >>> records = read_csv(filepath, has_header=False)
         >>> records.next() == {
         ...     u'column_1': u'1',
@@ -516,9 +509,7 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         `io.read_any`
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'fixed.txt')
+        >>> filepath = p.join(DATA_DIR, 'fixed.txt')
         >>> widths = [0, 18, 29, 33, 38, 50]
         >>> records = read_fixed_csv(filepath, widths)
         >>> records.next() == {
@@ -530,7 +521,7 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         ...     u'column_6': '04:14:001971-01-01T04:14:00'}
         ...
         True
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'fixed_w_header.txt')
+        >>> filepath = p.join(DATA_DIR, 'fixed_w_header.txt')
         >>> records = read_fixed_csv(filepath, widths, has_header=True)
         >>> records.next() == {
         ...     u'News Paper': 'Chicago Reader',
@@ -584,9 +575,7 @@ def sanitize_sheet(sheet, mode, **kwargs):
         Tuple[int, str]: A tuple of (row_number, value).
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
+        >>> filepath = p.join(DATA_DIR, 'test.xls')
         >>> book = xlrd.open_workbook(filepath)
         >>> sheet = book.sheet_by_index(0)
         >>> sheet.row_values(1) == [
@@ -667,9 +656,7 @@ def read_xls(filepath, **kwargs):
         NotFound: If unable to find the resource.
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
+        >>> filepath = p.join(DATA_DIR, 'test.xls')
         >>> records = read_xls(filepath, sanitize=True)
         >>> records.next() == {
         ...     u'some_value': u'234.0',
@@ -678,7 +665,7 @@ def read_xls(filepath, **kwargs):
         ...     u'unicode_test': u'Ādam'}
         ...
         True
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xlsx')
+        >>> filepath = p.join(DATA_DIR, 'test.xlsx')
         >>> records = read_xls(filepath, sanitize=True, sheet=0)
         >>> records.next() == {
         ...     u'some_value': u'234.0',
@@ -759,9 +746,7 @@ def read_json(filepath, mode='rU', path='item', newline=False):
         `io.read_any`
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.json')
+        >>> filepath = p.join(DATA_DIR, 'test.json')
         >>> records = read_json(filepath)
         >>> records.next() == {
         ...     u'text': u'Chicago Reader',
@@ -792,9 +777,7 @@ def read_geojson(filepath, mode='rU'):
         `io.read_any`
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.geojson')
+        >>> filepath = p.join(DATA_DIR, 'test.geojson')
         >>> records = read_geojson(filepath)
         >>> records.next() == {
         ...     u'id': None,
@@ -941,9 +924,7 @@ def get_utf8(f, encoding, remove_BOM=True):
         obj: file like object
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> with open(p.join(parent_dir, 'data', 'test', 'utf16_big.csv')) as f:
+        >>> with open(p.join(DATA_DIR, 'utf16_big.csv')) as f:
         ...     utf8_f = get_utf8(f, 'utf-16-be')
         ...     utf8_f.next() == 'a,b,c\\n'
         ...     utf8_f.next() == '1,2,3\\n'
@@ -986,9 +967,7 @@ def detect_encoding(f, verbose=False):
         dict: The encoding result
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
+        >>> filepath = p.join(DATA_DIR, 'test.csv')
         >>> with open(filepath, mode='rU') as f:
         ...     result = detect_encoding(f)
         ...     result == {'confidence': 0.99, 'encoding': 'utf-8'}

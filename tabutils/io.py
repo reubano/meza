@@ -32,7 +32,7 @@ import codecs
 
 from StringIO import StringIO
 from io import TextIOBase
-from json import loads, dumps
+from json import loads
 from mmap import mmap
 from collections import deque
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
@@ -755,7 +755,7 @@ def read_json(filepath, mode='rU', path='item', newline=False):
         ...
         True
     """
-    reader = lambda f: it.map(loads, f) if newline else items(f, path)
+    reader = lambda f: it.imap(loads, f) if newline else items(f, path)
     return read_any(filepath, reader, mode)
 
 
@@ -778,9 +778,10 @@ def read_geojson(filepath, mode='rU'):
         >>> filepath = p.join(parent_dir, 'data', 'test', 'test.geojson')
         >>> records = read_geojson(filepath)
         >>> records.next() == {
-        ...     u'prop0': u'value0',
         ...     u'id': None,
-        ...     u'geojson': '{"type": "Point", "coordinates": [102, 0.5]}'}
+        ...     u'prop0': u'value0',
+        ...     u'type': 'Point',
+        ...     u'coordinates': [102, 0.5]}
         ...
         True
     """
@@ -793,9 +794,7 @@ def read_geojson(filepath, mode='rU'):
             for feature in features:
                 _id = {'id': feature.get('id')}
                 record = feature.get('properties') or {}
-                dumped = dumps(feature['geometry'], cls=ft.CustomEncoder)
-                geojson = {'geojson': dumped}
-                yield pr.merge([_id, record, geojson])
+                yield pr.merge([_id, record, feature['geometry']])
 
     return read_any(filepath, reader, mode)
 

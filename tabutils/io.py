@@ -28,6 +28,7 @@ import unicodecsv as csv
 import httplib
 import sys
 import hashlib
+import codecs
 
 from StringIO import StringIO
 from io import TextIOBase
@@ -149,7 +150,7 @@ def patch_http_response_read(func):
 httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 
-def read_any(filepath, reader, mode, *args, **kwargs):
+def read_any(filepath, reader, mode='rU', *args, **kwargs):
     """Reads a file or filepath
 
     Args:
@@ -157,6 +158,9 @@ def read_any(filepath, reader, mode, *args, **kwargs):
         reader (func): The processing function.
         mode (Optional[str]): The file open mode (default: 'rU').
         kwargs (dict): Keyword arguments that are passed to the reader.
+
+    Kwargs:
+        encoding (str): File encoding.
 
     See also:
         `io.read_csv`
@@ -177,28 +181,46 @@ def read_any(filepath, reader, mode, *args, **kwargs):
         >>> read_any(filepath, reader, 'rU').next()
         [u'Some Date', u'Sparse Data', u'Some Value', u'Unicode Test', u'']
     """
+    pos = 0
+
     try:
         if hasattr(filepath, 'read'):
             f = filepath
             for r in reader(f, *args, **kwargs):
                 yield r
+                pos += 1
         else:
             with open(filepath, mode) as f:
                 for r in reader(f, *args, **kwargs):
                     yield r
+                    pos += 1
     except UnicodeDecodeError:
         if hasattr(filepath, 'read'):
-            f = filepath
+            f.seek(0)
             kwargs['encoding'] = detect_encoding(f)['encoding']
 
-            for r in reader(f, *args, **kwargs):
-                yield r
+            for num, r in enumerate(reader(f, *args, **kwargs)):
+                if num >= pos:
+                    yield r
         else:
             with open(filepath, mode) as f:
                 kwargs['encoding'] = detect_encoding(f)['encoding']
 
-                for r in reader(f, *args, **kwargs):
+                for num, r in enumerate(reader(f, *args, **kwargs)):
+                    if num >= pos:
+                        yield r
+    except Exception as err:
+        path = not hasattr(filepath, 'read')
+
+        if err.message == 'line contains NULL byte' and path:
+            utf8_f = get_utf8(filepath, kwargs.get('encoding'))
+            kwargs['encoding'] = ENCODING
+
+            for num, r in enumerate(reader(utf8_f, *args, **kwargs)):
+                if num >= pos:
                     yield r
+        else:
+            raise
 
 
 def _read_csv(f, encoding, header=None, has_header=True):
@@ -412,6 +434,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
+        first_row (int): First row (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -448,11 +471,13 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...
         True
     """
-    def reader(f, **kwargs):
+    def reader(f, first_row=0, **kwargs):
         encoding = kwargs.pop('encoding', False) or ENCODING
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)
+        [f.next() for _ in xrange(first_row)]
+        pos = f.tell()
         names = csv.reader(f, encoding=encoding, **kwargs).next()
 
         if has_header:
@@ -460,7 +485,7 @@ def read_csv(filepath, mode='rU', **kwargs):
             uscored = list(ft.underscorify(stripped)) if sanitize else stripped
             header = list(ft.dedupe(uscored)) if dedupe else uscored
         else:
-            f.seek(0)
+            f.seek(pos)
             header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
         return _read_csv(f, encoding, header, False)
@@ -479,6 +504,7 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
 
     Kwargs:
         has_header (bool): Has header row (default: False).
+        first_row (int): First row (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -524,7 +550,9 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         sanitize = kwargs.get('sanitize')
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.get('has_header')
+        first_row = kwargs.get('first_row', 0)
         schema = tuple(it.izip_longest(widths, widths[1:]))
+        [f.next() for _ in xrange(first_row)]
 
         if has_header:
             line = f.readline()
@@ -591,6 +619,7 @@ def read_xls(filepath, **kwargs):
     Kwargs:
         sheet (int): Zero indexed sheet to open (default: 0)
         has_header (bool): Has header row (default: True).
+        first_row (int): First row (zero based, default: 0).
         date_format (str): Date format passed to `strftime()` (default:
             '%Y-%m-%d', i.e, 'YYYY-MM-DD').
 
@@ -647,6 +676,7 @@ def read_xls(filepath, **kwargs):
         True
     """
     has_header = kwargs.get('has_header', True)
+    first_row = kwargs.get('first_row', 0)
     sanitize = kwargs.get('sanitize')
     dedupe = kwargs.pop('dedupe', False)
 
@@ -667,7 +697,7 @@ def read_xls(filepath, **kwargs):
     sheet = book.sheet_by_index(kwargs.get('sheet', 0))
 
     # Get header row and remove empty columns
-    names = sheet.row_values(0)
+    names = sheet.row_values(first_row)
 
     if has_header:
         stripped = [name for name in names if name.strip()]
@@ -680,7 +710,7 @@ def read_xls(filepath, **kwargs):
     sanitized = sanitize_sheet(sheet, book.datemode, date_format)
 
     for key, group in it.groupby(sanitized, lambda v: v[0]):
-        if has_header and key == 0:
+        if has_header and key == first_row:
             continue
 
         values = [g[1] for g in group]
@@ -770,13 +800,13 @@ def read_geojson(filepath, mode='rU'):
     return read_any(filepath, reader, mode)
 
 
-def write(filepath, content, mode='wb', **kwargs):
+def write(filepath, content, mode='wb+', **kwargs):
     """Writes content to a file path or file like object.
 
     Args:
         filepath (str): The file path or file like object to write to.
         content (obj): File like object or `requests` iterable response.
-        mode (Optional[str]): The file open mode (default: 'wb').
+        mode (Optional[str]): The file open mode (default: 'wb+').
         kwargs: Keyword arguments.
 
     Kwargs:
@@ -812,7 +842,15 @@ chunksize=2)
         progress = 0
 
         for c in ft.chunk(content, chunksize):
-            f.write(c.encode(ENCODING) if hasattr(c, 'encode') else c)
+            if isinstance(c, unicode):
+                encoded = c.encode(ENCODING)
+            elif hasattr(c, 'sort'):
+                # it's a list so convert to a string
+                encoded = ft.byte(c)
+            else:
+                encoded = c
+
+            f.write(encoded)
             progress += chunksize or len(c)
 
             if length:
@@ -872,6 +910,43 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
     return file_hash
 
 
+def get_utf8(filepath, encoding):
+    """Creates a utf-8 encoded file
+
+    Args:
+        filepath (str): Path to the file to convert.
+        encoding (str): The file's encoding.
+
+    Returns:
+        obj: file like object
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'utf16_big.csv')
+        >>> utf8_f = get_utf8(filepath, 'utf-16-be')
+        >>> utf8_f.next() == 'a,b,c\\n'
+        True
+        >>> utf8_f.next() == '1,2,3\\n'
+        True
+        >>> utf8_f.read().decode(ENCODING) == '4,5,ʤ'
+        True
+    """
+    # http://stackoverflow.com/a/10300007/408556
+    utf8_f = StringIO()
+
+    with codecs.open(filepath, encoding=encoding) as f:
+        # remove BOM
+        first = f.next().replace('\ufeff', '')
+        utf8_f.write(first.encode(ENCODING))
+
+        for line in f:
+            utf8_f.write(line.encode(ENCODING))
+
+    utf8_f.seek(0)
+    return utf8_f
+
+
 def detect_encoding(f, verbose=False):
     """Detects a file's encoding.
 
@@ -893,6 +968,7 @@ def detect_encoding(f, verbose=False):
         ...
         True
     """
+    pos = f.tell()
     detector = UniversalDetector()
 
     for line in f:
@@ -902,7 +978,7 @@ def detect_encoding(f, verbose=False):
             break
 
     detector.close()
-    f.seek(0)
+    f.seek(pos)
 
     if verbose:
         print('result', detector.result)

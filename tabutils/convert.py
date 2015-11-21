@@ -647,24 +647,39 @@ def _records2geojson(records, kw):
         tuple(dict, float, float): tuple of feature, lon, and lat
 
     Examples:
-        >>> record = {'geoid': 'geoid', 'lat': 22, 'lon': 12.2, 'p1': 'prop'}
-        >>> kw = ft.Objectify({'key': 'geoid', 'lat': 'lat', 'lon': 'lon'})
-        >>> _records2geojson([record], kw).next() == (
-        ...     {
+        >>> record = {
+        ...     'id': 'gid', 'p1': 'prop', 'type': 'Point',
+        ...     'coordinates': [12.2, 22.0]}
+        ...
+        >>> kw = ft.Objectify({'key': 'id', 'lon': 0, 'lat': 1})
+        >>> _records2geojson([record], kw).next() == {
+        ...     'feature': {
         ...         u'type': u'Feature',
-        ...         u'id': u'geoid',
+        ...         u'id': u'gid',
         ...         u'geometry': {
         ...             u'type': u'Point', u'coordinates': [12.2, 22.0]},
         ...         u'properties': {u'p1': u'prop'}},
-        ...     12.2,
-        ...     22.0)
+        ...     'lons': [12.2],
+        ...     'lats': [22.0]}
         True
     """
+    black_list = {kw.key, 'type', 'coordinates'}
+
     for row in records:
-        black_list = {kw.lon, kw.lat, kw.key}
-        lon = to_float(row[kw.lon])
-        lat = to_float(row[kw.lat])
-        geometry = {'type': 'Point', 'coordinates': [lon, lat]}
+        if row['type'] == 'Point':
+            lons = [row['coordinates'][kw.lon]]
+            lats = [row['coordinates'][kw.lat]]
+        elif row['type'] == 'LineString':
+            lons = map(itemgetter(kw.lon), row['coordinates'])
+            lats = map(itemgetter(kw.lat), row['coordinates'])
+        elif row['type'] == 'Polygon':
+            get = lambda keyfunc: [map(keyfunc, c) for c in row['coordinates']]
+            lons = list(it.chain.from_iterable(get(itemgetter(kw.lon))))
+            lats = list(it.chain.from_iterable(get(itemgetter(kw.lat))))
+        else:
+            raise TypeError('Invalid type: %s' % row['type'])
+
+        geometry = {'type': row['type'], 'coordinates': row['coordinates']}
         properties = dict(filter(lambda x: x[0] not in black_list, row.items()))
 
         if kw.sort_keys:
@@ -680,7 +695,7 @@ def _records2geojson(records, kw):
             feature_order = ['type', 'id', 'geometry', 'properties']
             feature = order_dict(feature, feature_order)
 
-        yield (feature, lon, lat)
+        yield {'feature': feature, 'lons': lons, 'lats': lats}
 
 
 def records2geojson(records, **kwargs):
@@ -705,21 +720,21 @@ def records2geojson(records, **kwargs):
         obj: StringIO.StringIO instance
 
     Examples:
-        >>> record = {'geoid': 'geoid', 'lat': 22, 'lon': 12.2, 'p1': 'prop'}
+        >>> record = {
+        ... 'id': 'gid', 'p1': 'prop', 'type': 'Point',
+        ... 'coordinates': [12.2, 22.0]}
+        ...
         >>> records2geojson([record]).next()
         '{"type": "FeatureCollection", "bbox": [12.2, 22.0, 12.2, 22.0], \
-"features": [{"type": "Feature", "id": "geoid", "geometry": {"type": "Point", \
+"features": [{"type": "Feature", "id": "gid", "geometry": {"type": "Point", \
 "coordinates": [12.2, 22.0]}, "properties": {"p1": "prop"}}], "crs": {"type": \
 "name", "properties": {"name": null}}}'
     """
-    defaults = {
-        'key': 'geoid', 'lat': 'lat', 'lon': 'lon', 'indent': 2,
-        'sort_keys': True}
-
+    defaults = {'key': 'id', 'lon': 0, 'lat': 1, 'indent': 2, 'sort_keys': True}
     kw = ft.Objectify(kwargs, **defaults)
     results = list(_records2geojson(records, kw))
-    lons = map(itemgetter(1), results)
-    lats = map(itemgetter(2), results)
+    lons = list(it.chain.from_iterable(map(itemgetter('lons'), results)))
+    lats = list(it.chain.from_iterable(map(itemgetter('lats'), results)))
     crs = {'type': 'name', 'properties': {'name': kw.crs}}
 
     if kw.sort_keys:
@@ -728,7 +743,7 @@ def records2geojson(records, **kwargs):
     output = {
         'type': 'FeatureCollection',
         'bbox': [min(lons), min(lats), max(lons), max(lats)],
-        'features': map(itemgetter(0), results),
+        'features': map(itemgetter('feature'), results),
         'crs': crs}
 
     if kw.sort_keys:

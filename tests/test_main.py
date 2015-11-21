@@ -13,6 +13,8 @@ from __future__ import (
 import nose.tools as nt
 
 from os import path as p
+from json import loads
+
 from tabutils import io, convert as cv
 
 parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
@@ -84,81 +86,69 @@ class TestIO:
         json = cv.records2json(records, newline=True)
         nt.assert_equal(value, json.next().strip())
 
-        # filepath = p.join(test_dir, 'newline.json')
-        # records = io.read_json(filepath, newline=True)
-        # nt.assert_equal(value, records.next().strip())
+        filepath = p.join(test_dir, 'newline.json')
+        records = io.read_json(filepath, newline=True)
+        nt.assert_equal({'a': 2, 'b': 3}, records.next())
 
 
 class TestGeoJSON:
     def __init__(self):
         self.cls_initialized = False
-        self.bbox = [-95.334619, 32.299076986939205, -95.250699, 32.351434]
+        self.bbox = [100, 0, 105, 1]
+        self.filepath = p.join(test_dir, 'test.geojson')
 
-    # def test_geojson(self):
-    #     # f = open('examples/test.geojson', 'rt')
-    #     value = {}
-    #     # 'id,prop0,prop1,geojson'
-    #     # '""coordinates"": [102.0, 0.5]'
-    #     # '""coordinates"": [[102.0, 0.0], [103.0, 1.0], [104.0, 0.0],
-    #     # [105.0, 1.0]]'
-    #     filepath = p.join(test_dir, 'test.geojson')
-    #     records = io.read_geojson(filepath)
-    #     nt.assert_equal(value, records.next())
+    def test_geojson(self):
+        value = {
+            'id': None,
+            'prop0': 'value0',
+            'type': 'Point',
+            'coordinates': [102, 0.5]}
 
-    #     nt.assert_equal(records['type'], 'FeatureCollection')
-    #     nt.assert_false('crs' in records)
+        records = io.read_geojson(self.filepath)
+        record = records.next()
+        nt.assert_equal(value, record)
 
-    #     nt.assert_equal(records['bbox'], self.bbox)
-    #     nt.assert_equal(len(records['features']), 17)
+        for record in records:
+            nt.assert_true('id' in record)
+            if record['type'] == 'Point':
+                nt.assert_equal(len(record['coordinates']), 2)
+            elif record['type'] == 'LineString':
+                nt.assert_greater_equal(len(record['coordinates']), 2)
+                nt.assert_equal(len(record['coordinates'][0]), 2)
+            elif record['type'] == 'Polygon':
+                nt.assert_greater_equal(len(record['coordinates']), 1)
+                nt.assert_greater_equal(len(record['coordinates'][0]), 3)
+                nt.assert_equal(len(record['coordinates'][0][0]), 2)
 
-    #     for feature in records['features']:
-    #         nt.assert_equal(feature['type'], 'Feature')
-    #         nt.assert_false('id' in feature)
-    #         nt.assert_equal(len(feature['properties']), 10)
+    def test_geojson_with_id(self):
+        records = io.read_geojson(self.filepath)
+        f = cv.records2geojson(records, key='id')
+        geojson = loads(f.read())
 
-    #         geometry = feature['geometry']
+        nt.assert_equal(geojson['type'], 'FeatureCollection')
+        nt.assert_true('crs' in geojson)
+        nt.assert_equal(geojson['bbox'], self.bbox)
+        nt.assert_equal(len(geojson['features']), 3)
 
-    #         nt.assert_equal(len(geometry['coordinates']), 2)
-    #         nt.assert_true(isinstance(geometry['coordinates'][0], float))
-    #         nt.assert_true(isinstance(geometry['coordinates'][1], float))
+        for feature in geojson['features']:
+            nt.assert_equal(feature['type'], 'Feature')
+            nt.assert_true('id' in feature)
+            nt.assert_less_equal(len(feature['properties']), 2)
 
-    # def test_geojson_with_id(self):
-    #     filepath = p.join(test_dir, 'test.geojson')
-    #     records = io.read_geojson(filepath)
+            geometry = feature['geometry']
 
-    #     geojson = cv.records2geojson(
-    #         records, lon='longitude', lat='latitude', key='slug')
+            if geometry['type'] == 'Point':
+                nt.assert_equal(len(geometry['coordinates']), 2)
+            elif geometry['type'] == 'LineString':
+                nt.assert_equal(len(geometry['coordinates'][0]), 2)
+            elif geometry['type'] == 'Polygon':
+                nt.assert_equal(len(geometry['coordinates'][0][0]), 2)
 
-    #     nt.assert_equal(geojson['type'], 'FeatureCollection')
-    #     nt.assert_false('crs' in geojson)
-    #     nt.assert_equal(geojson['bbox'], self.bbox)
-    #     nt.assert_equal(len(geojson['features']), 17)
+    def test_geojson_with_crs(self):
+        records = io.read_geojson(self.filepath)
+        f = cv.records2geojson(records, crs='EPSG:4269')
+        geojson = loads(f.read())
 
-    #     for feature in geojson['features']:
-    #         nt.assert_equal(feature['type'], 'Feature')
-    #         nt.assert_true('id' in feature)
-    #         nt.assert_equal(len(feature['properties']), 9)
-
-    #         geometry = feature['geometry']
-
-    #         nt.assert_equal(len(geometry['coordinates']), 2)
-    #         nt.assert_true(isinstance(geometry['coordinates'][0], float))
-    #         nt.assert_true(isinstance(geometry['coordinates'][1], float))
-
-    # def test_geojson_with_crs(self):
-    #     filepath = p.join(test_dir, 'test.geojson')
-    #     records = io.read_geojson(filepath)
-
-    #     geojson = cv.records2geojson(
-    #         records, lon='longitude', lat='latitude', key='slug',
-    #         crs='EPSG:4269')
-
-    #     nt.assert_equal(geojson['type'], 'FeatureCollection')
-    #     nt.assert_true('crs' in geojson)
-    #     nt.assert_equal(geojson['bbox'], self.bbox)
-    #     nt.assert_equal(len(geojson['features']), 17)
-
-    #     crs = geojson['crs']
-
-    #     nt.assert_equal(crs['type'], 'name')
-    #     nt.assert_equal(crs['properties']['name'], 'EPSG:4269')
+        nt.assert_true('crs' in geojson)
+        nt.assert_equal(geojson['crs']['type'], 'name')
+        nt.assert_equal(geojson['crs']['properties']['name'], 'EPSG:4269')

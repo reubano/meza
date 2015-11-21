@@ -28,7 +28,6 @@ import unicodecsv as csv
 import httplib
 import sys
 import hashlib
-import codecs
 
 from StringIO import StringIO
 from io import TextIOBase
@@ -150,6 +149,35 @@ def patch_http_response_read(func):
 httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 
+def _read_any(f, reader, args, convert=False, **kwargs):
+    pos = 0
+
+    try:
+        for r in reader(f, *args, **kwargs):
+            yield r
+            pos += 1
+    except UnicodeDecodeError:
+        # the wrong encoding was used so detect correct one
+        f.seek(0)
+        kwargs['encoding'] = detect_encoding(f)['encoding']
+
+        for num, r in enumerate(reader(f, *args, **kwargs)):
+            if num >= pos:
+                yield r
+    except Exception as err:
+        if err.message == 'line contains NULL byte' and convert:
+            # unicodecsv can't read utf-16, so convert to utf-8
+            f.seek(0)
+            utf8_f = get_utf8(f, kwargs.get('encoding'))
+            kwargs['encoding'] = ENCODING
+
+            for num, r in enumerate(reader(utf8_f, *args, **kwargs)):
+                if num >= pos:
+                    yield r
+        else:
+            raise
+
+
 def read_any(filepath, reader, mode='rU', *args, **kwargs):
     """Reads a file or filepath
 
@@ -181,46 +209,13 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
         >>> read_any(filepath, reader, 'rU').next()
         [u'Some Date', u'Sparse Data', u'Some Value', u'Unicode Test', u'']
     """
-    pos = 0
-
-    try:
-        if hasattr(filepath, 'read'):
-            f = filepath
-            for r in reader(f, *args, **kwargs):
+    if hasattr(filepath, 'read'):
+        for r in _read_any(filepath, reader, args, **kwargs):
+            yield r
+    else:
+        with open(filepath, mode) as f:
+            for r in _read_any(f, reader, args, True, **kwargs):
                 yield r
-                pos += 1
-        else:
-            with open(filepath, mode) as f:
-                for r in reader(f, *args, **kwargs):
-                    yield r
-                    pos += 1
-    except UnicodeDecodeError:
-        if hasattr(filepath, 'read'):
-            f.seek(0)
-            kwargs['encoding'] = detect_encoding(f)['encoding']
-
-            for num, r in enumerate(reader(f, *args, **kwargs)):
-                if num >= pos:
-                    yield r
-        else:
-            with open(filepath, mode) as f:
-                kwargs['encoding'] = detect_encoding(f)['encoding']
-
-                for num, r in enumerate(reader(f, *args, **kwargs)):
-                    if num >= pos:
-                        yield r
-    except Exception as err:
-        path = not hasattr(filepath, 'read')
-
-        if err.message == 'line contains NULL byte' and path:
-            utf8_f = get_utf8(filepath, kwargs.get('encoding'))
-            kwargs['encoding'] = ENCODING
-
-            for num, r in enumerate(reader(utf8_f, *args, **kwargs)):
-                if num >= pos:
-                    yield r
-        else:
-            raise
 
 
 def _read_csv(f, encoding, header=None, has_header=True):
@@ -909,12 +904,13 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
     return file_hash
 
 
-def get_utf8(filepath, encoding):
+def get_utf8(f, encoding, remove_BOM=True):
     """Creates a utf-8 encoded file
 
     Args:
-        filepath (str): Path to the file to convert.
+        f (obj): The file like object to convert.
         encoding (str): The file's encoding.
+        remove_BOM (bool): Remove Byte Order Marker (default: True)
 
     Returns:
         obj: file like object
@@ -922,28 +918,35 @@ def get_utf8(filepath, encoding):
     Examples:
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'utf16_big.csv')
-        >>> utf8_f = get_utf8(filepath, 'utf-16-be')
-        >>> utf8_f.next() == 'a,b,c\\n'
+        >>> with open(p.join(parent_dir, 'data', 'test', 'utf16_big.csv')) as f:
+        ...     utf8_f = get_utf8(f, 'utf-16-be')
+        ...     utf8_f.next() == 'a,b,c\\n'
+        ...     utf8_f.next() == '1,2,3\\n'
+        ...     utf8_f.read().decode(ENCODING) == '4,5,ʤ'
         True
-        >>> utf8_f.next() == '1,2,3\\n'
         True
-        >>> utf8_f.read().decode(ENCODING) == '4,5,ʤ'
         True
     """
-    # http://stackoverflow.com/a/10300007/408556
+    # http://stackoverflow.com/a/191455/408556
     utf8_f = StringIO()
-
-    with codecs.open(filepath, encoding=encoding) as f:
-        # remove BOM
-        first = f.next().replace('\ufeff', '')
-        utf8_f.write(first.encode(ENCODING))
-
-        for line in f:
-            utf8_f.write(line.encode(ENCODING))
-
+    utf8_f.write(unicode(f.read(), encoding).encode(ENCODING))
     utf8_f.seek(0)
-    return utf8_f
+
+    if remove_BOM:
+        BOMless_f = StringIO()
+
+        for num, line in enumerate(utf8_f):
+            if not num:
+                line = line.decode(ENCODING).lstrip('\ufeff')
+                line = line.encode(ENCODING)
+
+            BOMless_f.write(line)
+
+        BOMless_f.seek(0)
+    else:
+        BOMless_f = utf8_f
+
+    return BOMless_f
 
 
 def detect_encoding(f, verbose=False):

@@ -177,27 +177,34 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
         >>> read_any(filepath, reader, 'rU').next()
         [u'Some Date', u'Sparse Data', u'Some Value', u'Unicode Test', u'']
     """
+    pos = 0
+
     try:
         if hasattr(filepath, 'read'):
             f = filepath
             for r in reader(f, *args, **kwargs):
                 yield r
+                pos += 1
         else:
             with open(filepath, mode) as f:
                 for r in reader(f, *args, **kwargs):
                     yield r
+                    pos += 1
     except UnicodeDecodeError:
         if hasattr(filepath, 'read'):
-            f = filepath
+            f.seek(0)
             kwargs['encoding'] = detect_encoding(f)['encoding']
 
-            for r in reader(f, *args, **kwargs):
-                yield r
+            for num, r in enumerate(reader(f, *args, **kwargs)):
+                if num >= pos:
+                    yield r
         else:
             with open(filepath, mode) as f:
                 kwargs['encoding'] = detect_encoding(f)['encoding']
 
-                for r in reader(f, *args, **kwargs):
+                for num, r in enumerate(reader(f, *args, **kwargs)):
+                    if num >= pos:
+                        yield r
                     yield r
 
 
@@ -909,6 +916,7 @@ def detect_encoding(f, verbose=False):
         ...
         True
     """
+    pos = f.tell()
     detector = UniversalDetector()
 
     for line in f:
@@ -918,7 +926,7 @@ def detect_encoding(f, verbose=False):
             break
 
     detector.close()
-    f.seek(0)
+    f.seek(pos)
 
     if verbose:
         print('result', detector.result)

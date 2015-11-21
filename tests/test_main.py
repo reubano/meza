@@ -46,6 +46,12 @@ class TestUnicodeReader:
         nt.assert_equal(self.row1, records.next())
         nt.assert_equal(self.row2, records.next())
 
+    def test_encoding_detection(self):
+        filepath = p.join(test_dir, 'latin1.csv')
+        records = io.read_csv(filepath, encoding='ascii')
+        nt.assert_equal(self.row1, records.next())
+        nt.assert_equal(self.row2, records.next())
+
     def test_utf16_big(self):
         filepath = p.join(test_dir, 'utf16_big.csv')
         records = io.read_csv(filepath, encoding='utf-16-be')

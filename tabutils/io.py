@@ -28,6 +28,7 @@ import unicodecsv as csv
 import httplib
 import sys
 import hashlib
+import codecs
 
 from StringIO import StringIO
 from io import TextIOBase
@@ -158,6 +159,9 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
         mode (Optional[str]): The file open mode (default: 'rU').
         kwargs (dict): Keyword arguments that are passed to the reader.
 
+    Kwargs:
+        encoding (str): File encoding.
+
     See also:
         `io.read_csv`
         `io.read_fixed_csv`
@@ -205,7 +209,18 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
                 for num, r in enumerate(reader(f, *args, **kwargs)):
                     if num >= pos:
                         yield r
+    except Exception as err:
+        path = not hasattr(filepath, 'read')
+
+        if err.message == 'line contains NULL byte' and path:
+            utf8_f = get_utf8(filepath, kwargs.get('encoding'))
+            kwargs['encoding'] = ENCODING
+
+            for num, r in enumerate(reader(utf8_f, *args, **kwargs)):
+                if num >= pos:
                     yield r
+        else:
+            raise
 
 
 def _read_csv(f, encoding, header=None, has_header=True):
@@ -893,6 +908,43 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
         print('File %s hash is %s.' % (filepath, file_hash))
 
     return file_hash
+
+
+def get_utf8(filepath, encoding):
+    """Creates a utf-8 encoded file
+
+    Args:
+        filepath (str): Path to the file to convert.
+        encoding (str): The file's encoding.
+
+    Returns:
+        obj: file like object
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test', 'utf16_big.csv')
+        >>> utf8_f = get_utf8(filepath, 'utf-16-be')
+        >>> utf8_f.next() == 'a,b,c\\n'
+        True
+        >>> utf8_f.next() == '1,2,3\\n'
+        True
+        >>> utf8_f.read().decode(ENCODING) == '4,5,ʤ'
+        True
+    """
+    # http://stackoverflow.com/a/10300007/408556
+    utf8_f = StringIO()
+
+    with codecs.open(filepath, encoding=encoding) as f:
+        # remove BOM
+        first = f.next().replace('\ufeff', '')
+        utf8_f.write(first.encode(ENCODING))
+
+        for line in f:
+            utf8_f.write(line.encode(ENCODING))
+
+    utf8_f.seek(0)
+    return utf8_f
 
 
 def detect_encoding(f, verbose=False):

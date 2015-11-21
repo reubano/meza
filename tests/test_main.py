@@ -56,13 +56,13 @@ class TestUnicodeReader:
         filepath = p.join(test_dir, 'utf16_big.csv')
         records = io.read_csv(filepath, encoding='utf-16-be')
         nt.assert_equal(self.row1, records.next())
-        nt.assert_equal(self.row2, records.next())
+        nt.assert_equal(self.row3, records.next())
 
     def test_utf16_little(self):
         filepath = p.join(test_dir, 'utf16_little.csv')
         records = io.read_csv(filepath, encoding='utf-16-le')
         nt.assert_equal(self.row1, records.next())
-        nt.assert_equal(self.row2, records.next())
+        nt.assert_equal(self.row3, records.next())
 
 
 class TestIO:

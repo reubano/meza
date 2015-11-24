@@ -557,7 +557,7 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
     return read_any(filepath, reader, mode, **kwargs)
 
 
-def sanitize_sheet(sheet, mode, **kwargs):
+def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
     """Formats content from xls/xslx files as strings according to its cell
     type.
 
@@ -565,6 +565,7 @@ def sanitize_sheet(sheet, mode, **kwargs):
         sheet (obj): `xlrd` sheet object.
         mode (str): `xlrd` workbook datemode property.
         kwargs (dict): Keyword arguments
+        first_col (int): The first column (default: 0).
 
     Kwargs:
         date_format (str): `strftime()` date format.
@@ -605,16 +606,19 @@ def sanitize_sheet(sheet, mode, **kwargs):
     }
 
     for i in xrange(sheet.nrows):
-        for ctype, value in it.izip(sheet.row_types(i), sheet.row_values(i)):
-            if ctype == XL_CELL_DATE and value < 1:
-                ctype = 'time'
-            elif ctype == XL_CELL_DATE and not value.is_integer:
-                ctype = 'datetime'
+        types = sheet.row_types(i)[first_col:]
+        values = sheet.row_values(i)[first_col:]
+
+        for type_, value in it.izip(types, values):
+            if type_ == XL_CELL_DATE and value < 1:
+                type_ = 'time'
+            elif type_ == XL_CELL_DATE and not value.is_integer:
+                type_ = 'datetime'
 
             try:
-                yield (i, switch.get(ctype, lambda v: v)(value))
+                yield (i, switch.get(type_, lambda v: v)(value))
             except ValueError:
-                print(i, ctype, value)
+                print(i, type_, value)
                 yield(i, value)
 
 
@@ -630,6 +634,7 @@ def read_xls(filepath, **kwargs):
         sheet (int): Zero indexed sheet to open (default: 0)
         has_header (bool): Has header row (default: True).
         first_row (int): First row (zero based, default: 0).
+        first_col (int): First column (zero based, default: 0).
         date_format (str): Date format passed to `strftime()` (default:
             '%Y-%m-%d', i.e, 'YYYY-MM-DD').
 
@@ -685,6 +690,7 @@ def read_xls(filepath, **kwargs):
     """
     has_header = kwargs.get('has_header', True)
     first_row = kwargs.get('first_row', 0)
+    first_col = kwargs.get('first_col', 0)
     sanitize = kwargs.get('sanitize')
     dedupe = kwargs.pop('dedupe', False)
 
@@ -703,7 +709,7 @@ def read_xls(filepath, **kwargs):
     sheet = book.sheet_by_index(kwargs.pop('sheet', 0))
 
     # Get header row and remove empty columns
-    names = sheet.row_values(first_row)
+    names = sheet.row_values(first_row)[first_col:]
 
     if has_header:
         stripped = [name for name in names if name.strip()]

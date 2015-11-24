@@ -256,21 +256,17 @@ def _read_csv(f, encoding, header=None, has_header=True):
     """
     if header and has_header:
         f.next()
-        reader = csv.DictReader(f, header, encoding=encoding)
-    elif header:
-        reader = csv.DictReader(f, header, encoding=encoding)
-    elif has_header:
-        reader = csv.DictReader(f, encoding=encoding)
-    else:
+    elif not (header or has_header):
         raise ValueError('Either `header` or `has_header` must be specified.')
+
+    reader = csv.DictReader(f, header, encoding=encoding)
 
     # Remove `None` keys
     records = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
 
     # Remove empty rows
-    for row in records:
-        if any(v.strip() for v in row.values() if v):
-            yield row
+    filterer = lambda row: any(v.strip() for v in row.values() if v)
+    return it.ifilter(filterer, records)
 
 
 def read_mdb(filepath, table=None, **kwargs):
@@ -407,9 +403,8 @@ def read_dbf(filepath, **kwargs):
         True
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
+    return iter(dbf.DBF2(filepath, **kwargs))
 
-    for record in dbf.DBF2(filepath, **kwargs):
-        yield record
 
 
 def read_csv(filepath, mode='rU', **kwargs):

@@ -85,6 +85,8 @@ class IterStringIO(TextIOBase):
             >>> iter_sio.seek(0)
             >>> iter_sio.next()
             bytearray(b'line one')
+            >>> iter_sio.tell()
+            8
             >>> list(IterStringIO(content).readlines())
             [bytearray(b'line one'), bytearray(b'line two'), \
 bytearray(b'line three')]
@@ -93,6 +95,7 @@ bytearray(b'line three')]
         chained = self._chain(iterable)
         self.iter = self._encode(chained)
         self.last = deque('', bufsize)
+        self.pos = 0
 
     def __next__(self):
         return self._read(self.lines.next())
@@ -117,6 +120,7 @@ bytearray(b'line three')]
         # TODO: what about cases when a whole line isn't read?
         byte = ft.byte(it.islice(iterable, n) if n else iterable)
         self.last.extend(byte)
+        self.pos += len(byte)
         self.last.append('\n')
         return byte
 
@@ -135,6 +139,10 @@ bytearray(b'line three')]
 
     def seek(self, n):
         self.iter = it.chain.from_iterable([list(self.last)[n:], self.iter])
+        self.pos = n
+
+    def tell(self):
+        return self.pos
 
 
 def patch_http_response_read(func):

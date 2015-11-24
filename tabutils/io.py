@@ -862,13 +862,13 @@ chunksize=2)
     return read_any(filepath, _write, mode, *args, **kwargs).next()
 
 
-def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
+def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
     """Hashes a file path or file like object.
     http://stackoverflow.com/a/1131255/408556
 
     Args:
         filepath (str): The file path or file like object to hash.
-        hasher (str): The hashlib hashing algorithm to use (default: sha1).
+        algo (str): The hashlib hashing algorithm to use (default: sha1).
 
         chunksize (Optional[int]): Number of bytes to write at a time
             (default: 0, i.e., all).
@@ -880,6 +880,7 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
 
     See also:
         `io.read_any`
+        `process.hash`
 
     Examples:
         >>> from tempfile import TemporaryFile
@@ -899,7 +900,7 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
 
         yield hasher.hexdigest()
 
-    args = [getattr(hashlib, hasher)()]
+    args = [getattr(hashlib, algo)()]
     file_hash = read_any(filepath, reader, 'rb', *args).next()
 
     if verbose:

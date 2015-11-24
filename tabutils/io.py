@@ -33,6 +33,7 @@ import sqlite3
 from os import path as p
 from StringIO import StringIO
 from datetime import time
+from importlib import import_module
 from io import TextIOBase
 from json import loads
 from mmap import mmap
@@ -1072,3 +1073,45 @@ def detect_encoding(f, verbose=False):
         print('result', detector.result)
 
     return detector.result
+
+
+def get_reader(extension):
+    """Gets the appropriate reader for a given file extension.
+
+    Args:
+        extension (str): The file extension.
+
+    Returns:
+        func: The file reading function
+
+    Raises:
+        TypeError: If unable to find a suitable reader.
+
+    Examples:
+        >>> get_reader('xls')  # doctest: +ELLIPSIS
+        <function read_xls at 0x...>
+        >>> get_reader('csv')  # doctest: +ELLIPSIS
+        <function read_csv at 0x...>
+        >>> get_reader('')
+        Traceback (most recent call last):
+        KeyError: u''
+    """
+    switch = {
+        'csv': 'read_csv',
+        'xls': 'read_xls',
+        'xlsx': 'read_xls',
+        'mdb': 'read_mdb',
+        'json': 'read_json',
+        'geojson': 'read_geojson',
+        'geojson.json': 'read_geojson',
+        'sqlite': 'read_sqlite',
+        'dbf': 'read_dbf',
+        'tsv': 'read_tsv',
+    }
+
+    try:
+        module = import_module('tabutils.io')
+        return getattr(module, switch[extension])
+        pass
+    except IndexError:
+        raise TypeError('Reader for extension `%s` not found!' % extension)

@@ -29,7 +29,9 @@ import httplib
 import sys
 import hashlib
 
+from os import path as p
 from StringIO import StringIO
+from datetime import time
 from io import TextIOBase
 from json import loads
 from mmap import mmap
@@ -41,10 +43,12 @@ from xlrd.xldate import xldate_as_datetime as xl2dt
 from chardet.universaldetector import UniversalDetector
 from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
-    XL_CELL_ERROR)
+    XL_CELL_ERROR, xldate_as_tuple)
 
 from . import fntools as ft, process as pr, dbf, ENCODING
 
+PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
+DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
 
 class IterStringIO(TextIOBase):
     """A lazy StringIO that writes a generator of strings and reads bytearrays.
@@ -202,9 +206,7 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
         scalar: Result of applying the reader func to the file.
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
+        >>> filepath = p.join(DATA_DIR, 'test.csv')
         >>> reader = lambda f: (l.strip().split(',') for l in f)
         >>> read_any(filepath, reader, 'rU').next()
         [u'Some Date', u'Sparse Data', u'Some Value', u'Unicode Test', u'']
@@ -235,9 +237,7 @@ def _read_csv(f, encoding, header=None, has_header=True):
         `io.read_csv`
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
+        >>> filepath = p.join(DATA_DIR, 'test.csv')
         >>> header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
         >>> with open(filepath, 'rU') as f:
         ...     sorted(_read_csv(f, 'utf-8').next().items()) == [
@@ -296,9 +296,7 @@ def read_mdb(filepath, table=None, **kwargs):
         TypeError: If unable to read the db file.
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.mdb')
+        >>> filepath = p.join(DATA_DIR, 'test.mdb')
         >>> records = read_mdb(filepath, sanitize=True)
         >>> records.next() == {
         ...     u'surname': u'Aaron',
@@ -373,9 +371,7 @@ def read_dbf(filepath, **kwargs):
         DBFNotFound: If unable to find the db file.
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.dbf')
+        >>> filepath = p.join(DATA_DIR, 'test.dbf')
         >>> records = read_dbf(filepath, sanitize=True)
         >>> records.next() == {
         ...      u'awater10': 12416573076,
@@ -446,9 +442,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         `io._read_csv`
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
+        >>> filepath = p.join(DATA_DIR, 'test.csv')
         >>> records = read_csv(filepath, sanitize=True)
         >>> records.next() == {
         ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
@@ -457,7 +451,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...     u'unicode_test': u'Ādam'}
         ...
         True
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'no_header_row.csv')
+        >>> filepath = p.join(DATA_DIR, 'no_header_row.csv')
         >>> records = read_csv(filepath, has_header=False)
         >>> records.next() == {
         ...     u'column_1': u'1',
@@ -515,9 +509,7 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         `io.read_any`
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'fixed.txt')
+        >>> filepath = p.join(DATA_DIR, 'fixed.txt')
         >>> widths = [0, 18, 29, 33, 38, 50]
         >>> records = read_fixed_csv(filepath, widths)
         >>> records.next() == {
@@ -529,7 +521,7 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         ...     u'column_6': '04:14:001971-01-01T04:14:00'}
         ...
         True
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'fixed_w_header.txt')
+        >>> filepath = p.join(DATA_DIR, 'fixed_w_header.txt')
         >>> records = read_fixed_csv(filepath, widths, has_header=True)
         >>> records.next() == {
         ...     u'News Paper': 'Chicago Reader',
@@ -565,34 +557,48 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
     return read_any(filepath, reader, mode, **kwargs)
 
 
-def sanitize_sheet(sheet, mode, date_format):
+def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
     """Formats content from xls/xslx files as strings according to its cell
     type.
 
     Args:
         sheet (obj): `xlrd` sheet object.
         mode (str): `xlrd` workbook datemode property.
+        kwargs (dict): Keyword arguments
+        first_col (int): The first column (default: 0).
+
+    Kwargs:
         date_format (str): `strftime()` date format.
+        dt_format (str): `strftime()` datetime format.
+        time_format (str): `strftime()` time format.
 
     Yields:
         Tuple[int, str]: A tuple of (row_number, value).
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
+        >>> filepath = p.join(DATA_DIR, 'test.xls')
         >>> book = xlrd.open_workbook(filepath)
         >>> sheet = book.sheet_by_index(0)
         >>> sheet.row_values(1) == [
         ...     30075.0, u'Iñtërnâtiônàližætiøn', 234.0, u'Ādam', u' ']
         True
-        >>> sanitized = sanitize_sheet(sheet, book.datemode, '%Y-%m-%d')
+        >>> sanitized = sanitize_sheet(sheet, book.datemode)
         >>> [v for i, v in sanitized if i == 1] == [
         ...     '1982-05-04', u'Iñtërnâtiônàližætiøn', u'234.0', u'Ādam', u' ']
         True
     """
+    date_format = kwargs.get('date_format', '%Y-%m-%d')
+    dt_format = kwargs.get('date_format', '%Y-%m-%d %H:%M:%S')
+    time_format = kwargs.get('date_format', '%H:%M:%S')
+
+    def time_func(value):
+        args = xldate_as_tuple(value, mode)[3:]
+        return time(*args).strftime(time_format)
+
     switch = {
         XL_CELL_DATE: lambda v: xl2dt(v, mode).strftime(date_format),
+        'datetime': lambda v: xl2dt(v, mode).strftime(dt_format),
+        'time': time_func,
         XL_CELL_EMPTY: lambda v: '',
         XL_CELL_NUMBER: lambda v: unicode(v),
         XL_CELL_BOOLEAN: lambda v: unicode(bool(v)),
@@ -600,8 +606,21 @@ def sanitize_sheet(sheet, mode, date_format):
     }
 
     for i in xrange(sheet.nrows):
-        for ctype, value in it.izip(sheet.row_types(i), sheet.row_values(i)):
-            yield (i, switch.get(ctype, lambda v: v)(value))
+        types = sheet.row_types(i)[first_col:]
+        values = sheet.row_values(i)[first_col:]
+
+        for type_, value in it.izip(types, values):
+            if type_ == XL_CELL_DATE and value < 1:
+                type_ = 'time'
+            elif type_ == XL_CELL_DATE and not value.is_integer:
+                type_ = 'datetime'
+
+            try:
+                yield (i, switch.get(type_, lambda v: v)(value))
+            except ValueError:
+                print(i, type_, value)
+                yield(i, value)
+
 
 
 def read_xls(filepath, **kwargs):
@@ -615,6 +634,7 @@ def read_xls(filepath, **kwargs):
         sheet (int): Zero indexed sheet to open (default: 0)
         has_header (bool): Has header row (default: True).
         first_row (int): First row (zero based, default: 0).
+        first_col (int): First column (zero based, default: 0).
         date_format (str): Date format passed to `strftime()` (default:
             '%Y-%m-%d', i.e, 'YYYY-MM-DD').
 
@@ -641,9 +661,7 @@ def read_xls(filepath, **kwargs):
         NotFound: If unable to find the resource.
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xls')
+        >>> filepath = p.join(DATA_DIR, 'test.xls')
         >>> records = read_xls(filepath, sanitize=True)
         >>> records.next() == {
         ...     u'some_value': u'234.0',
@@ -652,8 +670,8 @@ def read_xls(filepath, **kwargs):
         ...     u'unicode_test': u'Ādam'}
         ...
         True
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.xlsx')
-        >>> records = read_xls(filepath, sanitize=True)
+        >>> filepath = p.join(DATA_DIR, 'test.xlsx')
+        >>> records = read_xls(filepath, sanitize=True, sheet=0)
         >>> records.next() == {
         ...     u'some_value': u'234.0',
         ...     u'some_date': '1982-05-04',
@@ -672,6 +690,7 @@ def read_xls(filepath, **kwargs):
     """
     has_header = kwargs.get('has_header', True)
     first_row = kwargs.get('first_row', 0)
+    first_col = kwargs.get('first_col', 0)
     sanitize = kwargs.get('sanitize')
     dedupe = kwargs.pop('dedupe', False)
 
@@ -681,18 +700,16 @@ def read_xls(filepath, **kwargs):
         'encoding_override': kwargs.get('encoding', True)
     }
 
-    date_format = kwargs.get('date_format', '%Y-%m-%d')
-
     try:
         mm = mmap(filepath.fileno(), 0)
         book = xlrd.open_workbook(file_contents=mm, **xlrd_kwargs)
     except AttributeError:
         book = xlrd.open_workbook(filepath, **xlrd_kwargs)
 
-    sheet = book.sheet_by_index(kwargs.get('sheet', 0))
+    sheet = book.sheet_by_index(kwargs.pop('sheet', 0))
 
     # Get header row and remove empty columns
-    names = sheet.row_values(first_row)
+    names = sheet.row_values(first_row)[first_col:]
 
     if has_header:
         stripped = [name for name in names if name.strip()]
@@ -702,7 +719,7 @@ def read_xls(filepath, **kwargs):
         header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
     # Convert to strings
-    sanitized = sanitize_sheet(sheet, book.datemode, date_format)
+    sanitized = sanitize_sheet(sheet, book.datemode, **kwargs)
 
     for key, group in it.groupby(sanitized, lambda v: v[0]):
         if has_header and key == first_row:
@@ -735,9 +752,7 @@ def read_json(filepath, mode='rU', path='item', newline=False):
         `io.read_any`
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.json')
+        >>> filepath = p.join(DATA_DIR, 'test.json')
         >>> records = read_json(filepath)
         >>> records.next() == {
         ...     u'text': u'Chicago Reader',
@@ -768,9 +783,7 @@ def read_geojson(filepath, mode='rU'):
         `io.read_any`
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.geojson')
+        >>> filepath = p.join(DATA_DIR, 'test.geojson')
         >>> records = read_geojson(filepath)
         >>> records.next() == {
         ...     u'id': None,
@@ -796,6 +809,7 @@ def read_geojson(filepath, mode='rU'):
 
 def write(filepath, content, mode='wb+', **kwargs):
     """Writes content to a file path or file like object.
+    # TODO: add encoding kwarg
 
     Args:
         filepath (str): The file path or file like object to write to.
@@ -916,9 +930,7 @@ def get_utf8(f, encoding, remove_BOM=True):
         obj: file like object
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> with open(p.join(parent_dir, 'data', 'test', 'utf16_big.csv')) as f:
+        >>> with open(p.join(DATA_DIR, 'utf16_big.csv')) as f:
         ...     utf8_f = get_utf8(f, 'utf-16-be')
         ...     utf8_f.next() == 'a,b,c\\n'
         ...     utf8_f.next() == '1,2,3\\n'
@@ -961,9 +973,7 @@ def detect_encoding(f, verbose=False):
         dict: The encoding result
 
     Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'test.csv')
+        >>> filepath = p.join(DATA_DIR, 'test.csv')
         >>> with open(filepath, mode='rU') as f:
         ...     result = detect_encoding(f)
         ...     result == {'confidence': 0.99, 'encoding': 'utf-8'}

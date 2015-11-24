@@ -50,6 +50,7 @@ from . import fntools as ft, process as pr, dbf, ENCODING
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
 DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
 
+
 class IterStringIO(TextIOBase):
     """A lazy StringIO that writes a generator of strings and reads bytearrays.
 
@@ -412,7 +413,6 @@ def read_dbf(filepath, **kwargs):
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
     return iter(dbf.DBF2(filepath, **kwargs))
-
 
 
 def read_csv(filepath, mode='rU', **kwargs):

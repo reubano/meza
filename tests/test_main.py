@@ -111,6 +111,7 @@ class TestIO:
         records = io.read_xls(filepath, sanitize=True, sheet=3, **kwargs)
         nt.assert_equal(self.sheet1, records.next())
 
+
 class TestGeoJSON:
     def __init__(self):
         self.cls_initialized = False

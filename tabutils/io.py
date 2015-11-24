@@ -73,31 +73,12 @@ class IterStringIO(TextIOBase):
             >>> iter_sio = IterStringIO(iter_content)
             >>> iter_sio.read(5)
             bytearray(b'Hello')
-            >>> iter_sio.write(iter('ly person'))
-            >>> iter_sio.read(8)
-            bytearray(b' Worldly')
-            >>> iter_sio.write(': Iñtërnâtiônàližætiøn')
-            >>> iter_sio.read() == bytearray(b' person: Iñtërnâtiônàližætiøn')
-            True
-            >>> content = 'line one\\nline two\\nline three\\n'
-            >>> iter_sio = IterStringIO(content)
-            >>> iter_sio.readline()
-            bytearray(b'line one')
-            >>> iter_sio.next()
-            bytearray(b'line two')
-            >>> iter_sio.seek(0)
-            >>> iter_sio.next()
-            bytearray(b'line one')
-            >>> iter_sio.tell()
-            8
-            >>> list(IterStringIO(content).readlines())
-            [bytearray(b'line one'), bytearray(b'line two'), \
-bytearray(b'line three')]
         """
-        iterable = iterable or []
+        iterable = iterable if iterable else []
         chained = self._chain(iterable)
         self.iter = self._encode(chained)
-        self.last = deque('', bufsize)
+        self.bufsize = bufsize
+        self.last = deque([], self.bufsize)
         self.pos = 0
 
     def __next__(self):
@@ -117,22 +98,24 @@ bytearray(b'line three')]
 
     def _chain(self, iterable):
         iterable = iterable or []
-        return it.chain.from_iterable(it.ifilter(None, iterable))
+        return it.chain(*iterable)
 
-    def _read(self, iterable, n=None):
-        # TODO: what about cases when a whole line isn't read?
+    def _read(self, iterable, n=None, newline=True):
         byte = ft.byte(it.islice(iterable, n) if n else iterable)
         self.last.extend(byte)
-        self.pos += len(byte)
-        self.last.append('\n')
+        self.pos += n or len(byte)
+
+        if newline:
+            self.last.append('\n')
+
         return byte
 
     def write(self, iterable):
         chained = self._chain(iterable)
-        self.iter = self._chain([self.iter, self._encode(chained)])
+        self.iter = it.chain(self.iter, self._encode(chained))
 
     def read(self, n=None):
-        return self._read(self.iter, n)
+        return self._read(self.iter, n, False)
 
     def readline(self, n=None):
         return self._read(self.lines.next(), n)
@@ -141,8 +124,24 @@ bytearray(b'line three')]
         return it.imap(self._read, self.lines)
 
     def seek(self, n):
-        self.iter = it.chain.from_iterable([list(self.last)[n:], self.iter])
-        self.pos = n
+        next_pos = self.pos + 1
+        beg_buf = max([0, self.pos - self.bufsize])
+
+        if n <= beg_buf:
+            self.iter = it.chain(self.last, self.iter)
+            self.last = deque([], self.bufsize)
+        elif self.pos > n > beg_buf:
+            extend = [self.last.pop() for _ in xrange(self.pos - n)]
+            self.iter = it.chain(reversed(extend), self.iter)
+        elif n == self.pos:
+            pass
+        elif n == next_pos:
+            self.last.append(self.iter.next())
+        elif n > next_pos:
+            pos = n - self.pos
+            map(self.last.append, it.islice(self.iter, 0, pos))
+
+        self.pos = beg_buf if n < beg_buf else n
 
     def tell(self):
         return self.pos

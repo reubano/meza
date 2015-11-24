@@ -25,6 +25,55 @@ def setup_module():
     print('Site Module Setup\n')
 
 
+class TestIterStringIO:
+    def __init__(self):
+        self.phrase = io.IterStringIO(iter('Hello World'))
+        self.text = io.IterStringIO('line one\nline two\nline three\n')
+        self.ints = io.IterStringIO('0123456789', 5)
+
+    def test_lines(self):
+        nt.assert_equal(self.phrase.read(5), bytearray(b'Hello'))
+        self.phrase.write(iter('ly person'))
+        nt.assert_equal(self.phrase.read(8), bytearray(b' Worldly'))
+
+        self.phrase.write(': Iñtërnâtiônàližætiøn')
+        value = bytearray(b' person: Iñtërnâtiônàližætiøn')
+        nt.assert_equal(self.phrase.read(), value)
+
+        nt.assert_equal(self.text.readline(), bytearray(b'line one'))
+        nt.assert_equal(self.text.next(), bytearray(b'line two'))
+
+        self.text.seek(0)
+        nt.assert_equal(self.text.next(), bytearray(b'line one'))
+        nt.assert_equal(self.text.next(), bytearray(b'line two'))
+        nt.assert_equal(self.text.tell(), 16)
+
+        self.text.seek(0)
+        lines = list(self.text.readlines())
+        nt.assert_equal(lines[2], bytearray(b'line three'))
+
+    def test_seeking(self):
+        nt.assert_equal(self.ints.read(5), bytearray(b'01234'))
+        self.ints.seek(0)
+        nt.assert_equal(self.ints.read(1), bytearray(b'0'))
+        nt.assert_equal(self.ints.read(1), bytearray(b'1'))
+        nt.assert_equal(self.ints.read(1), bytearray(b'2'))
+        self.ints.seek(3)
+        nt.assert_equal(self.ints.read(1), bytearray(b'3'))
+        self.ints.seek(6)
+        nt.assert_equal(self.ints.read(1), bytearray(b'6'))
+        self.ints.seek(3)
+        nt.assert_equal(self.ints.read(1), bytearray(b'3'))
+        self.ints.seek(3)
+        nt.assert_equal(self.ints.read(1), bytearray(b'3'))
+        self.ints.seek(4)
+        nt.assert_equal(self.ints.read(1), bytearray(b'4'))
+        self.ints.seek(6)
+        nt.assert_equal(self.ints.read(1), bytearray(b'6'))
+        self.ints.seek(0)
+        nt.assert_equal(self.ints.read(1), bytearray(b'2'))
+
+
 class TestUnicodeReader:
     """Unit tests for file IO"""
     def __init__(self):

@@ -26,6 +26,7 @@ from __future__ import (
     unicode_literals)
 
 import itertools as it
+import hashlib
 
 from functools import partial
 from collections import defaultdict
@@ -894,3 +895,37 @@ def grep(records, rules, any_match=False, inverse=False):
         return not passed if inverse else passed
 
     return it.ifilter(predicate, records)
+
+
+def hash(records, fields=None, algo='md5'):
+    """ Yields rows whose value of the given field(s) are hashed
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        fields (Seq[str]): The columns to use for testing uniqueness
+            (default: None, i.e., all columns). Overridden by `pred`.
+
+        algo (str): The hashlib hashing algorithm to use (default: sha1).
+            supported algorithms: md5, ripemd128, ripemd160, ripemd256,
+                ripemd320, sha1, sha256, sha512, sha384, whirlpool
+
+    See also:
+        `io.hash_file`
+
+    Yields:
+        dict: Record. A row of data whose keys are the field names.
+
+    Examples:
+        >>> records = [{'a': 'item', 'amount': 200}]
+        >>> hash(records, ['a']).next() == {
+        ...     u'a': '447b7147e84be512208dcc0995d67ebc', u'amount': 200}
+        True
+    """
+    hasher = getattr(hashlib, algo)
+    hash_func = lambda x: hasher(str(x)).hexdigest()
+    to_hash = set(fields or [])
+
+    for row in records:
+        yield {k: hash_func(v) if k in to_hash else v for k, v in row.items()}

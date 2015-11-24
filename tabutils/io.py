@@ -50,6 +50,7 @@ from . import fntools as ft, process as pr, dbf, ENCODING
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
 DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
 
+
 class IterStringIO(TextIOBase):
     """A lazy StringIO that writes a generator of strings and reads bytearrays.
 
@@ -85,6 +86,8 @@ class IterStringIO(TextIOBase):
             >>> iter_sio.seek(0)
             >>> iter_sio.next()
             bytearray(b'line one')
+            >>> iter_sio.tell()
+            8
             >>> list(IterStringIO(content).readlines())
             [bytearray(b'line one'), bytearray(b'line two'), \
 bytearray(b'line three')]
@@ -93,6 +96,7 @@ bytearray(b'line three')]
         chained = self._chain(iterable)
         self.iter = self._encode(chained)
         self.last = deque('', bufsize)
+        self.pos = 0
 
     def __next__(self):
         return self._read(self.lines.next())
@@ -117,6 +121,7 @@ bytearray(b'line three')]
         # TODO: what about cases when a whole line isn't read?
         byte = ft.byte(it.islice(iterable, n) if n else iterable)
         self.last.extend(byte)
+        self.pos += len(byte)
         self.last.append('\n')
         return byte
 
@@ -135,6 +140,10 @@ bytearray(b'line three')]
 
     def seek(self, n):
         self.iter = it.chain.from_iterable([list(self.last)[n:], self.iter])
+        self.pos = n
+
+    def tell(self):
+        return self.pos
 
 
 def patch_http_response_read(func):
@@ -256,21 +265,17 @@ def _read_csv(f, encoding, header=None, has_header=True):
     """
     if header and has_header:
         f.next()
-        reader = csv.DictReader(f, header, encoding=encoding)
-    elif header:
-        reader = csv.DictReader(f, header, encoding=encoding)
-    elif has_header:
-        reader = csv.DictReader(f, encoding=encoding)
-    else:
+    elif not (header or has_header):
         raise ValueError('Either `header` or `has_header` must be specified.')
+
+    reader = csv.DictReader(f, header, encoding=encoding)
 
     # Remove `None` keys
     records = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
 
     # Remove empty rows
-    for row in records:
-        if any(v.strip() for v in row.values() if v):
-            yield row
+    filterer = lambda row: any(v.strip() for v in row.values() if v)
+    return it.ifilter(filterer, records)
 
 
 def read_mdb(filepath, table=None, **kwargs):
@@ -278,10 +283,10 @@ def read_mdb(filepath, table=None, **kwargs):
 
     Args:
         filepath (str): The mdb file path.
+        table (str): The table to load (default: None, the first found table).
         kwargs (dict): Keyword arguments that are passed to the csv reader.
 
     Kwargs:
-        table (str): The table to load (default: None, the first found table).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -407,9 +412,7 @@ def read_dbf(filepath, **kwargs):
         True
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
-
-    for record in dbf.DBF2(filepath, **kwargs):
-        yield record
+    return iter(dbf.DBF2(filepath, **kwargs))
 
 
 def read_csv(filepath, mode='rU', **kwargs):
@@ -460,8 +463,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...
         True
     """
-    def reader(f, first_row=0, **kwargs):
-        encoding = kwargs.pop('encoding', False) or ENCODING
+    def reader(f, encoding=ENCODING, first_row=0, **kwargs):
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)
@@ -615,12 +617,7 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
             elif type_ == XL_CELL_DATE and not value.is_integer:
                 type_ = 'datetime'
 
-            try:
-                yield (i, switch.get(type_, lambda v: v)(value))
-            except ValueError:
-                print(i, type_, value)
-                yield(i, value)
-
+            yield (i, switch.get(type_, lambda v: v)(value))
 
 
 def read_xls(filepath, **kwargs):
@@ -872,13 +869,13 @@ chunksize=2)
     return read_any(filepath, _write, mode, *args, **kwargs).next()
 
 
-def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
+def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
     """Hashes a file path or file like object.
     http://stackoverflow.com/a/1131255/408556
 
     Args:
         filepath (str): The file path or file like object to hash.
-        hasher (str): The hashlib hashing algorithm to use (default: sha1).
+        algo (str): The hashlib hashing algorithm to use (default: sha1).
 
         chunksize (Optional[int]): Number of bytes to write at a time
             (default: 0, i.e., all).
@@ -890,6 +887,7 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
 
     See also:
         `io.read_any`
+        `process.hash`
 
     Examples:
         >>> from tempfile import TemporaryFile
@@ -909,7 +907,7 @@ def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
 
         yield hasher.hexdigest()
 
-    args = [getattr(hashlib, hasher)()]
+    args = [getattr(hashlib, algo)()]
     file_hash = read_any(filepath, reader, 'rb', *args).next()
 
     if verbose:

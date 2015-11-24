@@ -282,10 +282,10 @@ def read_mdb(filepath, table=None, **kwargs):
 
     Args:
         filepath (str): The mdb file path.
+        table (str): The table to load (default: None, the first found table).
         kwargs (dict): Keyword arguments that are passed to the csv reader.
 
     Kwargs:
-        table (str): The table to load (default: None, the first found table).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -463,8 +463,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...
         True
     """
-    def reader(f, first_row=0, **kwargs):
-        encoding = kwargs.pop('encoding', False) or ENCODING
+    def reader(f, encoding=ENCODING, first_row=0, **kwargs):
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)

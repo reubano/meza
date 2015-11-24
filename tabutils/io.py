@@ -615,12 +615,7 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
             elif type_ == XL_CELL_DATE and not value.is_integer:
                 type_ = 'datetime'
 
-            try:
-                yield (i, switch.get(type_, lambda v: v)(value))
-            except ValueError:
-                print(i, type_, value)
-                yield(i, value)
-
+            yield (i, switch.get(type_, lambda v: v)(value))
 
 
 def read_xls(filepath, **kwargs):

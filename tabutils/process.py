@@ -690,6 +690,7 @@ def pivot(records, data, column, op=sum, **kwargs):
 
     See also:
         `process.aggregate`
+        `process.normalize`
 
     Examples:
         >>> records = [
@@ -724,6 +725,44 @@ def pivot(records, data, column, op=sum, **kwargs):
 
     for key, groups in group(raw, lambda r: tuple(map(r.get, rows))):
         yield merge(groups)
+
+
+def normalize(records, data, column, rows):
+    """
+    Yields normalized records from a spreadsheet-style pivot table.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        data (str): Field name to create for values of the normalized fields.
+        column (str): Field name to create for keys of the normalized fields.
+        rows (Seq[str]): Fields to normalized .
+
+    Yields:
+        dict: Record. A row of data whose keys are the field names.
+
+    See also:
+        `process.pivot`
+
+    Examples:
+        >>> records = [
+        ...     {'width': 2, 'color': 'blue', 'setosa': 5, 'versi': 6},
+        ...     {'width': 2, 'color': 'red', 'setosa': 5, 'versi': 6}]
+        ...
+        >>> rows = ['setosa', 'versi']
+        >>> normalize(records, 'length', 'species', rows).next() == {
+        ...     u'color': u'blue', u'width': 2, u'length': 5,
+        ...     u'species': u'setosa'}
+        True
+    """
+    filterer = lambda x: x[0] not in rows
+
+    for r in records:
+        filtered = filter(filterer, r.items())
+
+        for row in rows:
+            yield dict(it.chain([(column, row), (data, r.get(row))], filtered))
 
 
 def tfilter(records, field, pred=None):

@@ -507,9 +507,10 @@ def merge(records, **kwargs):
             (default: 0).
 
     Returns:
-        (Iter[dicts]): collapsed records
+        dict: merged record
 
     See also:
+        `process.aggregate`
         `fntools.combine`
 
     Examples:
@@ -592,6 +593,46 @@ def merge(records, **kwargs):
     return record
 
 
+def aggregate(records, key, op, default=0):
+    """Aggregates `records` on a specified key.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        key (str): The field to aggregate
+
+        op (func): Aggregation function. Receives a list of all non-null values
+            and should return the combined value. Common operators are `sum`,
+            `min`, `max`, etc.
+
+        default (int or str): default value to use in `op` for missing keys
+            (default: 0).
+
+    Returns:
+        dict: The first record with an aggregated value for `key`
+
+    See also:
+        `process.merge`
+
+    Examples:
+        >>> records = [
+        ...     {'a': 'item', 'amount': 200},
+        ...     {'a': 'item', 'amount': 300},
+        ...     {'a': 'item', 'amount': 400}]
+        ...
+        >>> aggregate(records, 'amount', sum)
+        {u'a': u'item', u'amount': 900}
+        >>> aggregate(records, 'amount', lambda x: sum(x) / len(x))
+        {u'a': u'item', u'amount': 300.0}
+    """
+    records = iter(records)
+    first = records.next()
+    values = (r.get(key, default) for r in it.chain([first], records))
+    value = op(filter(lambda x: x is not None, values))
+    return dict(it.chain(first.items(), [(key, value)]))
+
+
 def group(records, keyfunc=None):
     """Groups records by keyfunc
 
@@ -619,75 +660,70 @@ def group(records, keyfunc=None):
     return ((key, list(group)) for key, group in grouped)
 
 
-def pivot(records, **kwargs):
+def pivot(records, data, column, op=sum, **kwargs):
     """
-    Create a spreadsheet-style pivot table as a DataFrame. The levels in the
-    pivot table will be stored in MultiIndex objects (hierarchical indexes) on
-    the index and columns of the result DataFrame. Requires `Pandas`.
+    Create a spreadsheet-style pivot table.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
+        data (str): Field to aggregate
+        column (str): Field to group by and create columns for in the resulting
+            pivot table.
+
+        op (func): Aggregation function (default: sum)
         kwargs (dict): keyword arguments
 
     Kwargs:
-        values (str): column to aggregate (default: All columns not included in
-            `index` or `columns`)
-
-        index (Seq[str]): Keys to group by on the pivot table index
-            (default: None).
-
-        columns (Seq[str]): Keys to group by on the pivot table column
-            (default: None).
-
-        aggfunc (func): Aggregation function (default: numpy.mean)
+        rows (Seq[str]): Fields to include as rows in the resulting pivot table
+            (default: All fields not in `data` or `column`).
 
         fill_value (scalar): Value to replace missing values with
             (default: None)
 
-        margins (bool): Add all row / columns (e.g. for subtotal / grand
-            totals) (default: False)
-
-        dropna (bool): Do not include columns whose entries are all NaN
+        dropna (bool): Do not include columns with missing values
             (default: True)
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `convert.df2records`
+        `process.aggregate`
 
     Examples:
-        >>> from os import path as p
-        >>> from . import io
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'iris.csv')
-        >>> records = list(io.read_csv(filepath))
-        >>> header = records[0].keys()
-        >>> sorted(header)
-        [u'petal_length', u'petal_width', u'sepal_length', u'sepal_width', \
-u'species']
-        >>> fields = tt.guess_type_by_field(header)
-        >>> casted_records = type_cast(records, fields)
-        >>> table_records = pivot(
-        ...     casted_records, values='sepal_length',
-        ...     index=['sepal_width'], columns=['species'])
-        >>> row = table_records.next()
-        >>> row['sepal_width']
-        2.0
-        >>> row['Iris-versicolor']
-        5.0
+        >>> records = [
+        ...     {'length': 5, 'width': 2, 'species': 'setosa', 'color': 'red'},
+        ...     {'length': 5, 'width': 2, 'species': 'setosa', 'color': 'blue'},
+        ...     {'length': 6, 'width': 2, 'species': 'versi', 'color': 'red'},
+        ...     {'length': 6, 'width': 2, 'species': 'versi', 'color': 'blue'}]
+        ...
+        >>> pivot(records, 'length', 'species', rows=['width']).next() == {
+        ...     u'width': 2, u'setosa': 10, u'versi': 12}
+        True
+        >>> pivot(records, 'length', 'species').next() == {
+        ...     u'width': 2, u'color': u'blue', u'setosa': 5, u'versi': 6}
+        True
     """
-    try:
-        import pandas as pd
-    except ImportError:
-        print("pandas is required to use this function")
-        return None
-    else:
-        df = pd.DataFrame.from_records(records)
-        table = df.pivot_table(**kwargs)
-        return cv.df2records(table)
+    records = iter(records)
+    first = records.next()
+    chained = it.chain([first], records)
+    keys = set(first.keys())
+    rows = kwargs.get('rows', keys.difference([data, column]))
+    filterer = lambda x: x[0] in rows
+    keyfunc = lambda r: tuple(map(r.get, it.chain(rows, [column])))
+    grouped = group(chained, keyfunc)
+
+    def gen_raw(grouped):
+        for key, groups in grouped:
+            r = aggregate(groups, data, op)
+            filtered = filter(filterer, r.items())
+            yield dict(it.chain([(r[column], r.get(data))], filtered))
+
+    raw = gen_raw(grouped)
+
+    for key, groups in group(raw, lambda r: tuple(map(r.get, rows))):
+        yield merge(groups)
 
 
 def tfilter(records, field, pred=None):

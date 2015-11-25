@@ -129,6 +129,7 @@ class TestUnicodeReader:
         records = io.read_csv(filepath, **kwargs)
         nt.assert_equal(self.row1, records.next())
 
+
 class TestInput:
     def __init__(self):
         self.cls_initialized = False

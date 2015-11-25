@@ -26,7 +26,7 @@ __package_name__ = 'tabutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'tabular data utility methods'
 __email__ = 'reubano@gmail.com'
-__version__ = '0.21.1'
+__version__ = '0.22.0'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 

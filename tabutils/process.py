@@ -32,8 +32,9 @@ from functools import partial
 from collections import defaultdict
 from operator import itemgetter
 from math import log1p
+from json import dumps
 
-from . import convert as cv, fntools as ft, typetools as tt
+from . import convert as cv, fntools as ft, typetools as tt, ENCODING
 
 
 def type_cast(records, types, warn=False):
@@ -52,6 +53,7 @@ def type_cast(records, types, warn=False):
         dict: Type casted record. A row of data whose keys are the field names.
 
     See also:
+        `process.json_encode`
         `convert.to_int`
         `convert.to_float`
         `convert.to_decimal`
@@ -102,6 +104,53 @@ def type_cast(records, types, warn=False):
     for row in records:
         items = row.items()
         yield {k: switch.get(field_types[k])(v, warn=warn) for k, v in items}
+
+
+def json_encode(records, encoding=ENCODING):
+    """Encode record entries using custom JSONEncoder.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        encoding (str): Encoding.
+
+    Yields:
+        dict: JSON encoded record. A row of data whose keys are the field names.
+
+    See also:
+        `process.type_cast`
+
+    Examples:
+        >>> import datetime
+        >>> record = {
+        ...     u'null': None,
+        ...     u'bool': False,
+        ...     u'int': 10,
+        ...     u'float': 1.5,
+        ...     u'text': u'Iñtërnâtiônàližætiøn',
+        ...     u'date': datetime.date(1982, 5, 4),
+        ...     u'time': datetime.time(2, 30),
+        ...     u'datetime': datetime.datetime(1982, 5, 4, 14, 0),
+        ... }
+        >>> json_encode([record]).next() == {
+        ...     u'null': 'null',
+        ...     u'bool': 'false',
+        ...     u'int': '10',
+        ...     u'float': '1.5',
+        ...     u'text': u'"I\xf1t\xebrn\xe2ti\xf4n\xe0li\u017e\xe6ti\xf8n"',
+        ...     u'date': '"1982-05-04"',
+        ...     u'time': '"02:30:00"',
+        ...     u'datetime': '"1982-05-04 14:00:00"'}
+        True
+    """
+    kwargs = {
+        'cls': ft.CustomEncoder, 'ensure_ascii': False, 'encoding': encoding}
+
+    encoder = partial(dumps, **kwargs)
+
+    for record in records:
+        yield {k: encoder(v) for k, v in record.items()}
 
 
 def gen_confidences(tally, types, a=1):

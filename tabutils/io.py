@@ -28,10 +28,12 @@ import unicodecsv as csv
 import httplib
 import sys
 import hashlib
+import sqlite3
 
 from os import path as p
 from StringIO import StringIO
 from datetime import time
+from importlib import import_module
 from io import TextIOBase
 from json import loads
 from mmap import mmap
@@ -71,31 +73,12 @@ class IterStringIO(TextIOBase):
             >>> iter_sio = IterStringIO(iter_content)
             >>> iter_sio.read(5)
             bytearray(b'Hello')
-            >>> iter_sio.write(iter('ly person'))
-            >>> iter_sio.read(8)
-            bytearray(b' Worldly')
-            >>> iter_sio.write(': Iñtërnâtiônàližætiøn')
-            >>> iter_sio.read() == bytearray(b' person: Iñtërnâtiônàližætiøn')
-            True
-            >>> content = 'line one\\nline two\\nline three\\n'
-            >>> iter_sio = IterStringIO(content)
-            >>> iter_sio.readline()
-            bytearray(b'line one')
-            >>> iter_sio.next()
-            bytearray(b'line two')
-            >>> iter_sio.seek(0)
-            >>> iter_sio.next()
-            bytearray(b'line one')
-            >>> iter_sio.tell()
-            8
-            >>> list(IterStringIO(content).readlines())
-            [bytearray(b'line one'), bytearray(b'line two'), \
-bytearray(b'line three')]
         """
-        iterable = iterable or []
+        iterable = iterable if iterable else []
         chained = self._chain(iterable)
         self.iter = self._encode(chained)
-        self.last = deque('', bufsize)
+        self.bufsize = bufsize
+        self.last = deque([], self.bufsize)
         self.pos = 0
 
     def __next__(self):
@@ -115,22 +98,24 @@ bytearray(b'line three')]
 
     def _chain(self, iterable):
         iterable = iterable or []
-        return it.chain.from_iterable(it.ifilter(None, iterable))
+        return it.chain(*iterable)
 
-    def _read(self, iterable, n=None):
-        # TODO: what about cases when a whole line isn't read?
+    def _read(self, iterable, n=None, newline=True):
         byte = ft.byte(it.islice(iterable, n) if n else iterable)
         self.last.extend(byte)
-        self.pos += len(byte)
-        self.last.append('\n')
+        self.pos += n or len(byte)
+
+        if newline:
+            self.last.append('\n')
+
         return byte
 
     def write(self, iterable):
         chained = self._chain(iterable)
-        self.iter = self._chain([self.iter, self._encode(chained)])
+        self.iter = it.chain(self.iter, self._encode(chained))
 
     def read(self, n=None):
-        return self._read(self.iter, n)
+        return self._read(self.iter, n, False)
 
     def readline(self, n=None):
         return self._read(self.lines.next(), n)
@@ -139,8 +124,24 @@ bytearray(b'line three')]
         return it.imap(self._read, self.lines)
 
     def seek(self, n):
-        self.iter = it.chain.from_iterable([list(self.last)[n:], self.iter])
-        self.pos = n
+        next_pos = self.pos + 1
+        beg_buf = max([0, self.pos - self.bufsize])
+
+        if n <= beg_buf:
+            self.iter = it.chain(self.last, self.iter)
+            self.last = deque([], self.bufsize)
+        elif self.pos > n > beg_buf:
+            extend = [self.last.pop() for _ in xrange(self.pos - n)]
+            self.iter = it.chain(reversed(extend), self.iter)
+        elif n == self.pos:
+            pass
+        elif n == next_pos:
+            self.last.append(self.iter.next())
+        elif n > next_pos:
+            pos = n - self.pos
+            map(self.last.append, it.islice(self.iter, 0, pos))
+
+        self.pos = beg_buf if n < beg_buf else n
 
     def tell(self):
         return self.pos
@@ -160,6 +161,12 @@ def patch_http_response_read(func):
     return inner
 
 httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
+
+
+def stringify_kwargs(kwargs):
+    keys = ft.stringify(kwargs.keys())
+    values = ft.stringify(kwargs.values())
+    return dict(zip(keys, values))
 
 
 def _read_any(f, reader, args, convert=False, **kwargs):
@@ -229,7 +236,7 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
                 yield r
 
 
-def _read_csv(f, encoding, header=None, has_header=True):
+def _read_csv(f, encoding, header=None, has_header=True, **kwargs):
     """Helps read a csv file.
 
     Args:
@@ -247,7 +254,6 @@ def _read_csv(f, encoding, header=None, has_header=True):
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
-        >>> header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
         >>> with open(filepath, 'rU') as f:
         ...     sorted(_read_csv(f, 'utf-8').next().items()) == [
         ...         (u'Some Date', u'05/04/82'),
@@ -255,20 +261,14 @@ def _read_csv(f, encoding, header=None, has_header=True):
         ...         (u'Sparse Data', u'Iñtërnâtiônàližætiøn'),
         ...         (u'Unicode Test', u'Ādam')]
         True
-        >>> with open(filepath, 'rU') as f:
-        ...     sorted(_read_csv(f, 'utf-8', header).next().items()) == [
-        ...         (u'some_date', u'05/04/82'),
-        ...         (u'some_value', u'234'),
-        ...         (u'sparse_data', u'Iñtërnâtiônàližætiøn'),
-        ...         (u'unicode_test', u'Ādam')]
-        True
     """
     if header and has_header:
         f.next()
     elif not (header or has_header):
         raise ValueError('Either `header` or `has_header` must be specified.')
 
-    reader = csv.DictReader(f, header, encoding=encoding)
+    skwargs = stringify_kwargs(kwargs)
+    reader = csv.DictReader(f, header, encoding=str(encoding), **skwargs)
 
     # Remove `None` keys
     records = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
@@ -393,26 +393,46 @@ def read_dbf(filepath, **kwargs):
         ...      u'intptlon10': u'-092.9323194'}
         ...
         True
-        >>> with open(filepath, 'rb') as f:
-        ...     records = read_dbf(f, sanitize=True)
-        ...     records.next() == {
-        ...         u'awater10': 12416573076,
-        ...         u'aland10': 71546663636,
-        ...         u'intptlat10': u'+47.2400052',
-        ...         u'lsad10': u'C2',
-        ...         u'cd111fp': u'08',
-        ...         u'namelsad10': u'Congressional District 8',
-        ...         u'funcstat10': u'N',
-        ...         u'statefp10': u'27',
-        ...         u'cdsessn': u'111',
-        ...         u'mtfcc10': u'G5200',
-        ...         u'geoid10': u'2708',
-        ...         u'intptlon10': u'-092.9323194'}
-        ...
-        True
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
     return iter(dbf.DBF2(filepath, **kwargs))
+
+
+def read_sqlite(filepath, table=None):
+    """Reads a sqlite file.
+
+    Args:
+        filepath (str): The sqlite file path
+        table (str): The table to load (default: None, the first found table).
+
+    Yields:
+        dict: A row of data whose keys are the field names.
+
+    Raises:
+        NotFound: If unable to find the resource.
+
+    See also:
+        `io.read_any`
+
+    Examples:
+        >>> filepath = p.join(DATA_DIR, 'test.sqlite')
+        >>> records = read_sqlite(filepath)
+        >>> records.next() == {
+        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
+        ...     u'some_date': u'05/04/82',
+        ...     u'some_value': 234,
+        ...     u'unicode_test': u'Ādam'}
+        ...
+        True
+    """
+    con = sqlite3.connect(filepath)
+    con.row_factory = sqlite3.Row
+    c = con.cursor()
+    c.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+
+    t = table or c.fetchone()[0]
+    c.execute('SELECT * FROM %s' % t)
+    return it.imap(dict, c)
 
 
 def read_csv(filepath, mode='rU', **kwargs):
@@ -454,14 +474,6 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...     u'unicode_test': u'Ādam'}
         ...
         True
-        >>> filepath = p.join(DATA_DIR, 'no_header_row.csv')
-        >>> records = read_csv(filepath, has_header=False)
-        >>> records.next() == {
-        ...     u'column_1': u'1',
-        ...     u'column_2': u'2',
-        ...     u'column_3': u'3'}
-        ...
-        True
     """
     def reader(f, encoding=ENCODING, first_row=0, **kwargs):
         sanitize = kwargs.pop('sanitize', False)
@@ -469,7 +481,8 @@ def read_csv(filepath, mode='rU', **kwargs):
         has_header = kwargs.pop('has_header', True)
         [f.next() for _ in xrange(first_row)]
         pos = f.tell()
-        names = csv.reader(f, encoding=encoding, **kwargs).next()
+        skwargs = stringify_kwargs(kwargs)
+        names = csv.reader(f, encoding=str(encoding), **skwargs).next()
 
         if has_header:
             stripped = [name for name in names if name.strip()]
@@ -479,9 +492,49 @@ def read_csv(filepath, mode='rU', **kwargs):
             f.seek(pos)
             header = ['column_%i' % (n + 1) for n in xrange(len(names))]
 
-        return _read_csv(f, encoding, header, False)
+        return _read_csv(f, encoding, header, False, **kwargs)
 
     return read_any(filepath, reader, mode, **kwargs)
+
+
+def read_tsv(filepath, mode='rU', **kwargs):
+    """Reads a csv file.
+
+    Args:
+        filepath (str): The csv file path or file like object.
+        mode (Optional[str]): The file open mode (default: 'rU').
+        kwargs (dict): Keyword arguments that are passed to the csv reader.
+
+    Kwargs:
+        quotechar (str): Quote character (default: '"').
+        encoding (str): File encoding.
+        has_header (bool): Has header row (default: True).
+        sanitize (bool): Underscorify and lowercase field names
+            (default: False).
+
+        dedupe (bool): Deduplicate field names (default: False).
+
+    Yields:
+        dict: A row of data whose keys are the field names.
+
+    Raises:
+        NotFound: If unable to find the resource.
+
+    See also:
+        `io.read_any`
+
+    Examples:
+        >>> filepath = p.join(DATA_DIR, 'test.tsv')
+        >>> records = read_tsv(filepath, sanitize=True)
+        >>> records.next() == {
+        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
+        ...     u'some_date': u'05/04/82',
+        ...     u'some_value': u'234',
+        ...     u'unicode_test': u'Ādam'}
+        ...
+        True
+    """
+    return read_csv(filepath, dialect=csv.excel_tab, **kwargs)
 
 
 def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
@@ -521,17 +574,6 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         ...     u'column_4': 'True',
         ...     u'column_5': '1.0',
         ...     u'column_6': '04:14:001971-01-01T04:14:00'}
-        ...
-        True
-        >>> filepath = p.join(DATA_DIR, 'fixed_w_header.txt')
-        >>> records = read_fixed_csv(filepath, widths, has_header=True)
-        >>> records.next() == {
-        ...     u'News Paper': 'Chicago Reader',
-        ...     u'Founded': '1971-01-01',
-        ...     u'Int': '40',
-        ...     u'Bool': 'True',
-        ...     u'Float': '1.0',
-        ...     u'Timestamp': '04:14:001971-01-01T04:14:00'}
         ...
         True
     """
@@ -666,23 +708,6 @@ def read_xls(filepath, **kwargs):
         ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
         ...     u'unicode_test': u'Ādam'}
         ...
-        True
-        >>> filepath = p.join(DATA_DIR, 'test.xlsx')
-        >>> records = read_xls(filepath, sanitize=True, sheet=0)
-        >>> records.next() == {
-        ...     u'some_value': u'234.0',
-        ...     u'some_date': '1982-05-04',
-        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
-        ...     u'unicode_test': u'Ādam'}
-        ...
-        True
-        >>> with open(filepath, 'r+b') as f:
-        ...     records = read_xls(f, sanitize=True)
-        ...     records.next() == {
-        ...         u'some_value': u'234.0',
-        ...         u'some_date': '1982-05-04',
-        ...         u'sparse_data': u'Iñtërnâtiônàližætiøn',
-        ...         u'unicode_test': u'Ādam'}
         True
     """
     has_header = kwargs.get('has_header', True)
@@ -827,18 +852,9 @@ def write(filepath, content, mode='wb+', **kwargs):
         `io.read_any`
 
     Examples:
-        >>> import requests
         >>> from tempfile import TemporaryFile
         >>> write(TemporaryFile(), StringIO('Hello World'))
         11
-        >>> write(TemporaryFile(), StringIO('Iñtërnâtiônàližætiøn'))
-        20
-        >>> write(TemporaryFile(), IterStringIO(iter('Hello World')), \
-chunksize=2)
-        12
-        >>> r = requests.get('http://google.com', stream=True)
-        >>> write(TemporaryFile(), r.iter_content) > 10000
-        True
     """
     def _write(f, content, **kwargs):
         chunksize = kwargs.get('chunksize')
@@ -929,13 +945,8 @@ def get_utf8(f, encoding, remove_BOM=True):
 
     Examples:
         >>> with open(p.join(DATA_DIR, 'utf16_big.csv')) as f:
-        ...     utf8_f = get_utf8(f, 'utf-16-be')
-        ...     utf8_f.next() == 'a,b,c\\n'
-        ...     utf8_f.next() == '1,2,3\\n'
-        ...     utf8_f.read().decode(ENCODING) == '4,5,ʤ'
-        True
-        True
-        True
+        ...     get_utf8(f, 'utf-16-be').next().strip()
+        'a,b,c'
     """
     # http://stackoverflow.com/a/191455/408556
     utf8_f = StringIO()
@@ -994,3 +1005,40 @@ def detect_encoding(f, verbose=False):
         print('result', detector.result)
 
     return detector.result
+
+
+def get_reader(extension):
+    """Gets the appropriate reader for a given file extension.
+
+    Args:
+        extension (str): The file extension.
+
+    Returns:
+        func: The file reading function
+
+    Raises:
+        TypeError: If unable to find a suitable reader.
+
+    Examples:
+        >>> get_reader('xls')  # doctest: +ELLIPSIS
+        <function read_xls at 0x...>
+    """
+    switch = {
+        'csv': 'read_csv',
+        'xls': 'read_xls',
+        'xlsx': 'read_xls',
+        'mdb': 'read_mdb',
+        'json': 'read_json',
+        'geojson': 'read_geojson',
+        'geojson.json': 'read_geojson',
+        'sqlite': 'read_sqlite',
+        'dbf': 'read_dbf',
+        'tsv': 'read_tsv',
+    }
+
+    try:
+        module = import_module('tabutils.io')
+        return getattr(module, switch[extension])
+        pass
+    except IndexError:
+        raise TypeError('Reader for extension `%s` not found!' % extension)

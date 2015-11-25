@@ -105,6 +105,23 @@ def underscorify(content):
     return (slugify(item, separator='_') for item in content)
 
 
+def stringify(content):
+    """ Converts unicode elements of an array into strings
+
+    Args:
+        content (Iter[str]): the content to clean
+
+    Returns:
+        (generator): the stringified content
+
+    Examples:
+        >>> list(stringify([unicode('hi'), u'world', 0])) == [
+        ...     str('hi'), str('world'), 0]
+        True
+    """
+    return (str(c) if isinstance(c, unicode) else c for c in content)
+
+
 def dedupe(content):
     """ Deduplicates elements of an array
 
@@ -158,12 +175,6 @@ def strip(value, thousand_sep=',', decimal_sep='.'):
         u'123.45'
         >>> strip('123€')
         u'123'
-        >>> strip('2,123.45')
-        u'2123.45'
-        >>> strip('2.123,45', thousand_sep='.', decimal_sep=',')
-        u'2123.45'
-        >>> strip('spam')
-        u'spam'
 
     Returns:
         str
@@ -194,20 +205,6 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
     >>> is_numeric('$123.45')
     True
     >>> is_numeric('123€')
-    True
-    >>> is_numeric('2,123.45')
-    True
-    >>> is_numeric('2.123,45')
-    True
-    >>> is_numeric('0.45')
-    True
-    >>> is_numeric('10e5')
-    True
-    >>> is_numeric('spam')
-    False
-    >>> is_numeric('02139')
-    False
-    >>> is_numeric('02139', strip_zeros=True)
     True
     """
     try:
@@ -242,8 +239,6 @@ def is_int(content, strip_zeros=False, thousand_sep=',', decimal_sep='.'):
         False
         >>> is_int('123')
         True
-        >>> is_int('5/4/82')
-        False
     """
     passed = is_numeric(content, thousand_sep, decimal_sep)
 
@@ -268,22 +263,6 @@ def is_bool(content, trues=None, falses=None):
         True
         >>> is_bool('true')
         True
-        >>> is_bool('y')
-        True
-        >>> is_bool(1)
-        True
-        >>> is_bool(False)
-        True
-        >>> is_bool('false')
-        True
-        >>> is_bool('n')
-        True
-        >>> is_bool(0)
-        True
-        >>> is_bool('')
-        False
-        >>> is_bool(None)
-        False
     """
     trues = set(map(str.lower, trues) if trues else DEF_TRUES)
     falses = set(map(str.lower, falses) if falses else DEF_FALSES)
@@ -308,20 +287,6 @@ def is_null(content, nulls=None, blanks_as_nulls=False):
         >>> is_null('n/a')
         True
         >>> is_null(None)
-        True
-        >>> is_null('')
-        False
-        >>> is_null(' ')
-        False
-        >>> is_null(False)
-        False
-        >>> is_null('0')
-        False
-        >>> is_null(0)
-        False
-        >>> is_null('', blanks_as_nulls=True)
-        True
-        >>> is_null(' ', blanks_as_nulls=True)
         True
     """
     def_nulls = ('na', 'n/a', 'none', 'null', '.')
@@ -381,13 +346,6 @@ def byte(content):
         bytearray(b'Hello World!')
         >>> byte(list(content))
         bytearray(b'Hello World!')
-        >>> byte(iter(content))
-        bytearray(b'Hello World!')
-        >>> content = 'Iñtërnâtiônàližætiøn'
-        >>> byte(content) == bytearray(b'Iñtërnâtiônàližætiøn')
-        True
-        >>> byte(list(content)) == bytearray(b'Iñtërnâtiônàližætiøn')
-        True
     """
     tupled = tuple(content) if hasattr(content, 'next') else content
 
@@ -423,31 +381,10 @@ def chunk(content, chunksize=None, start=0, stop=None):
         Iter[List]: Chunked content.
 
     Examples:
-        >>> import requests
-        >>> from StringIO import StringIO
-        >>> from . import io
         >>> chunk([1, 2, 3, 4, 5, 6]).next()
         [1, 2, 3, 4, 5, 6]
         >>> chunk([1, 2, 3, 4, 5, 6], 2).next()
         [1, 2]
-        >>> chunk(StringIO('Iñtërnâtiônàližætiøn'), 5).next() == u'Iñtër'
-        True
-        >>> chunk(StringIO('Hello World'), 5).next()
-        u'Hello'
-        >>> chunk(io.IterStringIO('Hello World'), 5).next()
-        bytearray(b'Hello')
-        >>> chunk(io.IterStringIO('Hello World')).next()
-        bytearray(b'Hello World')
-        >>> r = requests.get('http://google.com', stream=True)
-        >>>
-        >>> # http://docs.python-requests.org/en/latest/api/
-        >>> # The chunk size is the number of bytes it should read into
-        >>> # memory. This is not necessarily the length of each item returned
-        >>> # as decoding can take place.
-        >>> len(chunk(r.iter_content, 20, 29, 200).next()) > 0
-        True
-        >>> len(chunk(r.iter_content).next()) > 10000
-        True
     """
     if hasattr(content, 'read'):  # it's a file
         content.seek(start) if start else None
@@ -518,19 +455,6 @@ def afterish(content, separator=',', exclude=None):
         2
         >>> afterish('1001.', '.')
         0
-        >>> afterish('1001', '.')
-        -1
-        >>> afterish('1,001')
-        3
-        >>> afterish('2,100,001.00')
-        6
-        >>> afterish('2,100,001.00', exclude='.')
-        3
-        >>> afterish('1,000.00', '.', ',')
-        2
-        >>> afterish('eggs', '.')
-        Traceback (most recent call last):
-        TypeError: Not able to convert eggs to a number
     """
     numeric = is_numeric(content)
 
@@ -556,13 +480,6 @@ def get_separators(content):
         {u'thousand_sep': u',', u'decimal_sep': u'.'}
         >>> get_separators('123€')
         {u'thousand_sep': u',', u'decimal_sep': u'.'}
-        >>> get_separators('2,123.45')
-        {u'thousand_sep': u',', u'decimal_sep': u'.'}
-        >>> get_separators('2.123,45')
-        {u'thousand_sep': u'.', u'decimal_sep': u','}
-        >>> get_separators('spam')
-        Traceback (most recent call last):
-        TypeError: Not able to convert spam to a number
 
     Returns:
         dict: thousandths and decimal separators
@@ -695,49 +612,21 @@ def fill(previous, current, **kwargs):
         `process.fillempty`
 
     Examples:
-        >>> from StringIO import StringIO
-        >>> from . import io
-        >>> content = 'column_a,column_b,column_c\\n1,27,,too long!\\n,too \
-short!\\n0,mixed types.... uh oh,17'
-        >>> f = StringIO(content)
-        >>> records = io.read_csv(f)
         >>> previous = {}
-        >>> current = records.next()
-        >>> current == {
+        >>> current = {
         ...     u'column_a': u'1',
         ...     u'column_b': u'27',
         ...     u'column_c': u'',
         ... }
-        True
         >>> length = len(current)
         >>> filled = fill(previous, current, value=0)
-        >>> previous = dict(it.islice(filled, length))
-        >>> count = filled.next()
-        >>> count == {u'column_a': 0, u'column_b': 0, u'column_c': 1}
-        True
-        >>> previous == {
+        >>> dict(it.islice(filled, length)) == {
         ...     u'column_a': u'1',
         ...     u'column_b': u'27',
         ...     u'column_c': 0,
         ... }
         True
-        >>> current = records.next()
-        >>> current == {
-        ...     u'column_a': u'',
-        ...     u'column_b': u"too short!",
-        ...     u'column_c': None,
-        ... }
-        True
-        >>> filled = fill(previous, current, fill_key='column_b', count=count)
-        >>> previous = dict(it.islice(filled, length))
-        >>> count = filled.next()
-        >>> count == {u'column_a': 1, u'column_b': 0, u'column_c': 2}
-        True
-        >>> previous == {
-        ...     u'column_a': u"too short!",
-        ...     u'column_b': u"too short!",
-        ...     u'column_c': u"too short!",
-        ... }
+        >>> filled.next() == {u'column_a': 0, u'column_b': 0, u'column_c': 1}
         True
     """
     pkwargs = {'blanks_as_nulls': kwargs.get('blanks_as_nulls', True)}
@@ -822,42 +711,6 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
         u'item'
         >>> combine(x, y, 'amount', pred=pred, op=sum)
         500
-        >>> records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
-        >>>
-        >>> # Combine all keys
-        >>> pred = lambda key: True
-        >>> x, y = records[0], records[1]
-        >>> combine(x, y, 'a', pred=pred, op=sum)
-        1
-        >>> combine(x, y, 'b', pred=pred, op=sum)
-        6
-        >>> combine(x, y, 'c', pred=pred, op=sum)
-        8
-        >>> fltrer = lambda x: x is not None
-        >>> first = lambda x: filter(fltrer, x)[0]
-        >>> kwargs = {'pred': pred, 'op': first, 'default': None}
-        >>> combine(x, y, 'b', **kwargs)
-        2
-        >>>
-        >>> average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
-        >>> kwargs = {'pred': pred, 'op': average, 'default': None}
-        >>> combine(x, y, 'a', **kwargs)
-        1.0
-        >>> combine(x, y, 'b', **kwargs)
-        3.0
-        >>>
-        >>> # Only combine key 'b'
-        >>> pred = lambda key: key == 'b'
-        >>> combine(x, y, 'c', pred=pred, op=sum)
-        5
-        >>>
-        >>> # Only combine keys that have the same value of 'b'
-        >>> from operator import itemgetter
-        >>> pred = itemgetter('b')
-        >>> combine(x, y, 'b', pred=pred, op=sum)
-        6
-        >>> combine(x, y, 'c', pred=pred, op=sum)
-        5
     """
     value = y.get(key, default) if value is None else value
 
@@ -979,10 +832,6 @@ def op_everseen(iterable, key=None, pad=False, op='lt'):
     [4, 3, 2, 1]
     >>> list(op_everseen([('a', 6), ('b', 4), ('c', 8)], itemgetter(1)))
     [(u'a', 6), (u'b', 4)]
-    >>> list(op_everseen([4, 6, 3, 8, 2, 1], pad=True))
-    [4, 4, 3, 3, 2, 1]
-    >>> list(op_everseen([4, 6, 3, 8, 2, 1], op='gt'))
-    [4, 6, 8]
     """
     current = None
     current_key = None

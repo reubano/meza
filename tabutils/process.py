@@ -84,14 +84,6 @@ def type_cast(records, types, warn=False):
         ...     u'datetime': datetime.datetime(1982, 5, 4, 14, 0),
         ... }
         True
-        >>> records = [{'float': '1.5'}]
-        >>> types = [{'id': 'float', 'type': 'bool'}]
-        >>> type_cast(records, types).next()
-        {u'float': False}
-        >>> type_cast(records, types, warn=True).next()
-        Traceback (most recent call last):
-        ValueError: Invalid bool value: `1.5`.
-
     """
     switch = {
         'int': cv.to_int,
@@ -211,33 +203,6 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
         Decimal('0.95')
         >>> result['accurate']
         True
-        >>> {r['id']: r['type'] for r in result['types']} == {
-        ...     u'null': u'null',
-        ...     u'bool': u'bool',
-        ...     u'int': u'int',
-        ...     u'float': u'float',
-        ...     u'unicode': u'unicode',
-        ...     u'date': u'date',
-        ...     u'time': u'time',
-        ...     u'datetime': u'datetime',
-        ... }
-        True
-        >>> records.next() == record
-        True
-        >>> result = detect_types(records, 0.99)[1]
-        >>> result['count']
-        100
-        >>> result['confidence']
-        Decimal('0.97')
-        >>> result['accurate']
-        False
-        >>> result = detect_types([record, record])[1]
-        >>> result['count']
-        2
-        >>> result['confidence']
-        Decimal('0.87')
-        >>> result['accurate']
-        False
     """
     records = iter(records)
     tally = {}
@@ -316,116 +281,8 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
         `fntools.fill`
 
     Examples:
-        >>> from os import path as p
-        >>> from . import io
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'bad.csv')
-        >>> records = list(io.read_csv(filepath))
-        >>> records == [
-        ...    {
-        ...        u'column_a': u'1',
-        ...        u'column_b': u'27',
-        ...        u'column_c': u'',
-        ...    }, {
-        ...        u'column_a': u'',
-        ...        u'column_b': u"I'm too short!",
-        ...        u'column_c': None,
-        ...    }, {
-        ...        u'column_a': u'0',
-        ...        u'column_b': u'mixed types.... uh oh',
-        ...        u'column_c': u'17',
-        ...    }]
-        True
-        >>> list(fillempty(records, 0)) == [
-        ...    {
-        ...        u'column_a': u'1',
-        ...        u'column_b': u'27',
-        ...        u'column_c': 0,
-        ...    }, {
-        ...        u'column_a': 0,
-        ...        u'column_b': u"I'm too short!",
-        ...        u'column_c': 0,
-        ...    }, {
-        ...        u'column_a': u'0',
-        ...        u'column_b': u'mixed types.... uh oh',
-        ...        u'column_c': u'17',
-        ...    }]
-        True
-        >>> list(fillempty(records, 0, fields=['column_a'])) == [
-        ...    {
-        ...        u'column_a': u'1',
-        ...        u'column_b': u'27',
-        ...        u'column_c': u'',
-        ...    }, {
-        ...        u'column_a': 0,
-        ...        u'column_b': u"I'm too short!",
-        ...        u'column_c': None,
-        ...    }, {
-        ...        u'column_a': u'0',
-        ...        u'column_b': u'mixed types.... uh oh',
-        ...        u'column_c': u'17',
-        ...    }]
-        True
-        >>> list(fillempty(records, method='front')) == [
-        ...    {
-        ...        u'column_a': u'1',
-        ...        u'column_b': u'27',
-        ...        u'column_c': u'',
-        ...    }, {
-        ...        u'column_a': u'1',
-        ...        u'column_b': u"I'm too short!",
-        ...        u'column_c': u'',
-        ...    }, {
-        ...        u'column_a': u'0',
-        ...        u'column_b': u'mixed types.... uh oh',
-        ...        u'column_c': u'17',
-        ...    }]
-        True
-        >>> list(fillempty(records, method='back')) == [
-        ...    {
-        ...        u'column_a': u'1',
-        ...        u'column_b': u'27',
-        ...        u'column_c': u'17',
-        ...    }, {
-        ...        u'column_a': u'0',
-        ...        u'column_b': u"I'm too short!",
-        ...        u'column_c': u'17',
-        ...    }, {
-        ...        u'column_a': u'0',
-        ...        u'column_b': u'mixed types.... uh oh',
-        ...        u'column_c': u'17',
-        ...    }]
-        True
-        >>> list(fillempty(records, method='back', limit=1)) == [
-        ...    {
-        ...        u'column_a': u'1',
-        ...        u'column_b': u'27',
-        ...        u'column_c': u'',
-        ...    }, {
-        ...        u'column_a': u'0',
-        ...        u'column_b': u"I'm too short!",
-        ...        u'column_c': u'17',
-        ...    }, {
-        ...        u'column_a': u'0',
-        ...        u'column_b': u'mixed types.... uh oh',
-        ...        u'column_c': u'17',
-        ...    }]
-        True
-        >>> kwargs = {'method': 'column_b', 'fields': ['column_a']}
-        >>> list(fillempty(records, **kwargs)) == [
-        ...    {
-        ...        u'column_a': u'1',
-        ...        u'column_b': u'27',
-        ...        u'column_c': u'',
-        ...    }, {
-        ...        u'column_a': u"I'm too short!",
-        ...        u'column_b': u"I'm too short!",
-        ...        u'column_c': None,
-        ...    }, {
-        ...        u'column_a': u'0',
-        ...        u'column_b': u'mixed types.... uh oh',
-        ...        u'column_c': u'17',
-        ...    }]
+        >>> record = {u'a': u'1', u'b': u'27', u'c': u''}
+        >>> fillempty([record], 0).next() == {u'a': u'1', u'b': u'27', u'c': 0}
         True
     """
     if method and value is not None:
@@ -507,9 +364,10 @@ def merge(records, **kwargs):
             (default: 0).
 
     Returns:
-        (Iter[dicts]): collapsed records
+        dict: merged record
 
     See also:
+        `process.aggregate`
         `fntools.combine`
 
     Examples:
@@ -523,60 +381,6 @@ def merge(records, **kwargs):
         {u'a': u'item', u'amount': 900}
         >>> merge(records)
         {u'a': u'item', u'amount': 400}
-        >>> sorted(merge([{'a': 1, 'b': 2}, {'b': 10, 'c': 11}]).items())
-        [(u'a', 1), (u'b', 10), (u'c', 11)]
-        >>> records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
-        >>>
-        >>> # Combine all keys
-        >>> pred = lambda key: True
-        >>> sorted(merge(records, pred=pred, op=sum).items())
-        [(u'a', 1), (u'b', 6), (u'c', 8), (u'd', 6)]
-        >>> fltrer = lambda x: x is not None
-        >>> first = lambda pair: filter(fltrer, pair)[0]
-        >>> kwargs = {'pred': pred, 'op': first, 'default': None}
-        >>> sorted(merge(records, **kwargs).items())
-        [(u'a', 1), (u'b', 2), (u'c', 3), (u'd', 6)]
-        >>>
-        >>> # This will only reliably give the expected result for 2 records
-        >>> average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
-        >>> kwargs = {'pred': pred, 'op': average, 'default': None}
-        >>> sorted(merge(records, **kwargs).items())
-        [(u'a', 1), (u'b', 3.0), (u'c', 4.0), (u'd', 6.0)]
-        >>>
-        >>> # Only combine key 'b'
-        >>> pred = lambda key: key == 'b'
-        >>> sorted(merge(records, pred=pred, op=sum).items())
-        [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
-        >>>
-        >>> # Only combine keys that have the same value of 'b'
-        >>> from operator import itemgetter
-        >>> pred = itemgetter('b')
-        >>> sorted(merge(records, pred=pred, op=sum).items())
-        [(u'a', 1), (u'b', 6), (u'c', 5), (u'd', 6)]
-        >>>
-        >>> # This will reliably work for any number of records
-        >>> from collections import defaultdict
-        >>>
-        >>> counted = defaultdict(int)
-        >>> pred = lambda key: True
-        >>> divide = lambda x: x[0] / x[1]
-        >>> records = [
-        ...    {'a': 1, 'b': 4, 'c': 0},
-        ...    {'a': 2, 'b': 5, 'c': 2},
-        ...    {'a': 3, 'b': 6, 'd': 7}]
-        ...
-        >>> for r in records:
-        ...     for k in r.keys():
-        ...         counted[k] += 1
-        ...
-        >>> sorted(counted.items())
-        [(u'a', 3), (u'b', 3), (u'c', 2), (u'd', 1)]
-        >>> summed = merge(records, pred=pred, op=sum)
-        >>> sorted(summed.items())
-        [(u'a', 6), (u'b', 15), (u'c', 2), (u'd', 7)]
-        >>> kwargs = {'pred': pred, 'op': divide}
-        >>> sorted(merge([summed, counted], **kwargs).items())
-        [(u'a', 2.0), (u'b', 5.0), (u'c', 1.0), (u'd', 7.0)]
     """
     def reducer(x, y):
         _merge = partial(ft.combine, x, y, **kwargs)
@@ -590,6 +394,46 @@ def merge(records, **kwargs):
         record = dict(it.chain.from_iterable(items))
 
     return record
+
+
+def aggregate(records, key, op, default=0):
+    """Aggregates `records` on a specified key.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        key (str): The field to aggregate
+
+        op (func): Aggregation function. Receives a list of all non-null values
+            and should return the combined value. Common operators are `sum`,
+            `min`, `max`, etc.
+
+        default (int or str): default value to use in `op` for missing keys
+            (default: 0).
+
+    Returns:
+        dict: The first record with an aggregated value for `key`
+
+    See also:
+        `process.merge`
+
+    Examples:
+        >>> records = [
+        ...     {'a': 'item', 'amount': 200},
+        ...     {'a': 'item', 'amount': 300},
+        ...     {'a': 'item', 'amount': 400}]
+        ...
+        >>> aggregate(records, 'amount', sum)
+        {u'a': u'item', u'amount': 900}
+        >>> aggregate(records, 'amount', lambda x: sum(x) / len(x))
+        {u'a': u'item', u'amount': 300.0}
+    """
+    records = iter(records)
+    first = records.next()
+    values = (r.get(key, default) for r in it.chain([first], records))
+    value = op(filter(lambda x: x is not None, values))
+    return dict(it.chain(first.items(), [(key, value)]))
 
 
 def group(records, keyfunc=None):
@@ -619,75 +463,109 @@ def group(records, keyfunc=None):
     return ((key, list(group)) for key, group in grouped)
 
 
-def pivot(records, **kwargs):
+def pivot(records, data, column, op=sum, **kwargs):
     """
-    Create a spreadsheet-style pivot table as a DataFrame. The levels in the
-    pivot table will be stored in MultiIndex objects (hierarchical indexes) on
-    the index and columns of the result DataFrame. Requires `Pandas`.
+    Create a spreadsheet-style pivot table.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
+        data (str): Field to aggregate
+        column (str): Field to group by and create columns for in the resulting
+            pivot table.
+
+        op (func): Aggregation function (default: sum)
         kwargs (dict): keyword arguments
 
     Kwargs:
-        values (str): column to aggregate (default: All columns not included in
-            `index` or `columns`)
-
-        index (Seq[str]): Keys to group by on the pivot table index
-            (default: None).
-
-        columns (Seq[str]): Keys to group by on the pivot table column
-            (default: None).
-
-        aggfunc (func): Aggregation function (default: numpy.mean)
+        rows (Seq[str]): Fields to include as rows in the resulting pivot table
+            (default: All fields not in `data` or `column`).
 
         fill_value (scalar): Value to replace missing values with
             (default: None)
 
-        margins (bool): Add all row / columns (e.g. for subtotal / grand
-            totals) (default: False)
-
-        dropna (bool): Do not include columns whose entries are all NaN
+        dropna (bool): Do not include columns with missing values
             (default: True)
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `convert.df2records`
+        `process.aggregate`
+        `process.normalize`
 
     Examples:
-        >>> from os import path as p
-        >>> from . import io
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test', 'iris.csv')
-        >>> records = list(io.read_csv(filepath))
-        >>> header = records[0].keys()
-        >>> sorted(header)
-        [u'petal_length', u'petal_width', u'sepal_length', u'sepal_width', \
-u'species']
-        >>> fields = tt.guess_type_by_field(header)
-        >>> casted_records = type_cast(records, fields)
-        >>> table_records = pivot(
-        ...     casted_records, values='sepal_length',
-        ...     index=['sepal_width'], columns=['species'])
-        >>> row = table_records.next()
-        >>> row['sepal_width']
-        2.0
-        >>> row['Iris-versicolor']
-        5.0
+        >>> records = [
+        ...     {'length': 5, 'width': 2, 'species': 'setosa', 'color': 'red'},
+        ...     {'length': 5, 'width': 2, 'species': 'setosa', 'color': 'blue'},
+        ...     {'length': 6, 'width': 2, 'species': 'versi', 'color': 'red'},
+        ...     {'length': 6, 'width': 2, 'species': 'versi', 'color': 'blue'}]
+        ...
+        >>> pivot(records, 'length', 'species', rows=['width']).next() == {
+        ...     u'width': 2, u'setosa': 10, u'versi': 12}
+        True
+        >>> pivot(records, 'length', 'species').next() == {
+        ...     u'width': 2, u'color': u'blue', u'setosa': 5, u'versi': 6}
+        True
     """
-    try:
-        import pandas as pd
-    except ImportError:
-        print("pandas is required to use this function")
-        return None
-    else:
-        df = pd.DataFrame.from_records(records)
-        table = df.pivot_table(**kwargs)
-        return cv.df2records(table)
+    records = iter(records)
+    first = records.next()
+    chained = it.chain([first], records)
+    keys = set(first.keys())
+    rows = kwargs.get('rows', keys.difference([data, column]))
+    filterer = lambda x: x[0] in rows
+    keyfunc = lambda r: tuple(map(r.get, it.chain(rows, [column])))
+    grouped = group(chained, keyfunc)
+
+    def gen_raw(grouped):
+        for key, groups in grouped:
+            r = aggregate(groups, data, op)
+            filtered = filter(filterer, r.items())
+            yield dict(it.chain([(r[column], r.get(data))], filtered))
+
+    raw = gen_raw(grouped)
+
+    for key, groups in group(raw, lambda r: tuple(map(r.get, rows))):
+        yield merge(groups)
+
+
+def normalize(records, data, column, rows):
+    """
+    Yields normalized records from a spreadsheet-style pivot table.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        data (str): Field name to create for values of the normalized fields.
+        column (str): Field name to create for keys of the normalized fields.
+        rows (Seq[str]): Fields to normalized .
+
+    Yields:
+        dict: Record. A row of data whose keys are the field names.
+
+    See also:
+        `process.pivot`
+
+    Examples:
+        >>> records = [
+        ...     {'width': 2, 'color': 'blue', 'setosa': 5, 'versi': 6},
+        ...     {'width': 2, 'color': 'red', 'setosa': 5, 'versi': 6}]
+        ...
+        >>> rows = ['setosa', 'versi']
+        >>> normalize(records, 'length', 'species', rows).next() == {
+        ...     u'color': u'blue', u'width': 2, u'length': 5,
+        ...     u'species': u'setosa'}
+        True
+    """
+    filterer = lambda x: x[0] not in rows
+
+    for r in records:
+        filtered = filter(filterer, r.items())
+
+        for row in rows:
+            yield dict(it.chain([(column, row), (data, r.get(row))], filtered))
 
 
 def tfilter(records, field, pred=None):
@@ -758,9 +636,6 @@ def unique(records, fields=None, pred=None):
         >>> it.islice(unique(records, ['name']), 3, 4).next()['name'] == \
 u'Iñtërnâtiônàližætiøn'
         True
-        >>> pred = lambda x: x['name'][0]
-        >>> it.islice(unique(records, pred=pred), 3, 4).next()['name']
-        u'rob'
     """
     seen = set()
 
@@ -813,13 +688,6 @@ def cut(records, **kwargs):
         True
         >>> cut(records, include=['field_2']).next()
         {u'field_2': u'bill'}
-        >>> cut(records, exclude=['field_2']).next() == {
-        ...     u'field_1': 1, u'field_3': u'male'}
-        ...
-        True
-        >>> include = ['field_1', 'field_2']
-        >>> cut(records, include=['field_2'], exclude=['field_2']).next()
-        {u'field_2': u'bill'}
     """
     include = kwargs.get('include')
     exclude = kwargs.get('exclude')
@@ -865,18 +733,6 @@ def grep(records, rules, any_match=False, inverse=False):
         >>> rules = [{'fields': ['name'], 'pattern': re.compile(r'j.*e$')}]
         >>> grep(records, rules).next()['name']
         u'jane'
-        >>> rules = [{'fields': ['day'], 'pattern': lambda x: x == 1}]
-        >>> grep(records, rules).next()['name']
-        u'bill'
-        >>> rules = [{'pattern': lambda x: x in {1, 'rob'}}]
-        >>> grep(records, rules).next()['name']
-        u'rob'
-        >>> rules = [{'pattern': lambda x: x in {1, 'rob'}}]
-        >>> grep(records, rules, any_match=True).next()['name']
-        u'bill'
-        >>> rules = [{'fields': ['name'], 'pattern': 'o'}]
-        >>> grep(records, rules, inverse=True).next()['name']
-        u'bill'
     """
     def predicate(record):
         for rule in rules:

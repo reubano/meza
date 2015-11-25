@@ -115,8 +115,8 @@ def stringify(content):
         (generator): the stringified content
 
     Examples:
-        >>> list(stringify([unicode('hi'), u'world', 0])) == [
-        ...     str('hi'), str('world'), 0]
+        >>> stringified = stringify([unicode('hi'), u'world', 0])
+        >>> map(type, stringified) == [str, str, int]
         True
     """
     return (str(c) if isinstance(c, unicode) else c for c in content)

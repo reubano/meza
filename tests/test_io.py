@@ -123,6 +123,11 @@ class TestUnicodeReader:
         nt.assert_equal(self.row1, records.next())
         nt.assert_equal(self.row3, records.next())
 
+    def test_kwargs(self):
+        filepath = p.join(io.DATA_DIR, 'utf8.csv')
+        kwargs = {'delimiter': ','}
+        records = io.read_csv(filepath, **kwargs)
+        nt.assert_equal(self.row1, records.next())
 
 class TestInput:
     def __init__(self):

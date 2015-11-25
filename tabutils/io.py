@@ -163,6 +163,12 @@ def patch_http_response_read(func):
 httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 
+def stringify_kwargs(kwargs):
+    keys = ft.stringify(kwargs.keys())
+    values = ft.stringify(kwargs.values())
+    return dict(zip(keys, values))
+
+
 def _read_any(f, reader, args, convert=False, **kwargs):
     pos = 0
 
@@ -261,7 +267,8 @@ def _read_csv(f, encoding, header=None, has_header=True, **kwargs):
     elif not (header or has_header):
         raise ValueError('Either `header` or `has_header` must be specified.')
 
-    reader = csv.DictReader(f, header, encoding=encoding, **kwargs)
+    skwargs = stringify_kwargs(kwargs)
+    reader = csv.DictReader(f, header, encoding=str(encoding), **skwargs)
 
     # Remove `None` keys
     records = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
@@ -474,7 +481,8 @@ def read_csv(filepath, mode='rU', **kwargs):
         has_header = kwargs.pop('has_header', True)
         [f.next() for _ in xrange(first_row)]
         pos = f.tell()
-        names = csv.reader(f, encoding=encoding, **kwargs).next()
+        skwargs = stringify_kwargs(kwargs)
+        names = csv.reader(f, encoding=str(encoding), **skwargs).next()
 
         if has_header:
             stripped = [name for name in names if name.strip()]

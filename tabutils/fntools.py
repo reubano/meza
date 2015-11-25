@@ -105,6 +105,23 @@ def underscorify(content):
     return (slugify(item, separator='_') for item in content)
 
 
+def stringify(content):
+    """ Converts unicode elements of an array into strings
+
+    Args:
+        content (Iter[str]): the content to clean
+
+    Returns:
+        (generator): the stringified content
+
+    Examples:
+        >>> list(stringify([unicode('hi'), u'world', 0])) == [
+        ...     str('hi'), str('world'), 0]
+        True
+    """
+    return (str(c) if isinstance(c, unicode) else c for c in content)
+
+
 def dedupe(content):
     """ Deduplicates elements of an array
 

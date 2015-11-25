@@ -248,20 +248,12 @@ def _read_csv(f, encoding, header=None, has_header=True, **kwargs):
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
-        >>> header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
         >>> with open(filepath, 'rU') as f:
         ...     sorted(_read_csv(f, 'utf-8').next().items()) == [
         ...         (u'Some Date', u'05/04/82'),
         ...         (u'Some Value', u'234'),
         ...         (u'Sparse Data', u'Iñtërnâtiônàližætiøn'),
         ...         (u'Unicode Test', u'Ādam')]
-        True
-        >>> with open(filepath, 'rU') as f:
-        ...     sorted(_read_csv(f, 'utf-8', header).next().items()) == [
-        ...         (u'some_date', u'05/04/82'),
-        ...         (u'some_value', u'234'),
-        ...         (u'sparse_data', u'Iñtërnâtiônàližætiøn'),
-        ...         (u'unicode_test', u'Ādam')]
         True
     """
     if header and has_header:
@@ -394,23 +386,6 @@ def read_dbf(filepath, **kwargs):
         ...      u'intptlon10': u'-092.9323194'}
         ...
         True
-        >>> with open(filepath, 'rb') as f:
-        ...     records = read_dbf(f, sanitize=True)
-        ...     records.next() == {
-        ...         u'awater10': 12416573076,
-        ...         u'aland10': 71546663636,
-        ...         u'intptlat10': u'+47.2400052',
-        ...         u'lsad10': u'C2',
-        ...         u'cd111fp': u'08',
-        ...         u'namelsad10': u'Congressional District 8',
-        ...         u'funcstat10': u'N',
-        ...         u'statefp10': u'27',
-        ...         u'cdsessn': u'111',
-        ...         u'mtfcc10': u'G5200',
-        ...         u'geoid10': u'2708',
-        ...         u'intptlon10': u'-092.9323194'}
-        ...
-        True
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
     return iter(dbf.DBF2(filepath, **kwargs))
@@ -490,14 +465,6 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...     u'some_date': u'05/04/82',
         ...     u'some_value': u'234',
         ...     u'unicode_test': u'Ādam'}
-        ...
-        True
-        >>> filepath = p.join(DATA_DIR, 'no_header_row.csv')
-        >>> records = read_csv(filepath, has_header=False)
-        >>> records.next() == {
-        ...     u'column_1': u'1',
-        ...     u'column_2': u'2',
-        ...     u'column_3': u'3'}
         ...
         True
     """
@@ -599,17 +566,6 @@ def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
         ...     u'column_4': 'True',
         ...     u'column_5': '1.0',
         ...     u'column_6': '04:14:001971-01-01T04:14:00'}
-        ...
-        True
-        >>> filepath = p.join(DATA_DIR, 'fixed_w_header.txt')
-        >>> records = read_fixed_csv(filepath, widths, has_header=True)
-        >>> records.next() == {
-        ...     u'News Paper': 'Chicago Reader',
-        ...     u'Founded': '1971-01-01',
-        ...     u'Int': '40',
-        ...     u'Bool': 'True',
-        ...     u'Float': '1.0',
-        ...     u'Timestamp': '04:14:001971-01-01T04:14:00'}
         ...
         True
     """
@@ -744,23 +700,6 @@ def read_xls(filepath, **kwargs):
         ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
         ...     u'unicode_test': u'Ādam'}
         ...
-        True
-        >>> filepath = p.join(DATA_DIR, 'test.xlsx')
-        >>> records = read_xls(filepath, sanitize=True, sheet=0)
-        >>> records.next() == {
-        ...     u'some_value': u'234.0',
-        ...     u'some_date': '1982-05-04',
-        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
-        ...     u'unicode_test': u'Ādam'}
-        ...
-        True
-        >>> with open(filepath, 'r+b') as f:
-        ...     records = read_xls(f, sanitize=True)
-        ...     records.next() == {
-        ...         u'some_value': u'234.0',
-        ...         u'some_date': '1982-05-04',
-        ...         u'sparse_data': u'Iñtërnâtiônàližætiøn',
-        ...         u'unicode_test': u'Ādam'}
         True
     """
     has_header = kwargs.get('has_header', True)
@@ -905,18 +844,9 @@ def write(filepath, content, mode='wb+', **kwargs):
         `io.read_any`
 
     Examples:
-        >>> import requests
         >>> from tempfile import TemporaryFile
         >>> write(TemporaryFile(), StringIO('Hello World'))
         11
-        >>> write(TemporaryFile(), StringIO('Iñtërnâtiônàližætiøn'))
-        20
-        >>> write(TemporaryFile(), IterStringIO(iter('Hello World')), \
-chunksize=2)
-        12
-        >>> r = requests.get('http://google.com', stream=True)
-        >>> write(TemporaryFile(), r.iter_content) > 10000
-        True
     """
     def _write(f, content, **kwargs):
         chunksize = kwargs.get('chunksize')
@@ -1007,13 +937,8 @@ def get_utf8(f, encoding, remove_BOM=True):
 
     Examples:
         >>> with open(p.join(DATA_DIR, 'utf16_big.csv')) as f:
-        ...     utf8_f = get_utf8(f, 'utf-16-be')
-        ...     utf8_f.next() == 'a,b,c\\n'
-        ...     utf8_f.next() == '1,2,3\\n'
-        ...     utf8_f.read().decode(ENCODING) == '4,5,ʤ'
-        True
-        True
-        True
+        ...     get_utf8(f, 'utf-16-be').next().strip()
+        'a,b,c'
     """
     # http://stackoverflow.com/a/191455/408556
     utf8_f = StringIO()
@@ -1089,11 +1014,6 @@ def get_reader(extension):
     Examples:
         >>> get_reader('xls')  # doctest: +ELLIPSIS
         <function read_xls at 0x...>
-        >>> get_reader('csv')  # doctest: +ELLIPSIS
-        <function read_csv at 0x...>
-        >>> get_reader('')
-        Traceback (most recent call last):
-        KeyError: u''
     """
     switch = {
         'csv': 'read_csv',

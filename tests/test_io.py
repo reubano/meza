@@ -11,11 +11,15 @@ from __future__ import (
     unicode_literals)
 
 import nose.tools as nt
+import requests
+import responses
 
 from os import path as p
 from json import loads
+from tempfile import TemporaryFile
+from StringIO import StringIO
 
-from tabutils import io, convert as cv
+from tabutils import io, convert as cv, ENCODING
 
 
 def setup_module():
@@ -58,18 +62,25 @@ class TestIterStringIO:
         nt.assert_equal(self.ints.read(1), bytearray(b'0'))
         nt.assert_equal(self.ints.read(1), bytearray(b'1'))
         nt.assert_equal(self.ints.read(1), bytearray(b'2'))
+
         self.ints.seek(3)
         nt.assert_equal(self.ints.read(1), bytearray(b'3'))
+
         self.ints.seek(6)
         nt.assert_equal(self.ints.read(1), bytearray(b'6'))
+
         self.ints.seek(3)
         nt.assert_equal(self.ints.read(1), bytearray(b'3'))
+
         self.ints.seek(3)
         nt.assert_equal(self.ints.read(1), bytearray(b'3'))
+
         self.ints.seek(4)
         nt.assert_equal(self.ints.read(1), bytearray(b'4'))
+
         self.ints.seek(6)
         nt.assert_equal(self.ints.read(1), bytearray(b'6'))
+
         self.ints.seek(0)
         nt.assert_equal(self.ints.read(1), bytearray(b'2'))
 
@@ -113,23 +124,29 @@ class TestUnicodeReader:
         nt.assert_equal(self.row3, records.next())
 
 
-class TestIO:
+class TestInput:
     def __init__(self):
         self.cls_initialized = False
         self.sheet0 = {
-            u'sparse_data': u'Iñtërnâtiônàližætiøn',
-            u'some_date': u'1982-05-04',
-            u'some_value': u'234.0',
-            u'unicode_test': u'Ādam'}
+            'sparse_data': 'Iñtërnâtiônàližætiøn',
+            'some_date': '1982-05-04',
+            'some_value': '234.0',
+            'unicode_test': 'Ādam'}
+
+        self.sheet0_alt = {
+            'sparse_data': 'Iñtërnâtiônàližætiøn',
+            'some_date': '05/04/82',
+            'some_value': '234',
+            'unicode_test': 'Ādam'}
 
         self.sheet1 = {
-            u'boolean': u'False',
-            u'date': '1915-12-31',
-            u'datetime': '1915-12-31',
-            u'float': u'41800000.01',
-            u'integer': u'164.0',
-            u'text': u'Chicago Tribune',
-            u'time': '00:00:00'}
+            'boolean': 'False',
+            'date': '1915-12-31',
+            'datetime': '1915-12-31',
+            'float': '41800000.01',
+            'integer': '164.0',
+            'text': 'Chicago Tribune',
+            'time': '00:00:00'}
 
     def test_newline_json(self):
         value = (
@@ -150,6 +167,10 @@ class TestIO:
         records = io.read_xls(filepath, sanitize=True, sheet=0)
         nt.assert_equal(self.sheet0, records.next())
 
+        with open(filepath, 'r+b') as f:
+            records = io.read_xls(f, sanitize=True, sheet=0)
+            nt.assert_equal(self.sheet0, records.next())
+
         records = io.read_xls(filepath, sanitize=True, sheet=1)
         nt.assert_equal(self.sheet1, records.next())
 
@@ -159,6 +180,66 @@ class TestIO:
 
         records = io.read_xls(filepath, sanitize=True, sheet=3, **kwargs)
         nt.assert_equal(self.sheet1, records.next())
+
+    def test_csv(self):
+        filepath = p.join(io.DATA_DIR, 'test.csv')
+        header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
+
+        with open(filepath, 'rU') as f:
+            records = io._read_csv(f, 'utf-8', header)
+            nt.assert_equal(self.sheet0_alt, records.next())
+
+        filepath = p.join(io.DATA_DIR, 'no_header_row.csv')
+        records = io.read_csv(filepath, has_header=False)
+        value = {'column_1': '1', 'column_2': '2', 'column_3': '3'}
+        nt.assert_equal(value, records.next())
+
+        filepath = p.join(io.DATA_DIR, 'fixed_w_header.txt')
+        widths = [0, 18, 29, 33, 38, 50]
+        records = io.read_fixed_csv(filepath, widths, has_header=True)
+        value = {
+            'News Paper': 'Chicago Reader',
+            'Founded': '1971-01-01',
+            'Int': '40',
+            'Bool': 'True',
+            'Float': '1.0',
+            'Timestamp': '04:14:001971-01-01T04:14:00'}
+
+        nt.assert_equal(value, records.next())
+
+    def test_dbf(self):
+        filepath = p.join(io.DATA_DIR, 'test.dbf')
+
+        with open(filepath, 'rb') as f:
+            records = io.read_dbf(f, sanitize=True)
+            value = {
+                'awater10': 12416573076,
+                'aland10': 71546663636,
+                'intptlat10': '+47.2400052',
+                'lsad10': 'C2',
+                'cd111fp': '08',
+                'namelsad10': 'Congressional District 8',
+                'funcstat10': 'N',
+                'statefp10': '27',
+                'cdsessn': '111',
+                'mtfcc10': 'G5200',
+                'geoid10': '2708',
+                'intptlon10': '-092.9323194'}
+
+            nt.assert_equal(value, records.next())
+
+    def test_get_reader(self):
+        nt.assert_true(callable(io.get_reader('csv')))
+
+        with nt.assert_raises(KeyError):
+            io.get_reader('')
+
+    def test_get_utf8(self):
+        with open(p.join(io.DATA_DIR, 'utf16_big.csv')) as f:
+            utf8_f = io.get_utf8(f, 'utf-16-be')
+            nt.assert_equal('a,b,c', utf8_f.next().strip())
+            nt.assert_equal('1,2,3', utf8_f.next().strip())
+            nt.assert_equal('4,5,ʤ', utf8_f.next().decode(ENCODING))
 
 
 class TestGeoJSON:
@@ -180,6 +261,7 @@ class TestGeoJSON:
 
         for record in records:
             nt.assert_true('id' in record)
+
             if record['type'] == 'Point':
                 nt.assert_equal(len(record['coordinates']), 2)
             elif record['type'] == 'LineString':
@@ -222,3 +304,19 @@ class TestGeoJSON:
         nt.assert_true('crs' in geojson)
         nt.assert_equal(geojson['crs']['type'], 'name')
         nt.assert_equal(geojson['crs']['properties']['name'], 'EPSG:4269')
+
+
+class TestOutput:
+    @responses.activate
+    def test_write(self):
+        url = 'http://google.com'
+        body = '<!doctype html><html itemtype="http://schema.org/page">'
+        content = StringIO('Iñtërnâtiônàližætiøn')
+        nt.assert_equal(io.write(TemporaryFile(), content), 20)
+
+        content = io.IterStringIO(iter('Hello World'))
+        nt.assert_equal(io.write(TemporaryFile(), content, chunksize=2), 12)
+
+        responses.add(responses.GET, url=url, body=body)
+        r = requests.get(url, stream=True)
+        nt.assert_equal(io.write(TemporaryFile(), r.iter_content), 55)

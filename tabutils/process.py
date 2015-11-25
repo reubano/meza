@@ -246,12 +246,12 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
         ...     'datetime': '5/4/82 2pm',
         ... }
         >>> records = it.repeat(record)
-        >>> records, result = detect_types(records)
-        >>> result['count']
-        17
-        >>> result['confidence']
-        Decimal('0.95')
-        >>> result['accurate']
+        >>> types = detect_types(records)[1]['types']
+        >>> [t['id'] for t in types] == [
+        ...     u'int', u'text', u'float', u'datetime', u'bool', u'time',
+        ...     u'date', u'null']
+        True
+        >>> all(t['id'] == t['type'] for t in types)
         True
     """
     records = iter(records)

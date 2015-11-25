@@ -51,6 +51,9 @@ class Test:
 
         records = it.repeat(record)
         records, result = pr.detect_types(records)
+        nt.assert_equal(result['count'], 17)
+        nt.assert_equal(result['confidence'], Decimal('0.95'))
+        nt.assert_true(result['accurate'])
 
         types = {
             'null': 'null',

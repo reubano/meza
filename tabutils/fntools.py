@@ -79,7 +79,7 @@ class CustomEncoder(JSONEncoder):
     def default(self, obj):
         if hasattr(obj, 'real'):
             encoded = float(obj)
-        elif set(['quantize', 'year']).intersection(dir(obj)):
+        elif set(['quantize', 'year', 'hour']).intersection(dir(obj)):
             encoded = str(obj)
         elif set(['next', 'union']).intersection(dir(obj)):
             encoded = list(obj)

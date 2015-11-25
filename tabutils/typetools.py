@@ -63,7 +63,7 @@ def guess_type_by_field(content):
         ...     u'raw_value': u'float',
         ...     u'date_and_time': u'datetime',
         ...     u'length': u'float',
-        ...     u'field': u'unicode',
+        ...     u'field': u'text',
         ... }
         ...
         True
@@ -78,7 +78,7 @@ def guess_type_by_field(content):
         {'type': 'time', 'func': lambda x: 'time' in x},
         {'type': 'float', 'func': float_func},
         {'type': 'int', 'func': lambda x: 'count' in x},
-        {'type': 'unicode', 'func': lambda x: True},
+        {'type': 'text', 'func': lambda x: True},
     ]
 
     for item in content:
@@ -107,7 +107,7 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         ...     'bool': 'false',
         ...     'int': '1',
         ...     'float': '1.5',
-        ...     'unicode': 'Iñtërnâtiônàližætiøn',
+        ...     'text': 'Iñtërnâtiônàližætiøn',
         ...     'date': '5/4/82',
         ...     'time': '2:30',
         ...     'datetime': '5/4/82 2pm',
@@ -117,7 +117,7 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         ...     u'bool': u'bool',
         ...     u'int': u'int',
         ...     u'float': u'float',
-        ...     u'unicode': u'unicode',
+        ...     u'text': u'text',
         ...     u'date': u'date',
         ...     u'time': u'time',
         ...     u'datetime': u'datetime'}
@@ -128,7 +128,7 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         ...     'bool': False,
         ...     'int': 10,
         ...     'float': 1.5,
-        ...     'unicode': 'Iñtërnâtiônàližætiøn',
+        ...     'text': 'Iñtërnâtiônàližætiøn',
         ...     'date': date(1982, 5, 4),
         ...     'time': time(2, 30),
         ...     'datetime': dt(1982, 5, 4, 2),
@@ -138,7 +138,7 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         ...     u'bool': u'bool',
         ...     u'int': u'int',
         ...     u'float': u'float',
-        ...     u'unicode': u'unicode',
+        ...     u'text': u'text',
         ...     u'date': u'date',
         ...     u'time': u'time',
         ...     u'datetime': u'datetime'}
@@ -157,7 +157,7 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         {'type': 'datetime', 'func': is_datetime},
         {'type': 'time', 'func': is_time},
         {'type': 'date', 'func': is_date},
-        {'type': 'unicode', 'func': lambda x: hasattr(x, 'lower')}]
+        {'type': 'text', 'func': lambda x: hasattr(x, 'lower')}]
 
     for key, value in record.iteritems():
         for g in guess_funcs:

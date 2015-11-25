@@ -54,6 +54,8 @@ def type_cast(records, types, warn=False):
 
     See also:
         `process.json_recode`
+        `typetools.guess_type_by_field`
+        `typetools.guess_type_by_value`
         `convert.to_int`
         `convert.to_float`
         `convert.to_decimal`
@@ -171,6 +173,11 @@ def gen_confidences(tally, types, a=1):
     Returns:
         Iter(decimal): Generator of confidences
 
+    See also:
+        `typetools.guess_type_by_field`
+        `typetools.guess_type_by_value`
+        `process.detect_types`
+
     Examples:
         >>> record = {'field_1': 'None', 'field_2': 'false'}
         >>> types = list(tt.guess_type_by_value(record))
@@ -194,6 +201,9 @@ def gen_types(tally):
 
     Yields:
         dict: Field type. The parsed field and its type.
+
+    See also:
+        `process.detect_types`
 
     Examples:
         >>> tally = {
@@ -233,6 +243,12 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
 
     Returns:
         tuple(Iter[dict], dict): Tuple of records and the result
+
+    See also:
+        `process.gen_types`
+        `process.gen_confidences`
+        `typetools.guess_type_by_field`
+        `typetools.guess_type_by_value`
 
     Examples:
         >>> record = {

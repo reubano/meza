@@ -537,7 +537,7 @@ def read_tsv(filepath, mode='rU', **kwargs):
     return read_csv(filepath, dialect=csv.excel_tab, **kwargs)
 
 
-def read_fixed_csv(filepath, widths, mode='rU', **kwargs):
+def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
     """Reads a fixed-width csv file.
 
     Args:
@@ -1024,21 +1024,20 @@ def get_reader(extension):
         <function read_xls at 0x...>
     """
     switch = {
-        'csv': 'read_csv',
-        'xls': 'read_xls',
-        'xlsx': 'read_xls',
-        'mdb': 'read_mdb',
-        'json': 'read_json',
-        'geojson': 'read_geojson',
-        'geojson.json': 'read_geojson',
-        'sqlite': 'read_sqlite',
-        'dbf': 'read_dbf',
-        'tsv': 'read_tsv',
+        'csv': read_csv,
+        'xls': read_xls,
+        'xlsx': read_xls,
+        'mdb': read_mdb,
+        'json': read_json,
+        'geojson': read_geojson,
+        'geojson.json': read_geojson,
+        'sqlite': read_sqlite,
+        'dbf': read_dbf,
+        'tsv': read_tsv,
+        'fixed': read_fixed_csv,
     }
 
     try:
-        module = import_module('tabutils.io')
-        return getattr(module, switch[extension])
-        pass
+        return switch[extension]
     except IndexError:
         raise TypeError('Reader for extension `%s` not found!' % extension)

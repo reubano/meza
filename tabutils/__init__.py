@@ -21,12 +21,13 @@ from __future__ import (
 
 from datetime import datetime as dt
 
+__version__ = '0.23.0'
+
 __title__ = 'tabutils'
 __package_name__ = 'tabutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'tabular data utility methods'
 __email__ = 'reubano@gmail.com'
-__version__ = '0.22.1'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 

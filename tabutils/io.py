@@ -1024,21 +1024,19 @@ def get_reader(extension):
         <function read_xls at 0x...>
     """
     switch = {
-        'csv': 'read_csv',
-        'xls': 'read_xls',
-        'xlsx': 'read_xls',
-        'mdb': 'read_mdb',
-        'json': 'read_json',
-        'geojson': 'read_geojson',
-        'geojson.json': 'read_geojson',
-        'sqlite': 'read_sqlite',
-        'dbf': 'read_dbf',
-        'tsv': 'read_tsv',
+        'csv': read_csv,
+        'xls': read_xls,
+        'xlsx': read_xls,
+        'mdb': read_mdb,
+        'json': read_json,
+        'geojson': read_geojson,
+        'geojson.json': read_geojson,
+        'sqlite': read_sqlite,
+        'dbf': read_dbf,
+        'tsv': read_tsv,
     }
 
     try:
-        module = import_module('tabutils.io')
-        return getattr(module, switch[extension])
-        pass
+        return switch[extension]
     except IndexError:
         raise TypeError('Reader for extension `%s` not found!' % extension)

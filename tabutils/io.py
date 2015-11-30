@@ -1034,6 +1034,7 @@ def get_reader(extension):
         'sqlite': read_sqlite,
         'dbf': read_dbf,
         'tsv': read_tsv,
+        'fixed': read_fixed_csv,
     }
 
     try:

@@ -21,7 +21,7 @@ from __future__ import (
 
 from datetime import datetime as dt
 
-__version__ = '0.23.0'
+__version__ = '0.23.1'
 
 __title__ = 'tabutils'
 __package_name__ = 'tabutils'

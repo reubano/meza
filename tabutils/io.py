@@ -534,7 +534,7 @@ def read_tsv(filepath, mode='rU', **kwargs):
         ...
         True
     """
-    return read_csv(filepath, dialect=csv.excel_tab, **kwargs)
+    return read_csv(filepath, mode, dialect=csv.excel_tab, **kwargs)
 
 
 def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):

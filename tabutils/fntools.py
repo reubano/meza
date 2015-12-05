@@ -511,7 +511,7 @@ def add_ordinal(num):
         num (int): a number
 
     Returns:
-        (str): ext a number with the ordinal suffix
+        (str): a number with the ordinal suffix
 
     Examples:
         >>> add_ordinal(11)

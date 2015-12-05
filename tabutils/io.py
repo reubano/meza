@@ -586,7 +586,7 @@ def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
         [f.next() for _ in xrange(first_row)]
 
         if has_header:
-            line = f.readline()
+            line = f.next()
             names = filter(None, (line[s:e].strip() for s, e in schema))
             uscored = list(ft.underscorify(names)) if sanitize else names
             header = list(ft.dedupe(uscored)) if dedupe else uscored

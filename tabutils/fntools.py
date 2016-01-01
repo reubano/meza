@@ -81,10 +81,12 @@ class CustomEncoder(JSONEncoder):
             encoded = float(obj)
         elif set(['quantize', 'year', 'hour']).intersection(dir(obj)):
             encoded = str(obj)
+        elif hasattr(obj, 'union'):
+            encoded = tuple(obj)
         elif set(['next', 'union']).intersection(dir(obj)):
             encoded = list(obj)
         else:
-            encoded = JSONEncoder.default(self, obj)
+            encoded = super(CustomEncoder, self).default(obj)
 
         return encoded
 
@@ -511,7 +513,7 @@ def add_ordinal(num):
         num (int): a number
 
     Returns:
-        (str): ext a number with the ordinal suffix
+        (str): a number with the ordinal suffix
 
     Examples:
         >>> add_ordinal(11)

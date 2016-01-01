@@ -81,6 +81,8 @@ class CustomEncoder(JSONEncoder):
             encoded = float(obj)
         elif set(['quantize', 'year', 'hour']).intersection(dir(obj)):
             encoded = str(obj)
+        elif hasattr(obj, 'union'):
+            encoded = tuple(obj)
         elif set(['next', 'union']).intersection(dir(obj)):
             encoded = list(obj)
         else:

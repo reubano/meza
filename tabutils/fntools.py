@@ -84,7 +84,7 @@ class CustomEncoder(JSONEncoder):
         elif set(['next', 'union']).intersection(dir(obj)):
             encoded = list(obj)
         else:
-            encoded = JSONEncoder.default(self, obj)
+            encoded = super(CustomEncoder, self).default(obj)
 
         return encoded
 

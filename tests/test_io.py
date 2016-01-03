@@ -17,9 +17,10 @@ import responses
 from os import path as p
 from json import loads
 from tempfile import TemporaryFile
-from StringIO import StringIO
+from io import StringIO
 
-from tabutils import io, convert as cv, ENCODING
+from builtins import *
+from tabutils import io, convert as cv
 
 
 def setup_module():
@@ -41,15 +42,15 @@ class TestIterStringIO:
         nt.assert_equal(self.phrase.read(8), bytearray(b' Worldly'))
 
         self.phrase.write(': Iñtërnâtiônàližætiøn')
-        value = bytearray(b' person: Iñtërnâtiônàližætiøn')
+        value = bytearray(' person: Iñtërnâtiônàližætiøn'.encode('utf-8'))
         nt.assert_equal(self.phrase.read(), value)
 
         nt.assert_equal(self.text.readline(), bytearray(b'line one'))
-        nt.assert_equal(self.text.next(), bytearray(b'line two'))
+        nt.assert_equal(next(self.text), bytearray(b'line two'))
 
         self.text.seek(0)
-        nt.assert_equal(self.text.next(), bytearray(b'line one'))
-        nt.assert_equal(self.text.next(), bytearray(b'line two'))
+        nt.assert_equal(next(self.text), bytearray(b'line one'))
+        nt.assert_equal(next(self.text), bytearray(b'line two'))
         nt.assert_equal(self.text.tell(), 16)
 
         self.text.seek(0)
@@ -96,38 +97,42 @@ class TestUnicodeReader:
     def test_utf8(self):
         filepath = p.join(io.DATA_DIR, 'utf8.csv')
         records = io.read_csv(filepath, sanitize=True)
-        nt.assert_equal(self.row1, records.next())
-        nt.assert_equal(self.row3, records.next())
+        nt.assert_equal(self.row1, next(records))
+        nt.assert_equal(self.row3, next(records))
 
     def test_latin1(self):
         filepath = p.join(io.DATA_DIR, 'latin1.csv')
-        records = io.read_csv(filepath, encoding='latin1')
-        nt.assert_equal(self.row1, records.next())
-        nt.assert_equal(self.row2, records.next())
+        records = io.read_csv(filepath, encoding='latin-1')
+        nt.assert_equal(self.row1, next(records))
+        nt.assert_equal(self.row2, next(records))
 
     def test_encoding_detection(self):
         filepath = p.join(io.DATA_DIR, 'latin1.csv')
+        records = io.read_csv(filepath, mode='rb')
+        nt.assert_equal(self.row1, next(records))
+        nt.assert_equal(self.row2, next(records))
+
         records = io.read_csv(filepath, encoding='ascii')
-        nt.assert_equal(self.row1, records.next())
-        nt.assert_equal(self.row2, records.next())
+        nt.assert_equal(self.row1, next(records))
+        nt.assert_equal(self.row2, next(records))
 
     def test_utf16_big(self):
         filepath = p.join(io.DATA_DIR, 'utf16_big.csv')
         records = io.read_csv(filepath, encoding='utf-16-be')
-        nt.assert_equal(self.row1, records.next())
-        nt.assert_equal(self.row3, records.next())
+        nt.assert_equal(self.row1, next(records))
+        nt.assert_equal(self.row3, next(records))
 
     def test_utf16_little(self):
         filepath = p.join(io.DATA_DIR, 'utf16_little.csv')
         records = io.read_csv(filepath, encoding='utf-16-le')
-        nt.assert_equal(self.row1, records.next())
-        nt.assert_equal(self.row3, records.next())
+        nt.assert_equal(self.row1, next(records))
+        nt.assert_equal(self.row3, next(records))
 
     def test_kwargs(self):
         filepath = p.join(io.DATA_DIR, 'utf8.csv')
         kwargs = {'delimiter': ','}
         records = io.read_csv(filepath, **kwargs)
-        nt.assert_equal(self.row1, records.next())
+        nt.assert_equal(self.row1, next(records))
 
 
 class TestInput:
@@ -155,50 +160,50 @@ class TestInput:
             'time': '00:00:00'}
 
     def test_newline_json(self):
-        value = (
-            '{"sepal_width": "3.5", "petal_width": "0.2", "species":'
-            ' "Iris-setosa", "sepal_length": "5.1", "petal_length": "1.4"}')
+        value = {
+            'sepal_width': '3.5', 'petal_width': '0.2', 'species':
+            'Iris-setosa', 'sepal_length': '5.1', 'petal_length': '1.4'}
 
         filepath = p.join(io.DATA_DIR, 'iris.csv')
         records = io.read_csv(filepath)
         json = cv.records2json(records, newline=True)
-        nt.assert_equal(value, json.next().strip())
+        nt.assert_equal(value, loads(next(json)))
 
         filepath = p.join(io.DATA_DIR, 'newline.json')
         records = io.read_json(filepath, newline=True)
-        nt.assert_equal({'a': 2, 'b': 3}, records.next())
+        nt.assert_equal({'a': 2, 'b': 3}, next(records))
 
     def test_xls(self):
         filepath = p.join(io.DATA_DIR, 'test.xlsx')
         records = io.read_xls(filepath, sanitize=True, sheet=0)
-        nt.assert_equal(self.sheet0, records.next())
+        nt.assert_equal(self.sheet0, next(records))
 
         with open(filepath, 'r+b') as f:
             records = io.read_xls(f, sanitize=True, sheet=0)
-            nt.assert_equal(self.sheet0, records.next())
+            nt.assert_equal(self.sheet0, next(records))
 
         records = io.read_xls(filepath, sanitize=True, sheet=1)
-        nt.assert_equal(self.sheet1, records.next())
+        nt.assert_equal(self.sheet1, next(records))
 
         kwargs = {'first_row': 1, 'first_col': 1}
         records = io.read_xls(filepath, sanitize=True, sheet=2, **kwargs)
-        nt.assert_equal(self.sheet0, records.next())
+        nt.assert_equal(self.sheet0, next(records))
 
         records = io.read_xls(filepath, sanitize=True, sheet=3, **kwargs)
-        nt.assert_equal(self.sheet1, records.next())
+        nt.assert_equal(self.sheet1, next(records))
 
     def test_csv(self):
         filepath = p.join(io.DATA_DIR, 'test.csv')
         header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
 
-        with open(filepath, 'rU') as f:
-            records = io._read_csv(f, 'utf-8', header)
-            nt.assert_equal(self.sheet0_alt, records.next())
+        with open(filepath, 'rU', encoding='utf-8') as f:
+            records = io._read_csv(f, header)
+            nt.assert_equal(self.sheet0_alt, next(records))
 
         filepath = p.join(io.DATA_DIR, 'no_header_row.csv')
         records = io.read_csv(filepath, has_header=False)
         value = {'column_1': '1', 'column_2': '2', 'column_3': '3'}
-        nt.assert_equal(value, records.next())
+        nt.assert_equal(value, next(records))
 
         filepath = p.join(io.DATA_DIR, 'fixed_w_header.txt')
         widths = [0, 18, 29, 33, 38, 50]
@@ -211,7 +216,7 @@ class TestInput:
             'Float': '1.0',
             'Timestamp': '04:14:001971-01-01T04:14:00'}
 
-        nt.assert_equal(value, records.next())
+        nt.assert_equal(value, next(records))
 
     def test_dbf(self):
         filepath = p.join(io.DATA_DIR, 'test.dbf')
@@ -232,7 +237,7 @@ class TestInput:
                 'geoid10': '2708',
                 'intptlon10': '-092.9323194'}
 
-            nt.assert_equal(value, records.next())
+            nt.assert_equal(value, next(records))
 
     def test_get_reader(self):
         nt.assert_true(callable(io.get_reader('csv')))
@@ -240,12 +245,6 @@ class TestInput:
         with nt.assert_raises(KeyError):
             io.get_reader('')
 
-    def test_get_utf8(self):
-        with open(p.join(io.DATA_DIR, 'utf16_big.csv')) as f:
-            utf8_f = io.get_utf8(f, 'utf-16-be')
-            nt.assert_equal('a,b,c', utf8_f.next().strip())
-            nt.assert_equal('1,2,3', utf8_f.next().strip())
-            nt.assert_equal('4,5,ʤ', utf8_f.next().decode(ENCODING))
 
 
 class TestGeoJSON:
@@ -262,7 +261,7 @@ class TestGeoJSON:
             'coordinates': [102, 0.5]}
 
         records = io.read_geojson(self.filepath)
-        record = records.next()
+        record = next(records)
         nt.assert_equal(value, record)
 
         for record in records:

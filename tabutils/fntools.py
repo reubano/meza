@@ -27,16 +27,22 @@ from __future__ import (
 
 import itertools as it
 import operator
+import logging
+import codecs
 
 from functools import partial
 from collections import defaultdict
 from json import JSONEncoder
 
+from builtins import *
+from six.moves import filterfalse
 from slugify import slugify
 from . import CURRENCIES, ENCODING
+from functools import reduce
 
 DEF_TRUES = ('yes', 'y', 'true', 't')
 DEF_FALSES = ('no', 'n', 'false', 'f')
+logging.basicConfig()
 
 
 class Objectify(object):
@@ -66,13 +72,13 @@ class Objectify(object):
         self.__dict__.update(defaults)
 
     def __iter__(self):
-        return self.__dict__.itervalues()
+        return iter(self.__dict__.values())
 
     def __getattr__(self, name):
         return None
 
-    def iteritems(self):
-        return self.__dict__.iteritems()
+    def items(self):
+        return iter(self.__dict__.items())
 
 
 class CustomEncoder(JSONEncoder):
@@ -90,6 +96,55 @@ class CustomEncoder(JSONEncoder):
 
         return encoded
 
+decoder = lambda encoding: codecs.getincrementaldecoder(encoding)()
+encoder = lambda encoding: codecs.getincrementalencoder(encoding)()
+
+
+def decode(content, encoding=ENCODING):
+    """Decode bytes (py2-str) into unicode
+
+    Args:
+        content (scalar): the content to analyze
+        encoding (str)
+
+    Returns:
+        unicode
+
+    Examples:
+        >>> from datetime import datetime as dt, date, time
+    """
+    try:
+        decoded = decoder(encoding).decode(content)
+    except (TypeError, UnicodeDecodeError):
+        decoded = content
+
+    return decoded
+
+
+def encode(content, encoding=ENCODING):
+    """Encode unicode or ints into bytes (py2-str)
+    """
+    if hasattr(content, 'encode'):
+        try:
+            encoded = encoder(encoding).encode(content)
+        except UnicodeDecodeError:
+            encoded = content
+    else:
+        try:
+            length = (content.bit_length() // 8) + 1
+        except AttributeError:
+            encoded = content
+        else:
+            try:
+                encoded = content.to_bytes(length, byteorder='big')
+            except AttributeError:
+                # http://stackoverflow.com/a/20793663/408556
+                h = '%x' % content
+                zeros = '0' * (len(h) % 2) + h
+                encoded = zeros.zfill(length * 2).decode('hex')
+
+    return encoded
+
 
 def underscorify(content):
     """ Slugifies elements of an array with underscores
@@ -101,27 +156,11 @@ def underscorify(content):
         (generator): the slugified content
 
     Examples:
-        >>> list(underscorify(['ALL CAPS', 'Illegal $%^', 'Lots   of space']))
-        [u'all_caps', u'illegal', u'lots_of_space']
-    """
-    return (slugify(item, separator='_') for item in content)
-
-
-def stringify(content):
-    """ Converts unicode elements of an array into strings
-
-    Args:
-        content (Iter[str]): the content to clean
-
-    Returns:
-        (generator): the stringified content
-
-    Examples:
-        >>> stringified = stringify([unicode('hi'), u'world', 0])
-        >>> map(type, stringified) == [str, str, int]
+        >>> _ = underscorify(['ALL CAPS', 'Illegal $%^', 'Lots   of space'])
+        >>> list(_) == ['all_caps', 'illegal', 'lots_of_space']
         True
     """
-    return (str(c) if isinstance(c, unicode) else c for c in content)
+    return (slugify(item, separator='_') for item in content)
 
 
 def dedupe(content):
@@ -134,8 +173,9 @@ def dedupe(content):
         (generator): the deduped content
 
     Examples:
-        >>> list(dedupe(['field', 'field', 'field']))
-        [u'field', u'field_2', u'field_3']
+        >>> list(dedupe(['field', 'field', 'field'])) == [
+        ...     'field', 'field_2', 'field_3']
+        True
     """
     seen = defaultdict(int)
 
@@ -157,8 +197,8 @@ def mreplace(content, replacements):
 
     Examples:
         >>> replacements = [('h', 't'), ('p', 'f')]
-        >>> mreplace('happy', replacements)
-        u'taffy'
+        >>> mreplace('happy', replacements) == 'taffy'
+        True
     """
     func = lambda x, y: x.replace(y[0], y[1])
     return reduce(func, replacements, content)
@@ -173,15 +213,15 @@ def strip(value, thousand_sep=',', decimal_sep='.'):
         decimal_sep (char): decimal separator (default: '.')
 
     Examples:
-        >>> strip('$123.45')
-        u'123.45'
-        >>> strip('123€')
-        u'123'
+        >>> strip('$123.45') == '123.45'
+        True
+        >>> strip('123€') == '123'
+        True
 
     Returns:
         str
     """
-    currencies = it.izip(CURRENCIES, it.repeat(''))
+    currencies = zip(CURRENCIES, it.repeat(''))
     separators = [(thousand_sep, ''), (decimal_sep, '.')]
 
     try:
@@ -330,13 +370,13 @@ def dfilter(content, blacklist=None, inverse=False):
         >>> content = {'keep': 'Hello', 'strip': 'World'}
         >>> dfilter(content) == {'keep': 'Hello', 'strip': 'World'}
         True
-        >>> dfilter(content, ['strip'])
-        {u'keep': u'Hello'}
-        >>> dfilter(content, ['strip'], True)
-        {u'strip': u'World'}
+        >>> dfilter(content, ['strip']) == {'keep': 'Hello'}
+        True
+        >>> dfilter(content, ['strip'], True) == {'strip': 'World'}
+        True
     """
     blackset = set(blacklist or [])
-    func = it.ifilterfalse if inverse else filter
+    func = filterfalse if inverse else filter
     return dict(func(lambda x: x[0] not in blackset, content.items()))
 
 
@@ -350,28 +390,21 @@ def byte(content):
         (bytearray): A bytearray of the content
 
     Examples:
-        >>> content = 'Hello World!'
-        >>> byte(content)
-        bytearray(b'Hello World!')
-        >>> byte(list(content))
-        bytearray(b'Hello World!')
+        >>> byte('Hello World!') == bytearray(b'Hello World!')
+        True
+        >>> byte(iter('Iñtërnâ')) == bytearray('Iñtërnâ'.encode('utf-8'))
+        True
     """
-    tupled = tuple(content) if hasattr(content, 'next') else content
-
     try:
-        # encoded iterable like ['H', 'e', 'l', 'l', 'o']
-        value = bytearray(tupled)
-    except ValueError:
-        # encoded iterable like ['I', '\xc3\xb1', 't', '\xc3\xab', 'r', 'n']
-        value = reduce(lambda x, y: x + y, it.imap(bytearray, tupled))
-    except TypeError:
-        # unicode iterable like Hello
-        # or [u'I', u'\xf1', u't', u'\xeb', u'r', u'n', u'\xe2']
-        # or [u'H', u'e', u'l', u'l', u'o']
-        bytefunc = partial(bytearray, encoding=ENCODING)
-        value = reduce(lambda x, y: x + y, it.imap(bytefunc, tupled))
+        # it's unicode like 'Hello' or 'Iñtërnâtiônàližætiøn'
+        bytes_ = content.encode(ENCODING)
+    except AttributeError:
+        # it's a unicode or encoded iterable like ['H', 'e', 'l', 'l', 'o'],
+        # ['I', 'ñ', 't', 'ë', 'r', 'n', 'â', 't', 'i', 'ô', 'n'],
+        # or [b'I', b'\xc3\xb1', b't', b'\xc3\xab', b'r']
+        bytes_ = reduce(lambda x, y: x + y, map(encode, content), b'')
 
-    return value
+    return bytearray(bytes_)
 
 
 def chunk(content, chunksize=None, start=0, stop=None):
@@ -390,9 +423,9 @@ def chunk(content, chunksize=None, start=0, stop=None):
         Iter[List]: Chunked content.
 
     Examples:
-        >>> chunk([1, 2, 3, 4, 5, 6]).next()
+        >>> next(chunk([1, 2, 3, 4, 5, 6]))
         [1, 2, 3, 4, 5, 6]
-        >>> chunk([1, 2, 3, 4, 5, 6], 2).next()
+        >>> next(chunk([1, 2, 3, 4, 5, 6], 2))
         [1, 2]
     """
     if hasattr(content, 'read'):  # it's a file
@@ -432,8 +465,8 @@ def xmlize(content):
         (str): the cleaned element
 
     Examples:
-        >>> list(xmlize(['&', '<']))
-        [u'&amp', u'&lt']
+        >>> list(xmlize(['&', '<'])) == ['&amp', '&lt']
+        True
     """
     replacements = [
         ('&', '&amp'), ('>', '&gt'), ('<', '&lt'), ('\n', ' '), ('\r\n', ' ')]
@@ -485,10 +518,16 @@ def get_separators(content):
         content (str): The string to parse.
 
     Examples:
-        >>> get_separators('$123.45')
-        {u'thousand_sep': u',', u'decimal_sep': u'.'}
-        >>> get_separators('123€')
-        {u'thousand_sep': u',', u'decimal_sep': u'.'}
+        >>> seps = get_separators('$123.45')
+        >>> seps['thousand_sep'] == ','
+        True
+        >>> seps['decimal_sep'] == '.'
+        True
+        >>> seps = get_separators('123€')
+        >>> seps['thousand_sep'] == ','
+        True
+        >>> seps['decimal_sep'] == '.'
+        True
 
     Returns:
         dict: thousandths and decimal separators
@@ -523,10 +562,10 @@ def add_ordinal(num):
         (str): a number with the ordinal suffix
 
     Examples:
-        >>> add_ordinal(11)
-        u'11th'
-        >>> add_ordinal(132)
-        u'132nd'
+        >>> add_ordinal(11) == '11th'
+        True
+        >>> add_ordinal(132) == '132nd'
+        True
     """
     switch = {1: 'st', 2: 'nd', 3: 'rd'}
     end = 'th' if (num % 100 in {11, 12, 13}) else switch.get(num % 10, 'th')
@@ -562,12 +601,12 @@ def find(*args, **kwargs):
     Examples:
         >>> needle = ['value', 'length', 'width', 'days']
         >>> haystack = ['num_days', 'my_value']
-        >>> find(needle, haystack, method='fuzzy')
-        u'my_value'
-        >>> find(needle, haystack)
-        u''
-        >>> find(needle, ['num_days', 'width'])
-        u'width'
+        >>> find(needle, haystack, method='fuzzy') == 'my_value'
+        True
+        >>> find(needle, haystack) == ''
+        True
+        >>> find(needle, ['num_days', 'width']) == 'width'
+        True
     """
     method = kwargs.pop('method', 'exact')
     default = kwargs.pop('default', '')
@@ -575,7 +614,7 @@ def find(*args, **kwargs):
     func = funcs.get(method, method)
 
     try:
-        return func(*args, **kwargs).next()
+        return next(func(*args, **kwargs))
     except StopIteration:
         return default
 
@@ -623,19 +662,19 @@ def fill(previous, current, **kwargs):
     Examples:
         >>> previous = {}
         >>> current = {
-        ...     u'column_a': u'1',
-        ...     u'column_b': u'27',
-        ...     u'column_c': u'',
+        ...     'column_a': '1',
+        ...     'column_b': '27',
+        ...     'column_c': '',
         ... }
         >>> length = len(current)
         >>> filled = fill(previous, current, value=0)
         >>> dict(it.islice(filled, length)) == {
-        ...     u'column_a': u'1',
-        ...     u'column_b': u'27',
-        ...     u'column_c': 0,
+        ...     'column_a': '1',
+        ...     'column_b': '27',
+        ...     'column_c': 0,
         ... }
         True
-        >>> filled.next() == {u'column_a': 0, u'column_b': 0, u'column_c': 1}
+        >>> next(filled) == {'column_a': 0, 'column_b': 0, 'column_c': 1}
         True
     """
     pkwargs = {'blanks_as_nulls': kwargs.get('blanks_as_nulls', True)}
@@ -716,8 +755,8 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
         ...
         >>> pred = lambda key: key == 'amount'
         >>> x, y = records[0], records[1]
-        >>> combine(x, y, 'a', pred=pred, op=sum)
-        u'item'
+        >>> combine(x, y, 'a', pred=pred, op=sum) == 'item'
+        True
         >>> combine(x, y, 'amount', pred=pred, op=sum)
         500
     """
@@ -751,24 +790,24 @@ def flatten(record, prefix=None):
         ...     'parent_c': 'no child',
         ... }
         >>> dict(flatten(record)) == {
-        ...     u'parent_a_child_1': 1,
-        ...     u'parent_a_child_2': 2,
-        ...     u'parent_a_child_3': 3,
-        ...     u'parent_b_child_1': 1,
-        ...     u'parent_b_child_2': 2,
-        ...     u'parent_b_child_3': 3,
-        ...     u'parent_c': u'no child',
+        ...     'parent_a_child_1': 1,
+        ...     'parent_a_child_2': 2,
+        ...     'parent_a_child_3': 3,
+        ...     'parent_b_child_1': 1,
+        ...     'parent_b_child_2': 2,
+        ...     'parent_b_child_3': 3,
+        ...     'parent_c': 'no child',
         ... }
         ...
         True
         >>> dict(flatten(record, 'flt')) == {
-        ...     u'flt_parent_a_child_1': 1,
-        ...     u'flt_parent_a_child_2': 2,
-        ...     u'flt_parent_a_child_3': 3,
-        ...     u'flt_parent_b_child_1': 1,
-        ...     u'flt_parent_b_child_2': 2,
-        ...     u'flt_parent_b_child_3': 3,
-        ...     u'flt_parent_c': u'no child',
+        ...     'flt_parent_a_child_1': 1,
+        ...     'flt_parent_a_child_2': 2,
+        ...     'flt_parent_a_child_3': 3,
+        ...     'flt_parent_b_child_1': 1,
+        ...     'flt_parent_b_child_2': 2,
+        ...     'flt_parent_b_child_3': 3,
+        ...     'flt_parent_c': 'no child',
         ... }
         True
     """
@@ -795,17 +834,17 @@ def array_search_type(needle, haystack, n=0):
             (List[str]): array of the key(s) of the found element(s)
 
         Examples:
-            >>> array_search_type('string', ('one', '2w', '3a'), 2).next()
-            u'3a'
-            >>> array_search_type('numeric', ('1', 2, 3), 2).next()
+            >>> next(array_search_type('string', ('one', '2w', '3a'), 2)) == '3a'
+            True
+            >>> next(array_search_type('numeric', ('1', 2, 3), 2))
             Traceback (most recent call last):
             StopIteration
-            >>> array_search_type('numeric', ('one', 2, 3), 1).next()
+            >>> next(array_search_type('numeric', ('one', 2, 3), 1))
             3
     """
     switch = {'numeric': 'real', 'string': 'upper'}
     func = lambda x: hasattr(x, switch[needle])
-    return it.islice(it.ifilter(func, haystack), n, None)
+    return it.islice(filter(func, haystack), n, None)
 
 
 def array_substitute(content, needle, replace):
@@ -823,8 +862,9 @@ def array_substitute(content, needle, replace):
         List[str]: new array with replaced values
 
     Examples:
-        >>> array_substitute([('one', 'two', 'three')], 'two', 2).next()
-        [u'one', u'2', u'three']
+        >>> subs = array_substitute([('one', 'two', 'three')], 'two', 2)
+        >>> next(subs) == ['one', '2', 'three']
+        True
     """
     for item in content:
         try:
@@ -839,8 +879,9 @@ def op_everseen(iterable, key=None, pad=False, op='lt'):
     >>> from operator import itemgetter
     >>> list(op_everseen([4, 6, 3, 8, 2, 1]))
     [4, 3, 2, 1]
-    >>> list(op_everseen([('a', 6), ('b', 4), ('c', 8)], itemgetter(1)))
-    [(u'a', 6), (u'b', 4)]
+    >>> seen = op_everseen([('a', 6), ('b', 4), ('c', 8)], itemgetter(1))
+    >>> list(seen) == [('a', 6), ('b', 4)]
+    True
     """
     current = None
     current_key = None

@@ -17,7 +17,8 @@ from decimal import Decimal
 from operator import itemgetter
 from collections import defaultdict
 
-from tabutils import process as pr
+from builtins import *
+from tabutils import process as pr, stats
 
 
 def setup_module():
@@ -32,10 +33,10 @@ class Test:
     def test_typecast(self):
         records = [{'float': '1.5'}]
         types = [{'id': 'float', 'type': 'bool'}]
-        nt.assert_equal(pr.type_cast(records, types).next(), {'float': False})
+        nt.assert_equal(next(pr.type_cast(records, types)), {'float': False})
 
         with nt.assert_raises(ValueError):
-            pr.type_cast(records, types, warn=True).next()
+            next(pr.type_cast(records, types, warn=True))
 
     def test_detect_types(self):
         record = {
@@ -67,7 +68,7 @@ class Test:
         }
 
         nt.assert_equal({r['id']: r['type'] for r in result['types']}, types)
-        nt.assert_equal(records.next(), record)
+        nt.assert_equal(next(records), record)
 
         result = pr.detect_types(records, 0.99)[1]
         nt.assert_equal(result['count'], 100)
@@ -124,13 +125,13 @@ class Test:
         pr.merge(records, pred=pred, op=sum)
         [('a', 1), ('b', 6), ('c', 8), ('d', 6)]
         fltrer = lambda x: x is not None
-        first = lambda pair: filter(fltrer, pair)[0]
+        first = lambda pair: next(filter(fltrer, pair))
         kwargs = {'pred': pred, 'op': first, 'default': None}
         pr.merge(records, **kwargs)
         [('a', 1), ('b', 2), ('c', 3), ('d', 6)]
+
         # This will only reliably give the expected result for 2 records
-        average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
-        kwargs = {'pred': pred, 'op': average, 'default': None}
+        kwargs = {'pred': pred, 'op': stats.mean, 'default': None}
         pr.merge(records, **kwargs)
         [('a', 1), ('b', 3.0), ('c', 4.0), ('d', 6.0)]
         # Only combine key 'b'
@@ -178,7 +179,7 @@ class Test:
         ]
 
         pred = lambda x: x['name'][0]
-        it.islice(pr.unique(records, pred=pred), 3, 4).next()['name']
+        next(it.islice(pr.unique(records, pred=pred), 3, 4))['name']
         'rob'
 
     def test_cut(self):
@@ -188,10 +189,10 @@ class Test:
             {'field_1': 3, 'field_2': 'jane', 'field_3': 'female'},
         ]
 
-        pr.cut(records, exclude=['field_2']).next() == {
+        next(pr.cut(records, exclude=['field_2'])) == {
             'field_1': 1, 'field_3': 'male'}
         True
-        pr.cut(records, include=['field_2'], exclude=['field_2']).next()
+        next(pr.cut(records, include=['field_2'], exclude=['field_2']))
         {'field_2': 'bill'}
 
     def test_grep(self):
@@ -204,14 +205,14 @@ class Test:
         ]
 
         rules = [{'fields': ['day'], 'pattern': lambda x: x == 1}]
-        pr.grep(records, rules).next()['name']
+        next(pr.grep(records, rules))['name']
         'bill'
         rules = [{'pattern': lambda x: x in {1, 'rob'}}]
-        pr.grep(records, rules).next()['name']
+        next(pr.grep(records, rules))['name']
         'rob'
         rules = [{'pattern': lambda x: x in {1, 'rob'}}]
-        pr.grep(records, rules, any_match=True).next()['name']
+        next(pr.grep(records, rules, any_match=True))['name']
         'bill'
         rules = [{'fields': ['name'], 'pattern': 'o'}]
-        pr.grep(records, rules, inverse=True).next()['name']
+        next(pr.grep(records, rules, inverse=True))['name']
         'bill'

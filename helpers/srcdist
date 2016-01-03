@@ -3,6 +3,5 @@
 
 # create a source distribution package
 
-helpers/clean
 python setup.py sdist
 gpg --detach-sign -a dist/*.tar.gz

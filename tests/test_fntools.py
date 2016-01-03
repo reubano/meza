@@ -15,10 +15,11 @@ import itertools as it
 import requests
 import responses
 
-from StringIO import StringIO
+from io import StringIO
 from operator import itemgetter
+from builtins import *
 
-from tabutils import fntools as ft, io
+from tabutils import fntools as ft, io, stats
 
 
 def setup_module():
@@ -73,7 +74,7 @@ class TestIterStringIO:
 
     def test_byte_array(self):
         content = 'Iñtërnâtiônàližætiøn'
-        value = bytearray(b'Iñtërnâtiônàližætiøn')
+        value = bytearray('Iñtërnâtiônàližætiøn'.encode('utf-8'))
         nt.assert_equal(ft.byte(content), value)
         nt.assert_equal(ft.byte(iter(content)), value)
         nt.assert_equal(ft.byte(list(content)), value)
@@ -104,20 +105,20 @@ class TestIterStringIO:
         f = StringIO(content)
         records = io.read_csv(f)
         previous = {}
-        current = records.next()
+        current = next(records)
         value = {'column_a': '1', 'column_b': '27', 'column_c': ''}
         nt.assert_equal(current, value)
 
         length = len(current)
         filled = ft.fill(previous, current, value=0)
         previous = dict(it.islice(filled, length))
-        count = filled.next()
+        count = next(filled)
         nt.assert_equal(count, {'column_a': 0, 'column_b': 0, 'column_c': 1})
 
         value = {'column_a': '1', 'column_b': '27', 'column_c': 0}
         nt.assert_equal(previous, value)
 
-        current = records.next()
+        current = next(records)
 
         value = {
             'column_a': '',
@@ -130,7 +131,7 @@ class TestIterStringIO:
         kwargs = {'fill_key': 'column_b', 'count': count}
         filled = ft.fill(previous, current, **kwargs)
         previous = dict(it.islice(filled, length))
-        count = filled.next()
+        count = next(filled)
         nt.assert_equal(count, {'column_a': 1, 'column_b': 0, 'column_c': 2})
 
         value = {
@@ -144,8 +145,8 @@ class TestIterStringIO:
     @responses.activate
     def test_chunk(self):
         content = io.StringIO('Iñtërnâtiônàližætiøn')
-        nt.assert_equal(ft.chunk(content, 5).next(), 'Iñtër')
-        nt.assert_equal(ft.chunk(content).next(), 'nâtiônàližætiøn')
+        nt.assert_equal(next(ft.chunk(content, 5)), 'Iñtër')
+        nt.assert_equal(next(ft.chunk(content)), 'nâtiônàližætiøn')
 
         url = 'http://google.com'
         body = '<!doctype html><html itemtype="http://schema.org/page">'
@@ -156,8 +157,8 @@ class TestIterStringIO:
         # The chunk size is the number of bytes it should read into
         # memory. This is not necessarily the length of each item returned
         # as decoding can take place.
-        nt.assert_equal(len(ft.chunk(r.iter_content, 20, 29, 200).next()), 20)
-        nt.assert_equal(len(ft.chunk(r.iter_content).next()), 55)
+        nt.assert_equal(len(next(ft.chunk(r.iter_content, 20, 29, 200))), 20)
+        nt.assert_equal(len(next(ft.chunk(r.iter_content))), 55)
 
     def test_combine(self):
         records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
@@ -170,12 +171,11 @@ class TestIterStringIO:
         nt.assert_equal(ft.combine(x, y, 'c', pred=pred, op=sum), 8)
 
         fltrer = lambda x: x is not None
-        first = lambda x: filter(fltrer, x)[0]
+        first = lambda x: next(filter(fltrer, x))
         kwargs = {'pred': pred, 'op': first, 'default': None}
         nt.assert_equal(ft.combine(x, y, 'b', **kwargs), 2)
 
-        average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
-        kwargs = {'pred': pred, 'op': average, 'default': None}
+        kwargs = {'pred': pred, 'op': stats.mean, 'default': None}
         nt.assert_equal(ft.combine(x, y, 'a', **kwargs), 1.0)
         nt.assert_equal(ft.combine(x, y, 'b', **kwargs), 3.0)
 

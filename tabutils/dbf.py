@@ -13,7 +13,7 @@ Examples:
 
         from tabutils.dbf import DBF2
 
-        record = DBF2('test.dbf').next()
+        record = next(DBF2('test.dbf'))
 
 
 Attributes:
@@ -26,6 +26,7 @@ from __future__ import (
 
 from os import path as p
 from datetime import date
+from builtins import *
 
 from dbfread import DBF
 from dbfread.dbf import expand_year

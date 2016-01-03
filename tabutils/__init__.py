@@ -19,7 +19,10 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
+import sys
+
 from datetime import datetime as dt
+from builtins import *
 
 __version__ = '0.23.3'
 
@@ -35,3 +38,10 @@ __copyright__ = 'Copyright 2015 Reuben Cummings'
 CURRENCIES = ('$', '£', '€')
 ENCODING = 'utf-8'
 DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
+
+if sys.version_info.major >= 3:
+    import csv
+else:
+    from . import unicsv as csv
+
+csv = csv

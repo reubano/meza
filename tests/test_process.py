@@ -33,7 +33,7 @@ class Test:
     def test_typecast(self):
         records = [{'float': '1.5'}]
         types = [{'id': 'float', 'type': 'bool'}]
-        nt.assert_equal(next(pr.type_cast(records, types)), {'float': False})
+        nt.assert_equal({'float': False}, next(pr.type_cast(records, types)))
 
         with nt.assert_raises(ValueError):
             next(pr.type_cast(records, types, warn=True))
@@ -52,11 +52,11 @@ class Test:
 
         records = it.repeat(record)
         records, result = pr.detect_types(records)
-        nt.assert_equal(result['count'], 17)
-        nt.assert_equal(result['confidence'], Decimal('0.95'))
+        nt.assert_equal(17, result['count'])
+        nt.assert_equal(Decimal('0.95'), result['confidence'])
         nt.assert_true(result['accurate'])
 
-        types = {
+        expected = {
             'null': 'null',
             'bool': 'bool',
             'int': 'int',
@@ -67,17 +67,17 @@ class Test:
             'datetime': 'datetime',
         }
 
-        nt.assert_equal({r['id']: r['type'] for r in result['types']}, types)
-        nt.assert_equal(next(records), record)
+        nt.assert_equal(expected, {r['id']: r['type'] for r in result['types']})
+        nt.assert_equal(record, next(records))
 
         result = pr.detect_types(records, 0.99)[1]
-        nt.assert_equal(result['count'], 100)
-        nt.assert_equal(result['confidence'], Decimal('0.97'))
+        nt.assert_equal(100, result['count'])
+        nt.assert_equal(Decimal('0.97'), result['confidence'])
         nt.assert_false(result['accurate'])
 
         result = pr.detect_types([record, record])[1]
-        nt.assert_equal(result['count'], 2)
-        nt.assert_equal(result['confidence'], Decimal('0.87'))
+        nt.assert_equal(2, result['count'])
+        nt.assert_equal(Decimal('0.87'), result['confidence'])
         nt.assert_false(result['accurate'])
 
     def test_fillempty(self):
@@ -96,25 +96,25 @@ class Test:
         more_values_1 = [values[0], new_value_1, values[2]]
 
         fields = ['a']
-        nt.assert_equal(list(pr.fillempty(records, 0, fields=fields)), values)
+        nt.assert_equal(values, list(pr.fillempty(records, 0, fields=fields)))
 
         filled = pr.fillempty(records, method='front')
-        nt.assert_equal(list(filled), more_values_1)
+        nt.assert_equal(more_values_1, list(filled))
 
         new_value_2 = {'a': '1', 'b': '27', 'c': '17'}
         new_value_3 = {'a': '0', 'b': 'too short!', 'c': '17'}
         more_values_2 = [new_value_2, new_value_3, values[2]]
         filled = pr.fillempty(records, method='back')
-        nt.assert_equal(list(filled), more_values_2)
+        nt.assert_equal(more_values_2, list(filled))
 
         more_values_3 = [values[0], new_value_3, values[2]]
         filled = pr.fillempty(records, method='back', limit=1)
-        nt.assert_equal(list(filled), more_values_3)
+        nt.assert_equal(more_values_3, list(filled))
 
         kwargs = {'method': 'b', 'fields': ['a']}
         new_value_4 = {'a': 'too short!', 'b': 'too short!', 'c': None}
         more_values_4 = [values[0], new_value_4, values[2]]
-        nt.assert_equal(list(pr.fillempty(records, **kwargs)), more_values_4)
+        nt.assert_equal(more_values_4, list(pr.fillempty(records, **kwargs)))
 
     def test_merge(self):
         pr.merge([{'a': 1, 'b': 2}, {'b': 10, 'c': 11}])

@@ -17,7 +17,6 @@ Examples:
         csv_header = next(csv_records).keys()
         record = next(csv_records)
 """
-
 from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
@@ -60,7 +59,6 @@ class IterStringIO(TextIOBase):
 
     http://stackoverflow.com/a/32020108/408556
     """
-
     def __init__(self, iterable=None, bufsize=4096):
         """ IterStringIO constructor
 

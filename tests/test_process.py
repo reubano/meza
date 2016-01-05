@@ -92,7 +92,6 @@ class Test:
             {'a': '0', 'b': 'mixed', 'c': '17'}]
 
         new_value_1 = {'a': '1', 'b': 'too short!', 'c': ''}
-
         more_values_1 = [values[0], new_value_1, values[2]]
 
         fields = ['a']
@@ -120,6 +119,7 @@ class Test:
         pr.merge([{'a': 1, 'b': 2}, {'b': 10, 'c': 11}])
         [('a', 1), ('b', 10), ('c', 11)]
         records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
+
         # Combine all keys
         pred = lambda key: True
         pr.merge(records, pred=pred, op=sum)
@@ -134,14 +134,17 @@ class Test:
         kwargs = {'pred': pred, 'op': stats.mean, 'default': None}
         pr.merge(records, **kwargs)
         [('a', 1), ('b', 3.0), ('c', 4.0), ('d', 6.0)]
+
         # Only combine key 'b'
         pred = lambda key: key == 'b'
         pr.merge(records, pred=pred, op=sum)
         [('a', 1), ('b', 6), ('c', 5), ('d', 6)]
+
         # Only combine keys that have the same value of 'b'
         pred = itemgetter('b')
         pr.merge(records, pred=pred, op=sum)
         [('a', 1), ('b', 6), ('c', 5), ('d', 6)]
+
         # This will reliably work for any number of records
         counted = defaultdict(int)
         pred = lambda key: True

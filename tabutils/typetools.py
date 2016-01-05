@@ -20,7 +20,6 @@ Attributes:
     NULL_YEAR (int): Year to be consider null
     NULL_TIME (str): ISO format time to be consider null
 """
-
 from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)

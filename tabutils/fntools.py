@@ -20,7 +20,6 @@ Attributes:
     DEF_TRUES (tuple[str]): Values to be consider True
     DEF_FALSES (tuple[str]): Values to be consider False
 """
-
 from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
@@ -219,7 +218,7 @@ def strip(value, thousand_sep=',', decimal_sep='.'):
         True
 
     Returns:
-        str
+        str: The stripped value
     """
     currencies = zip(CURRENCIES, it.repeat(''))
     separators = [(thousand_sep, ''), (decimal_sep, '.')]
@@ -244,14 +243,15 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
     Kwargs:
         strip_zeros (bool): Remove leading zeros (default: False)
 
-    >>> is_numeric('$123.45')
-    True
-    >>> is_numeric('123€')
-    True
-    >>> is_numeric(0)
-    True
-    >>> is_numeric('0.1')
-    True
+    Examples:
+        >>> is_numeric('$123.45')
+        True
+        >>> is_numeric('123€')
+        True
+        >>> is_numeric(0)
+        True
+        >>> is_numeric('0.1')
+        True
     """
     try:
         stripped = strip(content, thousand_sep, decimal_sep)
@@ -281,7 +281,6 @@ def is_int(content, strip_zeros=False, thousand_sep=',', decimal_sep='.'):
         strip_zeros (bool): Remove leading zeros (default: False)
         thousand_sep (char): thousand's separator (default: ',')
         decimal_sep (char): decimal separator (default: '.')
-
 
     Examples:
         >>> is_int('$123.45')
@@ -825,22 +824,22 @@ def array_search_type(needle, haystack, n=0):
     """ Searches an array for the nth (zero based) occurrence of a given value
      type and returns the corresponding key if successful.
 
-        Args:
-            needle (str): the type of element to find (i.e. 'numeric'
-                or 'string')
-            haystack (List[str]): the array to search
+    Args:
+        needle (str): the type of element to find (i.e. 'numeric'
+            or 'string')
+        haystack (List[str]): the array to search
 
-        Returns:
-            (List[str]): array of the key(s) of the found element(s)
+    Returns:
+        (List[str]): array of the key(s) of the found element(s)
 
-        Examples:
-            >>> next(array_search_type('string', ('one', '2w', '3a'), 2)) == '3a'
-            True
-            >>> next(array_search_type('numeric', ('1', 2, 3), 2))
-            Traceback (most recent call last):
-            StopIteration
-            >>> next(array_search_type('numeric', ('one', 2, 3), 1))
-            3
+    Examples:
+        >>> next(array_search_type('string', ('one', '2w', '3a'), 2)) == '3a'
+        True
+        >>> next(array_search_type('numeric', ('1', 2, 3), 2))
+        Traceback (most recent call last):
+        StopIteration
+        >>> next(array_search_type('numeric', ('one', 2, 3), 1))
+        3
     """
     switch = {'numeric': 'real', 'string': 'upper'}
     func = lambda x: hasattr(x, switch[needle])

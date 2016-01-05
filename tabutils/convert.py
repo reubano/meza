@@ -15,7 +15,6 @@ Examples:
 
         decimal = to_decimal('$123.45')
 """
-
 from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
@@ -733,8 +732,8 @@ def records2geojson(records, **kwargs):
         >>> from json import loads
 
         >>> record = {
-        ... 'id': 'gid', 'p1': 'prop', 'type': 'Point',
-        ... 'coordinates': [12.2, 22.0]}
+        ...     'id': 'gid', 'p1': 'prop', 'type': 'Point',
+        ...     'coordinates': [12.2, 22.0]}
         ...
         >>> result = loads(next(records2geojson([record])))
         >>> result['type'] == 'FeatureCollection'

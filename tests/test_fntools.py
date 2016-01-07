@@ -40,10 +40,14 @@ class TestIterStringIO:
         nt.assert_true(ft.is_numeric('2,123.45'))
         nt.assert_true(ft.is_numeric('2.123,45'))
         nt.assert_true(ft.is_numeric('0.45'))
+        nt.assert_true(ft.is_numeric(1))
         nt.assert_true(ft.is_numeric('10e5'))
         nt.assert_false(ft.is_numeric('spam'))
         nt.assert_false(ft.is_numeric('02139'))
         nt.assert_true(ft.is_numeric('02139', strip_zeros=True))
+        nt.assert_false(ft.is_numeric('spam'))
+        nt.assert_false(ft.is_numeric(None))
+        nt.assert_false(ft.is_numeric(''))
 
     def test_is_int(self):
         nt.assert_false(ft.is_int('5/4/82'))

@@ -208,6 +208,10 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
     True
     >>> is_numeric('123€')
     True
+    >>> is_numeric(0)
+    True
+    >>> is_numeric('0.1')
+    True
     """
     try:
         stripped = strip(content, thousand_sep, decimal_sep)
@@ -215,12 +219,15 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
         stripped = content
 
     try:
-        passed = bool(float(stripped))
+        floated = float(stripped)
     except (ValueError, TypeError):
         passed = False
     else:
         s = str(stripped)
-        if not kwargs.get('strip_zeros') and s[0] == '0' and s[1] != '.':
+        zero_point = s.startswith('0.')
+        passed = bool(floated) or zero_point
+
+        if s.startswith('0') and not (kwargs.get('strip_zeros') or zero_point):
             passed = int(content) == 0
 
     return passed

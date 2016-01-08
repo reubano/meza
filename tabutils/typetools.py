@@ -25,7 +25,6 @@ from __future__ import (
     unicode_literals)
 
 from functools import partial
-from datetime import datetime as dt, date, time
 
 from builtins import *
 from . import fntools as ft, convert as cv
@@ -114,6 +113,8 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         `process.detect_types`
 
     Examples:
+        >>> from datetime import datetime as dt, date, time
+
         >>> record = {
         ...     'null': 'None',
         ...     'bool': 'false',
@@ -189,6 +190,8 @@ def is_date(content):
         content (scalar): the content to analyze
 
     Examples:
+        >>> from datetime import datetime as dt, date, time
+
         >>> is_date('5/4/82 2pm')
         True
         >>> is_date('5/4/82')
@@ -225,6 +228,8 @@ def is_time(content):
         content (scalar): the content to analyze
 
     Examples:
+        >>> from datetime import datetime as dt, date, time
+
         >>> is_time('5/4/82 2pm')
         True
         >>> is_time('5/4/82')
@@ -261,6 +266,8 @@ def is_datetime(content):
         content (scalar): the content to analyze
 
     Examples:
+        >>> from datetime import datetime as dt, date, time
+
         >>> is_datetime('5/4/82 2pm')
         True
         >>> is_datetime('5/4/82')

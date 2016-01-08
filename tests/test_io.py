@@ -246,7 +246,6 @@ class TestInput:
             io.get_reader('')
 
 
-
 class TestGeoJSON:
     def __init__(self):
         self.cls_initialized = False

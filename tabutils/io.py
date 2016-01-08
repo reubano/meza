@@ -36,7 +36,6 @@ from mmap import mmap
 from collections import deque
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 from http import client
-
 from csv import Error as csvError
 from builtins import *
 from six.moves import zip_longest

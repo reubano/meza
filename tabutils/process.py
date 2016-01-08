@@ -716,9 +716,9 @@ def unique(records, fields=None, pred=None):
     for r in records:
         if not pred:
             unique = set(fields or r.keys())
-            items = tuple(sorted((k, v) for k, v in iteritems(r) if k in unique))
+            items = (sorted((k, v) for k, v in iteritems(r) if k in unique))
 
-        entry = pred(r) if pred else items
+        entry = pred(r) if pred else tuple(items)
 
         if entry not in seen:
             seen.add(entry)
@@ -858,4 +858,5 @@ def hash(records, fields=None, algo='md5'):
     to_hash = set(fields or [])
 
     for row in records:
-        yield {k: hash_func(v) if k in to_hash else v for k, v in iteritems(row)}
+        items = iteritems(row)
+        yield {k: hash_func(v) if k in to_hash else v for k, v in items}

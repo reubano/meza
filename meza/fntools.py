@@ -44,7 +44,7 @@ from six.moves import filterfalse
 from slugify import slugify
 
 from . import CURRENCIES, ENCODING
-from ._compat import encode
+from .compat import encode
 
 DEF_TRUES = ('yes', 'y', 'true', 't')
 DEF_FALSES = ('no', 'n', 'false', 'f')
@@ -674,7 +674,7 @@ def get_values(narray):
 
     Examples:
         >>> from array import array
-        >>> from ._compat import get_native_str
+        >>> from .compat import get_native_str
         >>>
         >>> u, i = get_native_str('u'), get_native_str('i')
         >>> narray_0 = array(i, [2, 3])

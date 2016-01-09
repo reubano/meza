@@ -39,6 +39,12 @@ def setup_module():
     print('Site Module Setup\n')
 
 
+class TestReader:
+    def func(filepath):
+        reader = lambda f, **kw: (l.strip().split(',') for l in f)
+        next(io.read_any(filepath, reader, 'rU'))
+
+
 class TestIterStringIO:
     """Unit tests for IterStringIO"""
     def __init__(self):
@@ -345,6 +351,13 @@ class TestUrlopen:
             records = io.read_csv(f, encoding='latin-1')
             row = next(it.islice(records, 1, 2))
             nt.assert_equal(self.latin_row, row)
+
+    # def test_urlopen_remote(self):
+    #     """Test for reading remote web files"""
+    #     filepath = 'https://opendata.co.ke...'
+    #     response = urlopen('file://%s' % filepath)
+    #     records = io.read_csv(response.fp)
+    #     nt.assert_equal({}, next(records))
 
 
 class TestGeoJSON:

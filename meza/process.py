@@ -709,20 +709,32 @@ def pivot(records, data, column, op=sum, **kwargs):
 
     keys = set(first.keys())
     rows = kwargs.get('rows', keys.difference([data, column]))
+    fill_value = kwargs.get('fill_value')
+    dropna = kwargs.get('dropna', True)
     filterer = lambda x: x[0] in rows
     keyfunc = lambda r: tuple(map(r.get, it.chain(rows, [column])))
     grouped = group(chained, keyfunc)
 
     def gen_raw(grouped):
-        for key, group_ in grouped:
-            r = aggregate(group_, data, op)
+        for key, _group in grouped:
+            r = aggregate(_group, data, op)
             filtered = filter(filterer, iteritems(r))
             yield dict(it.chain([(r[column], r.get(data))], filtered))
 
-    raw = gen_raw(grouped)
 
-    for key, group_ in group(raw, lambda r: tuple(map(r.get, rows))):
-        yield merge(group_)
+    if dropna:
+        raw = gen_raw(grouped)
+    else:
+        raw = list(gen_raw(grouped))
+        differences = (set(r).difference(rows) for r in raw)
+        columns = set(it.chain.from_iterable(differences))
+
+    for key, _group in group(raw, lambda r: tuple(map(r.get, rows))):
+        if not dropna:
+            empty = [dict(zip(columns, it.repeat(fill_value)))]
+            _group = it.chain(empty, _group)
+
+        yield merge(_group)
 
 
 def normalize(records, data='', column='', rows=None):

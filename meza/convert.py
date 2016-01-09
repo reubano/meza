@@ -34,7 +34,7 @@ from builtins import *
 from six.moves import filterfalse, zip_longest
 from dateutil.parser import parse
 from . import fntools as ft, unicsv as csv, ENCODING, DEFAULT_DATETIME, BOM
-from ._compat import get_native_str
+from .compat import get_native_str
 
 try:
     import numpy as np

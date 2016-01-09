@@ -24,7 +24,7 @@ except ImportError:
     PY2, PY3 = False, True
 
 from . import ENCODING
-from ._compat import encode, decode
+from .compat import encode, decode
 
 FMTKEYS = set(dir(csv.Dialect))
 READER_KEYS = FMTKEYS.union(['fieldnames', 'restkey', 'restval', 'dialect'])

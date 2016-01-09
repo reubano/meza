@@ -465,6 +465,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
         first_row (int): First row (zero based, default: 0).
+        first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -525,6 +526,8 @@ def read_tsv(filepath, mode='rU', **kwargs):
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
+        first_row (int): First row (zero based, default: 0).
+        first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -564,6 +567,7 @@ def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
     Kwargs:
         has_header (bool): Has header row (default: False).
         first_row (int): First row (zero based, default: 0).
+        first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -596,6 +600,7 @@ def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.get('has_header')
         first_row = kwargs.get('first_row', 0)
+        first_col = kwargs.get('first_col', 0)
         schema = tuple(zip_longest(widths, widths[1:]))
         [next(f) for _ in range(first_row)]
 

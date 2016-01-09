@@ -14,13 +14,12 @@ Examples:
         from tabutils.process import type_cast
 
         records = [{'some_value', '1'}, {'some_value', '2'}]
-        casted_records = type_cast(records, [{'some_value': 'int'}]).next()
+        casted_records = next(type_cast(records, [{'some_value': 'int'}]))
 
 Attributes:
     CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
         strings.
 """
-
 from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
@@ -28,12 +27,14 @@ from __future__ import (
 import itertools as it
 import hashlib
 
-from functools import partial
+from functools import partial, reduce
 from collections import defaultdict
 from operator import itemgetter
 from math import log1p
 from json import dumps, loads
 
+from builtins import *
+from six import iteritems
 from . import convert as cv, fntools as ft, typetools as tt, ENCODING
 
 
@@ -77,15 +78,15 @@ def type_cast(records, types, warn=False):
         ...     'datetime': '5/4/82 2pm',
         ... }
         >>> types = tt.guess_type_by_value(record)
-        >>> type_cast([record], types).next() == {
-        ...     u'null': None,
-        ...     u'bool': False,
-        ...     u'int': 10,
-        ...     u'float': 1.5,
-        ...     u'text': u'Iñtërnâtiônàližætiøn',
-        ...     u'date': datetime.date(1982, 5, 4),
-        ...     u'time': datetime.time(2, 30),
-        ...     u'datetime': datetime.datetime(1982, 5, 4, 14, 0),
+        >>> next(type_cast([record], types)) == {
+        ...     'null': None,
+        ...     'bool': False,
+        ...     'int': 10,
+        ...     'float': 1.5,
+        ...     'text': 'Iñtërnâtiônàližætiøn',
+        ...     'date': datetime.date(1982, 5, 4),
+        ...     'time': datetime.time(2, 30),
+        ...     'datetime': datetime.datetime(1982, 5, 4, 14, 0),
         ... }
         True
     """
@@ -96,7 +97,7 @@ def type_cast(records, types, warn=False):
         'date': cv.to_date,
         'time': cv.to_time,
         'datetime': cv.to_datetime,
-        'text': lambda v, warn=None: unicode(v) if v and v.strip() else '',
+        'text': lambda v, warn=None: str(v) if v and v.strip() else '',
         'null': lambda x, warn=None: None,
         'bool': cv.to_bool,
     }
@@ -104,18 +105,16 @@ def type_cast(records, types, warn=False):
     field_types = {t['id']: t['type'] for t in types}
 
     for row in records:
-        items = row.items()
+        items = iteritems(row)
         yield {k: switch.get(field_types[k])(v, warn=warn) for k, v in items}
 
 
-def json_recode(records, encoding=ENCODING):
+def json_recode(records):
     """JSON dump and then load record entries using custom JSONEncoder.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
-
-        encoding (str): Encoding.
 
     Yields:
         dict: JSON dumped and loaded record. A row of data whose keys are the
@@ -127,33 +126,30 @@ def json_recode(records, encoding=ENCODING):
     Examples:
         >>> import datetime
         >>> record = {
-        ...     u'null': None,
-        ...     u'bool': False,
-        ...     u'int': 10,
-        ...     u'float': 1.5,
-        ...     u'text': u'Iñtërnâtiônàližætiøn',
-        ...     u'date': datetime.date(1982, 5, 4),
-        ...     u'time': datetime.time(2, 30),
-        ...     u'datetime': datetime.datetime(1982, 5, 4, 14, 0),
+        ...     'null': None,
+        ...     'bool': False,
+        ...     'int': 10,
+        ...     'float': 1.5,
+        ...     'text': 'Iñtërnâtiônàližætiøn',
+        ...     'date': datetime.date(1982, 5, 4),
+        ...     'time': datetime.time(2, 30),
+        ...     'datetime': datetime.datetime(1982, 5, 4, 14, 0),
         ... }
-        >>> json_recode([record]).next() == {
-        ...     u'null': None,
-        ...     u'bool': False,
-        ...     u'int': 10,
-        ...     u'float': 1.5,
-        ...     u'text': u'Iñtërnâtiônàližætiøn',
-        ...     u'date': '1982-05-04',
-        ...     u'time': '02:30:00',
-        ...     u'datetime': '1982-05-04 14:00:00'}
+        >>> next(json_recode([record])) == {
+        ...     'null': None,
+        ...     'bool': False,
+        ...     'int': 10,
+        ...     'float': 1.5,
+        ...     'text': 'Iñtërnâtiônàližætiøn',
+        ...     'date': '1982-05-04',
+        ...     'time': '02:30:00',
+        ...     'datetime': '1982-05-04 14:00:00'}
         True
     """
-    kwargs = {
-        'cls': ft.CustomEncoder, 'ensure_ascii': False, 'encoding': encoding}
-
-    encoder = partial(dumps, **kwargs)
+    encoder = partial(dumps, cls=ft.CustomEncoder, ensure_ascii=False)
 
     for record in records:
-        yield {k: loads(encoder(v)) for k, v in record.items()}
+        yield {k: loads(encoder(v)) for k, v in iteritems(record)}
 
 
 def gen_confidences(tally, types, a=1):
@@ -179,13 +175,17 @@ def gen_confidences(tally, types, a=1):
         `process.detect_types`
 
     Examples:
+        >>> from decimal import Decimal
+
         >>> record = {'field_1': 'None', 'field_2': 'false'}
         >>> types = list(tt.guess_type_by_value(record))
         >>> tally = {'field_1': {'null': 3}, 'field_2': {'bool': 2}}
-        >>> list(gen_confidences(tally, types))
-        [Decimal('0.52'), Decimal('0.58')]
-        >>> list(gen_confidences(tally, types, 5))
-        [Decimal('0.85'), Decimal('0.87')]
+        >>> set(gen_confidences(tally, types)) == {
+        ...     Decimal('0.52'), Decimal('0.58')}
+        True
+        >>> set(gen_confidences(tally, types, 5)) == {
+        ...     Decimal('0.85'), Decimal('0.87')}
+        True
     """
     # http://math.stackexchange.com/a/354879
     calc = lambda x: cv.to_decimal(a * x / (1 + a * x))
@@ -209,14 +209,14 @@ def gen_types(tally):
         >>> tally = {
         ...     'field_1': {'null': 3, 'bool': 1},
         ...     'field_2': {'bool': 2, 'int': 4}}
-        >>> types = sorted(list(gen_types(tally)), key=itemgetter('id'))
-        >>> types[0] == {u'id': u'field_1', u'type': u'null'}
+        >>> types = sorted(gen_types(tally), key=itemgetter('id'))
+        >>> types[0] == {'id': 'field_1', 'type': 'null'}
         True
-        >>> types[1] == {u'id': u'field_2', u'type': u'int'}
+        >>> types[1] == {'id': 'field_2', 'type': 'int'}
         True
     """
-    for key, value in tally.items():
-        ttypes = [{'type': k, 'count': v} for k, v in value.items()]
+    for key, value in iteritems(tally):
+        ttypes = [{'type': k, 'count': v} for k, v in iteritems(value)]
         highest = sorted(ttypes, key=itemgetter('count'), reverse=True)[0]
         yield {'id': key, 'type': highest['type']}
 
@@ -263,9 +263,9 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
         ... }
         >>> records = it.repeat(record)
         >>> types = detect_types(records)[1]['types']
-        >>> [t['id'] for t in types] == [
-        ...     u'int', u'text', u'float', u'datetime', u'bool', u'time',
-        ...     u'date', u'null']
+        >>> set(t['id'] for t in types) == {
+        ...     'int', 'text', 'float', 'datetime', 'bool', 'time',
+        ...     'date', 'null'}
         True
         >>> all(t['id'] == t['type'] for t in types)
         True
@@ -347,8 +347,8 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
         `fntools.fill`
 
     Examples:
-        >>> record = {u'a': u'1', u'b': u'27', u'c': u''}
-        >>> fillempty([record], 0).next() == {u'a': u'1', u'b': u'27', u'c': 0}
+        >>> record = {'a': '1', 'b': '27', 'c': ''}
+        >>> next(fillempty([record], 0)) == {'a': '1', 'b': '27', 'c': 0}
         True
     """
     if method and value is not None:
@@ -376,7 +376,7 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
         length = length or len(row)
         filled = ft.fill(prev_row, row, count=count, **kwargs)
         prev_row = dict(it.islice(filled, length))
-        count = filled.next()
+        count = next(filled)
 
         if method == 'back':
             result.append(prev_row)
@@ -443,20 +443,20 @@ def merge(records, **kwargs):
         ...     {'a': 'item', 'amount': 400}]
         ...
         >>> pred = lambda key: key == 'amount'
-        >>> merge(records, pred=pred, op=sum)
-        {u'a': u'item', u'amount': 900}
-        >>> merge(records)
-        {u'a': u'item', u'amount': 400}
+        >>> merge(records, pred=pred, op=sum)['amount'] == 900
+        True
+        >>> merge(records)['amount'] == 400
+        True
     """
     def reducer(x, y):
         _merge = partial(ft.combine, x, y, **kwargs)
-        new_y = ((k, _merge(k, v)) for k, v in y.iteritems())
-        return dict(it.chain(x.iteritems(), new_y))
+        new_y = ((k, _merge(k, v)) for k, v in iteritems(y))
+        return dict(it.chain(iteritems(x), new_y))
 
     if kwargs.get('pred') and kwargs.get('op'):
         record = reduce(reducer, records)
     else:
-        items = it.imap(dict.iteritems, records)
+        items = map(iteritems, records)
         record = dict(it.chain.from_iterable(items))
 
     return record
@@ -490,16 +490,17 @@ def aggregate(records, key, op, default=0):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> aggregate(records, 'amount', sum)
-        {u'a': u'item', u'amount': 900}
-        >>> aggregate(records, 'amount', lambda x: sum(x) / len(x))
-        {u'a': u'item', u'amount': 300.0}
+        >>> aggregate(records, 'amount', sum)['amount'] == 900
+        True
+        >>> agg = aggregate(records, 'amount', lambda x: sum(x) / len(x))
+        >>> agg['amount'] == 300.0
+        True
     """
     records = iter(records)
-    first = records.next()
+    first = next(records)
     values = (r.get(key, default) for r in it.chain([first], records))
-    value = op(filter(lambda x: x is not None, values))
-    return dict(it.chain(first.items(), [(key, value)]))
+    value = op([x for x in values if x is not None])
+    return dict(it.chain(iteritems(first), [(key, value)]))
 
 
 def group(records, keyfunc=None):
@@ -521,8 +522,15 @@ def group(records, keyfunc=None):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> group(records, itemgetter('amount')).next()[1]
-        [{u'a': u'item', u'amount': 200}]
+        >>> key, group = next(group(records, itemgetter('amount')))
+        >>> key
+        200
+        >>> len(group)
+        1
+        >>> group[0]['a'] == 'item'
+        True
+        >>> group[0]['amount'] == 200
+        True
     """
     sorted_records = sorted(records, key=keyfunc)
     grouped = it.groupby(sorted_records, keyfunc)
@@ -568,15 +576,15 @@ def pivot(records, data, column, op=sum, **kwargs):
         ...     {'length': 6, 'width': 2, 'species': 'versi', 'color': 'red'},
         ...     {'length': 6, 'width': 2, 'species': 'versi', 'color': 'blue'}]
         ...
-        >>> pivot(records, 'length', 'species', rows=['width']).next() == {
-        ...     u'width': 2, u'setosa': 10, u'versi': 12}
+        >>> next(pivot(records, 'length', 'species', rows=['width'])) == {
+        ...     'width': 2, 'setosa': 10, 'versi': 12}
         True
-        >>> pivot(records, 'length', 'species').next() == {
-        ...     u'width': 2, u'color': u'blue', u'setosa': 5, u'versi': 6}
+        >>> next(pivot(records, 'length', 'species')) == {
+        ...     'width': 2, 'color': 'blue', 'setosa': 5, 'versi': 6}
         True
     """
     records = iter(records)
-    first = records.next()
+    first = next(records)
     chained = it.chain([first], records)
     keys = set(first.keys())
     rows = kwargs.get('rows', keys.difference([data, column]))
@@ -587,7 +595,7 @@ def pivot(records, data, column, op=sum, **kwargs):
     def gen_raw(grouped):
         for key, groups in grouped:
             r = aggregate(groups, data, op)
-            filtered = filter(filterer, r.items())
+            filtered = filter(filterer, iteritems(r))
             yield dict(it.chain([(r[column], r.get(data))], filtered))
 
     raw = gen_raw(grouped)
@@ -620,15 +628,15 @@ def normalize(records, data, column, rows):
         ...     {'width': 2, 'color': 'red', 'setosa': 5, 'versi': 6}]
         ...
         >>> rows = ['setosa', 'versi']
-        >>> normalize(records, 'length', 'species', rows).next() == {
-        ...     u'color': u'blue', u'width': 2, u'length': 5,
-        ...     u'species': u'setosa'}
+        >>> next(normalize(records, 'length', 'species', rows)) == {
+        ...     'color': 'blue', 'width': 2, 'length': 5,
+        ...     'species': 'setosa'}
         True
     """
     filterer = lambda x: x[0] not in rows
 
     for r in records:
-        filtered = filter(filterer, r.items())
+        filtered = filter(filterer, iteritems(r))
 
         for row in rows:
             yield dict(it.chain([(column, row), (data, r.get(row))], filtered))
@@ -659,14 +667,14 @@ def tfilter(records, field, pred=None):
         ...     {'day': 2, 'name': 'Iñtërnâtiônàližætiøn'},
         ...     {'day': 3, 'name': 'rob'},
         ... ]
-        >>> tfilter(records, 'day', lambda x: x == 2).next()['name'] == \
-u'Iñtërnâtiônàližætiøn'
+        >>> next(tfilter(records, 'day', lambda x: x == 2))['name'] == \
+'Iñtërnâtiônàližætiøn'
         True
-        >>> tfilter(records, 'day', lambda x: x == 3).next()['name']
-        u'rob'
+        >>> next(tfilter(records, 'day', lambda x: x == 3))['name'] == 'rob'
+        True
     """
     predicate = lambda x: pred(x.get(field)) if pred else None
-    return it.ifilter(predicate, records)
+    return filter(predicate, records)
 
 
 def unique(records, fields=None, pred=None):
@@ -697,10 +705,10 @@ def unique(records, fields=None, pred=None):
         ...     {'day': 3, 'name': 'bob'},
         ...     {'day': 3, 'name': 'rob'},
         ... ]
-        >>> it.islice(unique(records), 3, 4).next()['name']
-        u'bill'
-        >>> it.islice(unique(records, ['name']), 3, 4).next()['name'] == \
-u'Iñtërnâtiônàližætiøn'
+        >>> next(it.islice(unique(records), 3, 4))['name'] == 'bill'
+        True
+        >>> next(it.islice(unique(records, ['name']), 3, 4))['name'] == \
+'Iñtërnâtiônàližætiøn'
         True
     """
     seen = set()
@@ -708,9 +716,9 @@ u'Iñtërnâtiônàližætiøn'
     for r in records:
         if not pred:
             unique = set(fields or r.keys())
-            items = tuple(sorted((k, v) for k, v in r.items() if k in unique))
+            items = (sorted((k, v) for k, v in iteritems(r) if k in unique))
 
-        entry = pred(r) if pred else items
+        entry = pred(r) if pred else tuple(items)
 
         if entry not in seen:
             seen.add(entry)
@@ -748,18 +756,18 @@ def cut(records, **kwargs):
         ...     {'field_1': 2, 'field_2': 'bob', 'field_3': 'male'},
         ...     {'field_1': 3, 'field_2': 'jane', 'field_3': 'female'},
         ... ]
-        >>> cut(records).next() == {
-        ...     u'field_1': 1, u'field_2': u'bill', u'field_3': u'male'}
+        >>> next(cut(records)) == {
+        ...     'field_1': 1, 'field_2': 'bill', 'field_3': 'male'}
         ...
         True
-        >>> cut(records, include=['field_2']).next()
-        {u'field_2': u'bill'}
+        >>> next(cut(records, include=['field_2']))['field_2'] == 'bill'
+        True
     """
     include = kwargs.get('include')
     exclude = kwargs.get('exclude')
     blacklist = include or exclude
     filtered = (ft.dfilter(r, blacklist, include) for r in records)
-    return it.ifilter(None, filtered) if kwargs.get('prune') else filtered
+    return filter(None, filtered) if kwargs.get('prune') else filtered
 
 
 def grep(records, rules, any_match=False, inverse=False):
@@ -794,11 +802,11 @@ def grep(records, rules, any_match=False, inverse=False):
         ...     {'day': 3, 'name': 'jane'},
         ... ]
         >>> rules = [{'fields': ['name'], 'pattern': 'o'}]
-        >>> grep(records, rules).next()['name']
-        u'rob'
+        >>> next(grep(records, rules))['name'] == 'rob'
+        True
         >>> rules = [{'fields': ['name'], 'pattern': re.compile(r'j.*e$')}]
-        >>> grep(records, rules).next()['name']
-        u'jane'
+        >>> next(grep(records, rules))['name'] == 'jane'
+        True
     """
     def predicate(record):
         for rule in rules:
@@ -816,7 +824,7 @@ def grep(records, rules, any_match=False, inverse=False):
 
         return not passed if inverse else passed
 
-    return it.ifilter(predicate, records)
+    return filter(predicate, records)
 
 
 def hash(records, fields=None, algo='md5'):
@@ -841,13 +849,14 @@ def hash(records, fields=None, algo='md5'):
 
     Examples:
         >>> records = [{'a': 'item', 'amount': 200}]
-        >>> hash(records, ['a']).next() == {
-        ...     u'a': '447b7147e84be512208dcc0995d67ebc', u'amount': 200}
+        >>> next(hash(records, ['a'])) == {
+        ...     'a': '447b7147e84be512208dcc0995d67ebc', 'amount': 200}
         True
     """
     hasher = getattr(hashlib, algo)
-    hash_func = lambda x: hasher(str(x)).hexdigest()
+    hash_func = lambda x: hasher(str(x).encode(ENCODING)).hexdigest()
     to_hash = set(fields or [])
 
     for row in records:
-        yield {k: hash_func(v) if k in to_hash else v for k, v in row.items()}
+        items = iteritems(row)
+        yield {k: hash_func(v) if k in to_hash else v for k, v in items}

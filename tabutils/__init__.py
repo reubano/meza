@@ -19,14 +19,17 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
-from datetime import datetime as dt
+import sys
 
-__version__ = '0.23.3'
+from datetime import datetime as dt
+from builtins import *
+
+__version__ = '0.24.0'
 
 __title__ = 'tabutils'
 __package_name__ = 'tabutils'
 __author__ = 'Reuben Cummings'
-__description__ = 'tabular data utility methods'
+__description__ = 'A (tabular) data processing toolkit'
 __email__ = 'reubano@gmail.com'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
@@ -35,3 +38,10 @@ __copyright__ = 'Copyright 2015 Reuben Cummings'
 CURRENCIES = ('$', '£', '€')
 ENCODING = 'utf-8'
 DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
+
+if sys.version_info.major >= 3:
+    import csv
+else:
+    from . import unicsv as csv
+
+csv = csv

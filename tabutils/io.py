@@ -14,32 +14,31 @@ Examples:
         from tabutils.io import read_csv
 
         csv_records = read_csv('path/to/file.csv')
-        csv_header = csv_records.next().keys()
-        record = csv_records.next()
+        csv_header = next(csv_records).keys()
+        record = next(csv_records)
 """
-
 from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
 import xlrd
 import itertools as it
-import unicodecsv as csv
-import httplib
 import sys
 import hashlib
 import sqlite3
+import logging
 
 from os import path as p
-from StringIO import StringIO
+from io import StringIO, TextIOBase
 from datetime import time
-from importlib import import_module
-from io import TextIOBase
 from json import loads
 from mmap import mmap
 from collections import deque
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
-
+from http import client
+from csv import Error as csvError
+from builtins import *
+from six.moves import zip_longest
 from ijson import items
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from chardet.universaldetector import UniversalDetector
@@ -47,10 +46,11 @@ from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
     XL_CELL_ERROR, xldate_as_tuple)
 
-from . import fntools as ft, process as pr, dbf, ENCODING
+from . import fntools as ft, process as pr, csv, dbf, ENCODING
 
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
 DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
+BOM = '\ufeff'
 
 
 class IterStringIO(TextIOBase):
@@ -58,7 +58,6 @@ class IterStringIO(TextIOBase):
 
     http://stackoverflow.com/a/32020108/408556
     """
-
     def __init__(self, iterable=None, bufsize=4096):
         """ IterStringIO constructor
 
@@ -67,12 +66,14 @@ class IterStringIO(TextIOBase):
             bufsize (Int): Buffer size for seeking
 
         Examples:
-            >>> iter_content = iter('Hello World')
-            >>> StringIO(iter_content).read(5)
-            '<iter'
-            >>> iter_sio = IterStringIO(iter_content)
-            >>> iter_sio.read(5)
+            >>> StringIO(iter('Hello World')).read(5)  # doctest: +ELLIPSIS
+            Traceback (most recent call last):
+            TypeError:...
+            >>> IterStringIO(iter('Hello World')).read(5)
             bytearray(b'Hello')
+            >>> i = IterStringIO(iter('one\\ntwo\\n'))
+            >>> list(next(i.lines)) == [b'o', b'n', b'e']
+            True
         """
         iterable = iterable if iterable else []
         chained = self._chain(iterable)
@@ -82,16 +83,17 @@ class IterStringIO(TextIOBase):
         self.pos = 0
 
     def __next__(self):
-        return self._read(self.lines.next())
+        return self._read(next(self.lines))
+
+    def __iter__(self):
+        return self
 
     @property
     def lines(self):
         # TODO: what about a csv with embedded newlines?
-        newlines = {'\n', '\r', '\r\n'}
-
-        for k, g in it.groupby(self.iter, lambda s: s not in newlines):
-            if k:
-                yield g
+        newlines = {b'\n', b'\r', b'\r\n', '\n', '\r', '\r\n'}
+        groups = it.groupby(self.iter, lambda s: s not in newlines)
+        return (g for k, g in groups if k)
 
     def _encode(self, iterable):
         return (s.encode(ENCODING) for s in iterable)
@@ -118,10 +120,10 @@ class IterStringIO(TextIOBase):
         return self._read(self.iter, n, False)
 
     def readline(self, n=None):
-        return self._read(self.lines.next(), n)
+        return self._read(next(self.lines), n)
 
     def readlines(self):
-        return it.imap(self._read, self.lines)
+        return map(self._read, self.lines)
 
     def seek(self, n):
         next_pos = self.pos + 1
@@ -131,15 +133,15 @@ class IterStringIO(TextIOBase):
             self.iter = it.chain(self.last, self.iter)
             self.last = deque([], self.bufsize)
         elif self.pos > n > beg_buf:
-            extend = [self.last.pop() for _ in xrange(self.pos - n)]
+            extend = [self.last.pop() for _ in range(self.pos - n)]
             self.iter = it.chain(reversed(extend), self.iter)
         elif n == self.pos:
             pass
         elif n == next_pos:
-            self.last.append(self.iter.next())
+            self.last.append(next(self.iter))
         elif n > next_pos:
             pos = n - self.pos
-            map(self.last.append, it.islice(self.iter, 0, pos))
+            [self.last.append(x) for x in it.islice(self.iter, 0, pos)]
 
         self.pos = beg_buf if n < beg_buf else n
 
@@ -155,47 +157,59 @@ def patch_http_response_read(func):
     def inner(*args):
         try:
             return func(*args)
-        except httplib.IncompleteRead, e:
-            return e.partial
+        except client.IncompleteRead as err:
+            return err.partial
 
     return inner
 
-httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
+client.HTTPResponse.read = patch_http_response_read(client.HTTPResponse.read)
 
 
-def stringify_kwargs(kwargs):
-    keys = ft.stringify(kwargs.keys())
-    values = ft.stringify(kwargs.values())
-    return dict(zip(keys, values))
+def remove_bom(row, bom):
+    try:
+        for k, v in row.items():
+            try:
+                if v and bom in v:
+                    row[k] = v.lstrip(bom)
+                    break
+                elif k and bom in k:
+                    row[k.lstrip(bom)] = row[k]
+                    del row[k]
+                    break
+            except TypeError:
+                pass
+    except AttributeError:
+        try:
+            if bom in row[0]:
+                row = [row[0].lstrip(bom)] + row[1:]
+        except TypeError:
+            pass
+
+    return row
 
 
-def _read_any(f, reader, args, convert=False, **kwargs):
-    pos = 0
+def _read_any(f, reader, args, pos=0, **kwargs):
+    recursed = pos
 
     try:
-        for r in reader(f, *args, **kwargs):
-            yield r
-            pos += 1
-    except UnicodeDecodeError:
-        # the wrong encoding was used so detect correct one
-        f.seek(0)
-        kwargs['encoding'] = detect_encoding(f)['encoding']
-
         for num, r in enumerate(reader(f, *args, **kwargs)):
             if num >= pos:
                 yield r
-    except Exception as err:
-        if err.message == 'line contains NULL byte' and convert:
-            # unicodecsv can't read utf-16, so convert to utf-8
-            f.seek(0)
-            utf8_f = get_utf8(f, kwargs.get('encoding'))
-            kwargs['encoding'] = ENCODING
-
-            for num, r in enumerate(reader(utf8_f, *args, **kwargs)):
-                if num >= pos:
-                    yield r
-        else:
+                pos += 1
+    except (UnicodeDecodeError, csvError, TypeError):
+        # bytes or the wrong encoding was used so detect correct one
+        if recursed:
+            logging.error('Unable to detect proper encoding for %s.', f.name)
             raise
+        else:
+            f.close()
+
+            with open(f.name, 'rb') as new_f:
+                encoding = detect_encoding(new_f)['encoding']
+
+            with open(f.name, 'rU', encoding=encoding) as enc_f:
+                for r in _read_any(enc_f, reader, args, pos, **kwargs):
+                    yield r
 
 
 def read_any(filepath, reader, mode='rU', *args, **kwargs):
@@ -223,20 +237,24 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
-        >>> reader = lambda f: (l.strip().split(',') for l in f)
-        >>> read_any(filepath, reader, 'rU').next()
-        [u'Some Date', u'Sparse Data', u'Some Value', u'Unicode Test', u'']
+        >>> reader = lambda f, **kw: (l.strip().split(',') for l in f)
+        >>> result = read_any(filepath, reader, 'rU')
+        >>> next(result) == [
+        ...     'Some Date', 'Sparse Data', 'Some Value', 'Unicode Test', '']
+        True
     """
+    encoding = None if 'b' in mode else kwargs.pop('encoding', ENCODING)
+
     if hasattr(filepath, 'read'):
         for r in _read_any(filepath, reader, args, **kwargs):
-            yield r
+            yield remove_bom(r, BOM)
     else:
-        with open(filepath, mode) as f:
-            for r in _read_any(f, reader, args, True, **kwargs):
-                yield r
+        with open(filepath, mode, encoding=encoding) as f:
+            for r in _read_any(f, reader, args, **kwargs):
+                yield remove_bom(r, BOM)
 
 
-def _read_csv(f, encoding, header=None, has_header=True, **kwargs):
+def _read_csv(f, header=None, has_header=True, **kwargs):
     """Helps read a csv file.
 
     Args:
@@ -254,28 +272,28 @@ def _read_csv(f, encoding, header=None, has_header=True, **kwargs):
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
-        >>> with open(filepath, 'rU') as f:
-        ...     sorted(_read_csv(f, 'utf-8').next().items()) == [
-        ...         (u'Some Date', u'05/04/82'),
-        ...         (u'Some Value', u'234'),
-        ...         (u'Sparse Data', u'Iñtërnâtiônàližætiøn'),
-        ...         (u'Unicode Test', u'Ādam')]
+        >>> with open(filepath, 'rU', encoding='utf-8') as f:
+        ...     sorted(next(_read_csv(f)).items()) == [
+        ...         ('Some Date', '05/04/82'),
+        ...         ('Some Value', '234'),
+        ...         ('Sparse Data', 'Iñtërnâtiônàližætiøn'),
+        ...         ('Unicode Test', 'Ādam')]
         True
     """
     if header and has_header:
-        f.next()
+        next(f)
     elif not (header or has_header):
         raise ValueError('Either `header` or `has_header` must be specified.')
 
-    skwargs = stringify_kwargs(kwargs)
-    reader = csv.DictReader(f, header, encoding=str(encoding), **skwargs)
+    reader = csv.DictReader(f, header, **kwargs)
 
     # Remove `None` keys
-    records = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
+    records = (dict(x for x in r.items() if x[0]) for r in reader)
 
     # Remove empty rows
-    filterer = lambda row: any(v.strip() for v in row.values() if v)
-    return it.ifilter(filterer, records)
+    for row in records:
+        if any(v.strip() for v in row.values() if v):
+            yield row
 
 
 def read_mdb(filepath, table=None, **kwargs):
@@ -303,19 +321,19 @@ def read_mdb(filepath, table=None, **kwargs):
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.mdb')
         >>> records = read_mdb(filepath, sanitize=True)
-        >>> records.next() == {
-        ...     u'surname': u'Aaron',
-        ...     u'forenames': u'William',
-        ...     u'freedom': u'07/03/60 00:00:00',
-        ...     u'notes': u'Order of Court',
-        ...     u'surname_master_or_father': u'',
-        ...     u'how_admitted': u'Redn.',
-        ...     u'id_no': u'1',
-        ...     u'forenames_master_or_father': u'',
-        ...     u'remarks': u'',
-        ...     u'livery': u'',
-        ...     u'date_of_order_of_court': u'06/05/60 00:00:00',
-        ...     u'source_ref': u'MF 324'}
+        >>> next(records) == {
+        ...     'surname': 'Aaron',
+        ...     'forenames': 'William',
+        ...     'freedom': '07/03/60 00:00:00',
+        ...     'notes': 'Order of Court',
+        ...     'surname_master_or_father': '',
+        ...     'how_admitted': 'Redn.',
+        ...     'id_no': '1',
+        ...     'forenames_master_or_father': '',
+        ...     'remarks': '',
+        ...     'livery': '',
+        ...     'date_of_order_of_court': '06/05/60 00:00:00',
+        ...     'source_ref': 'MF 324'}
         ...
         True
     """
@@ -339,13 +357,14 @@ def read_mdb(filepath, table=None, **kwargs):
     # http://stackoverflow.com/a/2813530/408556
     # http://stackoverflow.com/a/17698359/408556
     with Popen(['mdb-export', filepath, table], **pkwargs).stdout as pipe:
-        first_line = pipe.readline()
-        names = csv.reader(StringIO(first_line), **kwargs).next()
-        uscored = list(ft.underscorify(names)) if sanitize else names
-        header = list(ft.dedupe(uscored)) if dedupe else uscored
+        first_line = StringIO(str(pipe.readline()))
+        names = next(csv.reader(first_line, **kwargs))
+        uscored = ft.underscorify(names) if sanitize else names
+        header = list(ft.dedupe(uscored) if dedupe else uscored)
 
         for line in iter(pipe.readline, b''):
-            values = csv.reader(StringIO(line), **kwargs).next()
+            next_line = StringIO(str(line))
+            values = next(csv.reader(next_line, **kwargs))
             yield dict(zip(header, values))
 
 
@@ -378,19 +397,19 @@ def read_dbf(filepath, **kwargs):
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.dbf')
         >>> records = read_dbf(filepath, sanitize=True)
-        >>> records.next() == {
-        ...      u'awater10': 12416573076,
-        ...      u'aland10': 71546663636,
-        ...      u'intptlat10': u'+47.2400052',
-        ...      u'lsad10': u'C2',
-        ...      u'cd111fp': u'08',
-        ...      u'namelsad10': u'Congressional District 8',
-        ...      u'funcstat10': u'N',
-        ...      u'statefp10': u'27',
-        ...      u'cdsessn': u'111',
-        ...      u'mtfcc10': u'G5200',
-        ...      u'geoid10': u'2708',
-        ...      u'intptlon10': u'-092.9323194'}
+        >>> next(records) == {
+        ...      'awater10': 12416573076,
+        ...      'aland10': 71546663636,
+        ...      'intptlat10': '+47.2400052',
+        ...      'lsad10': 'C2',
+        ...      'cd111fp': '08',
+        ...      'namelsad10': 'Congressional District 8',
+        ...      'funcstat10': 'N',
+        ...      'statefp10': '27',
+        ...      'cdsessn': '111',
+        ...      'mtfcc10': 'G5200',
+        ...      'geoid10': '2708',
+        ...      'intptlon10': '-092.9323194'}
         ...
         True
     """
@@ -417,11 +436,11 @@ def read_sqlite(filepath, table=None):
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.sqlite')
         >>> records = read_sqlite(filepath)
-        >>> records.next() == {
-        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
-        ...     u'some_date': u'05/04/82',
-        ...     u'some_value': 234,
-        ...     u'unicode_test': u'Ādam'}
+        >>> next(records) == {
+        ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
+        ...     'some_date': '05/04/82',
+        ...     'some_value': 234,
+        ...     'unicode_test': 'Ādam'}
         ...
         True
     """
@@ -432,7 +451,7 @@ def read_sqlite(filepath, table=None):
 
     t = table or c.fetchone()[0]
     c.execute('SELECT * FROM %s' % t)
-    return it.imap(dict, c)
+    return map(dict, c)
 
 
 def read_csv(filepath, mode='rU', **kwargs):
@@ -467,32 +486,33 @@ def read_csv(filepath, mode='rU', **kwargs):
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
         >>> records = read_csv(filepath, sanitize=True)
-        >>> records.next() == {
-        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
-        ...     u'some_date': u'05/04/82',
-        ...     u'some_value': u'234',
-        ...     u'unicode_test': u'Ādam'}
+        >>> next(records) == {
+        ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
+        ...     'some_date': '05/04/82',
+        ...     'some_value': '234',
+        ...     'unicode_test': 'Ādam'}
         ...
         True
     """
-    def reader(f, encoding=ENCODING, first_row=0, **kwargs):
+    def reader(f, **kwargs):
+        first_row = kwargs.pop('first_row', 0)
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)
-        [f.next() for _ in xrange(first_row)]
+        [next(f) for _ in range(first_row)]
         pos = f.tell()
-        skwargs = stringify_kwargs(kwargs)
-        names = csv.reader(f, encoding=str(encoding), **skwargs).next()
+        first_line = StringIO(str(f.readline()))
+        names = next(csv.reader(first_line, **kwargs))
 
         if has_header:
-            stripped = [name for name in names if name.strip()]
-            uscored = list(ft.underscorify(stripped)) if sanitize else stripped
-            header = list(ft.dedupe(uscored)) if dedupe else uscored
+            stripped = (name for name in names if name.strip())
+            uscored = ft.underscorify(stripped) if sanitize else stripped
+            header = list(ft.dedupe(uscored) if dedupe else uscored)
         else:
             f.seek(pos)
-            header = ['column_%i' % (n + 1) for n in xrange(len(names))]
+            header = ['column_%i' % (n + 1) for n in range(len(names))]
 
-        return _read_csv(f, encoding, header, False, **kwargs)
+        return _read_csv(f, header, False, **kwargs)
 
     return read_any(filepath, reader, mode, **kwargs)
 
@@ -526,15 +546,15 @@ def read_tsv(filepath, mode='rU', **kwargs):
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.tsv')
         >>> records = read_tsv(filepath, sanitize=True)
-        >>> records.next() == {
-        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
-        ...     u'some_date': u'05/04/82',
-        ...     u'some_value': u'234',
-        ...     u'unicode_test': u'Ādam'}
+        >>> next(records) == {
+        ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
+        ...     'some_date': '05/04/82',
+        ...     'some_value': '234',
+        ...     'unicode_test': 'Ādam'}
         ...
         True
     """
-    return read_csv(filepath, mode, dialect=csv.excel_tab, **kwargs)
+    return read_csv(filepath, mode, dialect='excel-tab', **kwargs)
 
 
 def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
@@ -567,13 +587,13 @@ def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
         >>> filepath = p.join(DATA_DIR, 'fixed.txt')
         >>> widths = [0, 18, 29, 33, 38, 50]
         >>> records = read_fixed_csv(filepath, widths)
-        >>> records.next() == {
-        ...     u'column_1': 'Chicago Reader',
-        ...     u'column_2': '1971-01-01',
-        ...     u'column_3': '40',
-        ...     u'column_4': 'True',
-        ...     u'column_5': '1.0',
-        ...     u'column_6': '04:14:001971-01-01T04:14:00'}
+        >>> next(records) == {
+        ...     'column_1': 'Chicago Reader',
+        ...     'column_2': '1971-01-01',
+        ...     'column_3': '40',
+        ...     'column_4': 'True',
+        ...     'column_5': '1.0',
+        ...     'column_6': '04:14:001971-01-01T04:14:00'}
         ...
         True
     """
@@ -582,21 +602,21 @@ def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.get('has_header')
         first_row = kwargs.get('first_row', 0)
-        schema = tuple(it.izip_longest(widths, widths[1:]))
-        [f.next() for _ in xrange(first_row)]
+        schema = tuple(zip_longest(widths, widths[1:]))
+        [next(f) for _ in range(first_row)]
 
         if has_header:
-            line = f.next()
-            names = filter(None, (line[s:e].strip() for s, e in schema))
-            uscored = list(ft.underscorify(names)) if sanitize else names
-            header = list(ft.dedupe(uscored)) if dedupe else uscored
+            line = next(f)
+            names = (_f for _f in (line[s:e].strip() for s, e in schema) if _f)
+            uscored = ft.underscorify(names) if sanitize else names
+            header = list(ft.dedupe(uscored) if dedupe else uscored)
         else:
-            header = ['column_%i' % (n + 1) for n in xrange(len(widths))]
+            header = ['column_%i' % (n + 1) for n in range(len(widths))]
 
         zipped = zip(header, schema)
 
         get_row = lambda line: {k: line[v[0]:v[1]].strip() for k, v in zipped}
-        return it.imap(get_row, f)
+        return map(get_row, f)
 
     return read_any(filepath, reader, mode, **kwargs)
 
@@ -624,11 +644,11 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
         >>> book = xlrd.open_workbook(filepath)
         >>> sheet = book.sheet_by_index(0)
         >>> sheet.row_values(1) == [
-        ...     30075.0, u'Iñtërnâtiônàližætiøn', 234.0, u'Ādam', u' ']
+        ...     30075.0, 'Iñtërnâtiônàližætiøn', 234.0, 'Ādam', ' ']
         True
         >>> sanitized = sanitize_sheet(sheet, book.datemode)
         >>> [v for i, v in sanitized if i == 1] == [
-        ...     '1982-05-04', u'Iñtërnâtiônàližætiøn', u'234.0', u'Ādam', u' ']
+        ...     '1982-05-04', 'Iñtërnâtiônàližætiøn', '234.0', 'Ādam', ' ']
         True
     """
     date_format = kwargs.get('date_format', '%Y-%m-%d')
@@ -644,16 +664,16 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
         'datetime': lambda v: xl2dt(v, mode).strftime(dt_format),
         'time': time_func,
         XL_CELL_EMPTY: lambda v: '',
-        XL_CELL_NUMBER: lambda v: unicode(v),
-        XL_CELL_BOOLEAN: lambda v: unicode(bool(v)),
+        XL_CELL_NUMBER: lambda v: str(v),
+        XL_CELL_BOOLEAN: lambda v: str(bool(v)),
         XL_CELL_ERROR: lambda v: xlrd.error_text_from_code[v],
     }
 
-    for i in xrange(sheet.nrows):
+    for i in range(sheet.nrows):
         types = sheet.row_types(i)[first_col:]
         values = sheet.row_values(i)[first_col:]
 
-        for type_, value in it.izip(types, values):
+        for type_, value in zip(types, values):
             if type_ == XL_CELL_DATE and value < 1:
                 type_ = 'time'
             elif type_ == XL_CELL_DATE and not value.is_integer:
@@ -702,11 +722,11 @@ def read_xls(filepath, **kwargs):
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.xls')
         >>> records = read_xls(filepath, sanitize=True)
-        >>> records.next() == {
-        ...     u'some_value': u'234.0',
-        ...     u'some_date': '1982-05-04',
-        ...     u'sparse_data': u'Iñtërnâtiônàližætiøn',
-        ...     u'unicode_test': u'Ādam'}
+        >>> next(records) == {
+        ...     'some_value': '234.0',
+        ...     'some_date': '1982-05-04',
+        ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
+        ...     'unicode_test': 'Ādam'}
         ...
         True
     """
@@ -734,11 +754,11 @@ def read_xls(filepath, **kwargs):
     names = sheet.row_values(first_row)[first_col:]
 
     if has_header:
-        stripped = [name for name in names if name.strip()]
-        uscored = list(ft.underscorify(stripped)) if sanitize else stripped
-        header = list(ft.dedupe(uscored)) if dedupe else uscored
+        stripped = (name for name in names if name.strip())
+        uscored = ft.underscorify(stripped) if sanitize else stripped
+        header = list(ft.dedupe(uscored) if dedupe else uscored)
     else:
-        header = ['column_%i' % (n + 1) for n in xrange(len(names))]
+        header = ['column_%i' % (n + 1) for n in range(len(names))]
 
     # Convert to strings
     sanitized = sanitize_sheet(sheet, book.datemode, **kwargs)
@@ -776,18 +796,18 @@ def read_json(filepath, mode='rU', path='item', newline=False):
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.json')
         >>> records = read_json(filepath)
-        >>> records.next() == {
-        ...     u'text': u'Chicago Reader',
-        ...     u'float': 1,
-        ...     u'datetime': u'1971-01-01T04:14:00',
-        ...     u'boolean': True,
-        ...     u'time': u'04:14:00',
-        ...     u'date': u'1971-01-01',
-        ...     u'integer': 40}
+        >>> next(records) == {
+        ...     'text': 'Chicago Reader',
+        ...     'float': 1,
+        ...     'datetime': '1971-01-01T04:14:00',
+        ...     'boolean': True,
+        ...     'time': '04:14:00',
+        ...     'date': '1971-01-01',
+        ...     'integer': 40}
         ...
         True
     """
-    reader = lambda f: it.imap(loads, f) if newline else items(f, path)
+    reader = lambda f, **kw: map(loads, f) if newline else items(f, path)
     return read_any(filepath, reader, mode)
 
 
@@ -807,15 +827,15 @@ def read_geojson(filepath, mode='rU'):
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.geojson')
         >>> records = read_geojson(filepath)
-        >>> records.next() == {
-        ...     u'id': None,
-        ...     u'prop0': u'value0',
-        ...     u'type': 'Point',
-        ...     u'coordinates': [102, 0.5]}
+        >>> next(records) == {
+        ...     'id': None,
+        ...     'prop0': 'value0',
+        ...     'type': 'Point',
+        ...     'coordinates': [102, 0.5]}
         ...
         True
     """
-    def reader(f):
+    def reader(f, **kwargs):
         try:
             features = items(f, 'features.item')
         except KeyError:
@@ -863,7 +883,7 @@ def write(filepath, content, mode='wb+', **kwargs):
         progress = 0
 
         for c in ft.chunk(content, chunksize):
-            if isinstance(c, unicode):
+            if isinstance(c, str):
                 encoded = c.encode(ENCODING)
             elif hasattr(c, 'sort'):
                 # it's a list so convert to a string
@@ -882,7 +902,7 @@ def write(filepath, content, mode='wb+', **kwargs):
         yield progress
 
     args = [content]
-    return read_any(filepath, _write, mode, *args, **kwargs).next()
+    return next(read_any(filepath, _write, mode, *args, **kwargs))
 
 
 def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
@@ -910,7 +930,7 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
         >>> hash_file(TemporaryFile())
         'da39a3ee5e6b4b0d3255bfef95601890afd80709'
     """
-    def reader(f, hasher):
+    def reader(f, hasher, **kwargs):
         if chunksize:
             while True:
                 data = f.read(chunksize)
@@ -924,50 +944,12 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
         yield hasher.hexdigest()
 
     args = [getattr(hashlib, algo)()]
-    file_hash = read_any(filepath, reader, 'rb', *args).next()
+    file_hash = next(read_any(filepath, reader, 'rb', *args))
 
     if verbose:
         print('File %s hash is %s.' % (filepath, file_hash))
 
     return file_hash
-
-
-def get_utf8(f, encoding, remove_BOM=True):
-    """Creates a utf-8 encoded file
-
-    Args:
-        f (obj): The file like object to convert.
-        encoding (str): The file's encoding.
-        remove_BOM (bool): Remove Byte Order Marker (default: True)
-
-    Returns:
-        obj: file like object
-
-    Examples:
-        >>> with open(p.join(DATA_DIR, 'utf16_big.csv')) as f:
-        ...     get_utf8(f, 'utf-16-be').next().strip()
-        'a,b,c'
-    """
-    # http://stackoverflow.com/a/191455/408556
-    utf8_f = StringIO()
-    utf8_f.write(unicode(f.read(), encoding).encode(ENCODING))
-    utf8_f.seek(0)
-
-    if remove_BOM:
-        BOMless_f = StringIO()
-
-        for num, line in enumerate(utf8_f):
-            if not num:
-                line = line.decode(ENCODING).lstrip('\ufeff')
-                line = line.encode(ENCODING)
-
-            BOMless_f.write(line)
-
-        BOMless_f.seek(0)
-    else:
-        BOMless_f = utf8_f
-
-    return BOMless_f
 
 
 def detect_encoding(f, verbose=False):
@@ -983,7 +965,7 @@ def detect_encoding(f, verbose=False):
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
-        >>> with open(filepath, mode='rU') as f:
+        >>> with open(filepath, 'rb') as f:
         ...     result = detect_encoding(f)
         ...     result == {'confidence': 0.99, 'encoding': 'utf-8'}
         ...

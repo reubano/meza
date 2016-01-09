@@ -1,4 +1,4 @@
-.PHONY: help clean check-stage pipme require lint test release sdist wheel upload register
+.PHONY: help clean check-stage pipme require lint test tox register upload release sdist wheel
 
 help:
 	@echo "clean - remove Python file and build artifacts"
@@ -12,6 +12,7 @@ help:
 	@echo "wheel - create a wheel package"
 	@echo "upload - upload dist files"
 	@echo "register - register package with PyPI"
+	@echo "tox - run tests on every Python version with tox"
 
 clean:
 	helpers/clean
@@ -29,19 +30,24 @@ lint:
 	flake8 tabutils tests
 
 test:
-	helpers/test
+	nosetests -xv
+	python tests/test.py
 
-release:
-	sdist wheel upload
+release: clean sdist wheel upload
 
 register:
 	python setup.py register
 
 sdist:
+	clean
 	helpers/srcdist
 
 wheel:
+	clean
 	helpers/wheel
 
 upload:
 	twine upload dist/*
+
+tox:
+	tox

@@ -15,25 +15,24 @@ Examples:
 
         decimal = to_decimal('$123.45')
 """
-
 from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
 import itertools as it
-import unicodecsv as csv
 
 from os import path as p
 from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_DOWN
-from StringIO import StringIO
+from io import StringIO
 from json import dumps
 from collections import OrderedDict
 from operator import itemgetter
 from functools import partial
 
-from . import fntools as ft, ENCODING, DEFAULT_DATETIME
-
+from builtins import *
+from six.moves import filterfalse
 from dateutil.parser import parse
+from . import fntools as ft, csv, ENCODING, DEFAULT_DATETIME
 
 
 def ctype2ext(content_type=None):
@@ -46,12 +45,13 @@ def ctype2ext(content_type=None):
         str: file extension
 
     Examples:
-        >>> ctype2ext('/csv;')
-        u'csv'
-        >>> ctype2ext('/xls;')
-        u'xls'
-        >>> ctype2ext('/vnd.openxmlformats-officedocument.spreadsheetml.sheet;')
-        u'xlsx'
+        >>> ctype2ext('/csv;') == 'csv'
+        True
+        >>> ctype2ext('/xls;') == 'xls'
+        True
+        >>> ext = '/vnd.openxmlformats-officedocument.spreadsheetml.sheet;'
+        >>> ctype2ext(ext) == 'xlsx'
+        True
     """
     try:
         ctype = content_type.split('/')[1].split(';')[0]
@@ -81,8 +81,9 @@ def order_dict(content, order):
         OrderedDict: The ordered content.
 
     Examples:
-        >>> order_dict({'a': 1, 'b': 2}, ['a', 'b'])
-        OrderedDict([(u'a', 1), (u'b', 2)])
+        >>> order_dict({'a': 1, 'b': 2}, ['a', 'b']) == OrderedDict(
+        ...     [('a', 1), ('b', 2)])
+        True
     """
     get_order = {field: pos for pos, field in enumerate(order)}
     keyfunc = lambda x: get_order[x[0]]
@@ -316,15 +317,16 @@ def _to_datetime(content):
     Examples:
         >>> _to_datetime('5/4/82')
         (datetime.datetime(1982, 5, 4, 0, 0), False)
-        >>> _to_datetime('2/32/82')
-        (u'2/32/82', True)
+        >>> _to_datetime('2/32/82') == ('2/32/82', True)
+        True
         >>> _to_datetime('spam')
         (datetime.datetime(9999, 12, 31, 0, 0), False)
     """
     try:
         value = parse(content, default=DEFAULT_DATETIME)
     except ValueError as e:
-        retry = 'out of range' in str(e)  # impossible date, e.g., 2/31/15
+        # impossible date, e.g., 2/31/15
+        retry = any(x in str(e) for x in ('out of range', 'day must be in'))
         value = content if retry else DEFAULT_DATETIME
     else:
         retry = False
@@ -351,12 +353,13 @@ def to_datetime(content, dt_format=None, warn=False):
         `process.type_cast`
 
     Examples:
+        >>> fmt = '%Y-%m-%d %H:%M:%S'
         >>> to_datetime('5/4/82 2:00 pm')
         datetime.datetime(1982, 5, 4, 14, 0)
-        >>> to_datetime('5/4/82 10:00', '%Y-%m-%d %H:%M:%S')
-        '1982-05-04 10:00:00'
-        >>> to_datetime('2/32/82 12:15', '%Y-%m-%d %H:%M:%S')
-        '1982-02-28 12:15:00'
+        >>> to_datetime('5/4/82 10:00', fmt) == '1982-05-04 10:00:00'
+        True
+        >>> to_datetime('2/32/82 12:15', fmt) == '1982-02-28 12:15:00'
+        True
         >>> to_datetime('spam')
         datetime.datetime(9999, 12, 31, 0, 0)
         >>> to_datetime('spam', warn=True)
@@ -366,11 +369,11 @@ def to_datetime(content, dt_format=None, warn=False):
     Returns:
         datetime
     """
-    bad_nums = it.imap(str, xrange(29, 33))
-    good_nums = it.imap(str, xrange(31, 27, -1))
+    bad_nums = map(str, range(29, 33))
+    good_nums = map(str, range(31, 27, -1))
 
     try:
-        bad_num = it.ifilter(lambda x: x in content, bad_nums).next()
+        bad_num = next(x for x in bad_nums if x in content)
     except StopIteration:
         options = [content]
     else:
@@ -378,8 +381,8 @@ def to_datetime(content, dt_format=None, warn=False):
         options = it.chain([content], possibilities)
 
     # Fix impossible dates, e.g., 2/31/15
-    results = it.ifilterfalse(lambda x: x[1], it.imap(_to_datetime, options))
-    value = results.next()[0]
+    results = filterfalse(lambda x: x[1], map(_to_datetime, options))
+    value = next(results)[0]
 
     if warn and value == DEFAULT_DATETIME:
         raise ValueError('Invalid datetime value: `%s`.' % content)
@@ -409,10 +412,10 @@ def to_date(content, date_format=None, warn=False):
     Examples:
         >>> to_date('5/4/82')
         datetime.date(1982, 5, 4)
-        >>> to_date('5/4/82', '%Y-%m-%d')
-        '1982-05-04'
-        >>> to_date('2/32/82', '%Y-%m-%d')
-        '1982-02-28'
+        >>> to_date('5/4/82', '%Y-%m-%d') == '1982-05-04'
+        True
+        >>> to_date('2/32/82', '%Y-%m-%d') == '1982-02-28'
+        True
         >>> to_date('spam')
         datetime.date(9999, 12, 31)
         >>> to_date('spam', warn=True)
@@ -444,10 +447,10 @@ def to_time(content, time_format=None, warn=False):
     Examples:
         >>> to_time('2:00 pm')
         datetime.time(14, 0)
-        >>> to_time('10:00', '%H:%M:%S')
-        '10:00:00'
-        >>> to_time('2/32/82 12:15', '%H:%M:%S')
-        '12:15:00'
+        >>> to_time('10:00', '%H:%M:%S') == '10:00:00'
+        True
+        >>> to_time('2/32/82 12:15', '%H:%M:%S') == '12:15:00'
+        True
         >>> to_time('spam')
         datetime.time(0, 0)
         >>> to_time('spam', warn=True)
@@ -479,11 +482,11 @@ def to_filepath(filepath, **kwargs):
         str: filepath
 
     Examples:
-        >>> to_filepath('file.csv')
-        u'file.csv'
-        >>> to_filepath('.', resource_id='rid')
+        >>> to_filepath('file.csv') == 'file.csv'
+        True
+        >>> to_filepath('.', resource_id='rid') == './rid.csv'
         Content-Type None not found in dictionary. Using default value.
-        u'./rid.csv'
+        True
     """
     isdir = p.isdir(filepath)
     headers = kwargs.get('headers') or {}
@@ -525,22 +528,22 @@ def df2records(df):
         >>> try:
         ...    import pandas as pd
         ... except ImportError:
-        ...    print('pandas is required to run this test')
+        ...    print(True)
         ... else:
         ...    records = [{'a': 1, 'b': 2, 'c': 3}, {'a': 4, 'b': 5, 'c': 6}]
         ...    df = pd.DataFrame.from_records(records)
-        ...    df2records(df).next() == {u'a': 1, u'b': 2, u'c': 3}
+        ...    next(df2records(df)) == {'a': 1, 'b': 2, 'c': 3}
         ...
         True
     """
-    index = filter(None, (df.index.names))
+    index = [_f for _f in df.index.names if _f]
 
     try:
         keys = index + df.columns.tolist()
     except AttributeError:
         # we have a Series, not a DataFrame
         keys = index + [df.name]
-        rows = (i[0] + (i[1],) for i in df.iteritems())
+        rows = (i[0] + (i[1],) for i in df.items())
     else:
         rows = df.itertuples()
 
@@ -563,33 +566,35 @@ def records2csv(records, encoding=ENCODING, bom=False):
         bom (bool): Add Byte order marker (default: False)
 
     Returns:
-        obj: StringIO.StringIO instance
+        obj: io.StringIO instance
 
     Examples:
         >>> records = [
         ...     {
-        ...         u'usda_id': u'IRVE2',
-        ...         u'species': u'Iris-versicolor',
-        ...         u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}]
+        ...         'usda_id': 'IRVE2',
+        ...         'species': 'Iris-versicolor',
+        ...         'wikipedia_url': 'wikipedia.org/wiki/Iris_versicolor'}]
         ...
         >>> csv_str = records2csv(records)
-        >>> csv_str.next().strip()
-        'usda_id,species,wikipedia_url'
-        >>> csv_str.next().strip()
-        'IRVE2,Iris-versicolor,wikipedia.org/wiki/Iris_versicolor'
+        >>> set(next(csv_str).strip().split(',')) == {
+        ...     'usda_id', 'species', 'wikipedia_url'}
+        True
+        >>> set(next(csv_str).strip().split(',')) == {
+        ...     'IRVE2', 'Iris-versicolor',
+        ...     'wikipedia.org/wiki/Iris_versicolor'}
+        True
     """
     f = StringIO()
-    records = iter(records)
+    irecords = iter(records)
 
     if bom:
-        f.write(u'\ufeff'.encode(ENCODING))  # BOM for Windows
+        f.write('\ufeff'.encode(encoding))  # BOM for Windows
 
-    row = records.next()
-    header = row.keys()
-    w = csv.DictWriter(f, header, encoding=encoding)
-    w.writer.writerow(header)
+    row = next(irecords)
+    w = csv.DictWriter(f, list(row.keys()))
+    w.writeheader()
     w.writerow(row)
-    w.writerows(records)
+    w.writerows(irecords)
     f.seek(0)
     return f
 
@@ -609,25 +614,27 @@ def records2json(records, **kwargs):
         ensure_ascii (bool): Sort response dict by keys (default: False).
 
     Returns:
-        obj: StringIO.StringIO instance
+        obj: io.StringIO instance
 
     Examples:
+        >>> from json import loads
+
         >>> record = {
-        ...     u'usda_id': u'IRVE2',
-        ...     u'species': u'Iris-versicolor',
-        ...     u'wikipedia_url': u'wikipedia.org/wiki/Iris_versicolor'}
+        ...     'usda_id': 'IRVE2',
+        ...     'species': 'Iris-versicolor',
+        ...     'wikipedia_url': 'wikipedia.org/wiki/Iris_versicolor'}
         ...
-        >>> records2json([record]).read()
-        '[{"usda_id": "IRVE2", "species": "Iris-versicolor", \
-"wikipedia_url": "wikipedia.org/wiki/Iris_versicolor"}]'
-        >>> records2json([record], newline=True).readline()
-        u'{"usda_id": "IRVE2", "species": "Iris-versicolor", \
-"wikipedia_url": "wikipedia.org/wiki/Iris_versicolor"}'
+        >>> result = loads(records2json([record]).read())
+        >>> result[0] == record
+        True
+        >>> result = loads(records2json([record], newline=True).readline())
+        >>> result == record
+        True
     """
     newline = kwargs.pop('newline', False)
     jd = partial(dumps, cls=ft.CustomEncoder, **kwargs)
     json = '\n'.join(map(jd, records)) if newline else jd(records)
-    return StringIO(json)
+    return StringIO(str(json))
 
 
 def _records2geojson(records, kw):
@@ -652,13 +659,13 @@ def _records2geojson(records, kw):
         ...     'coordinates': [12.2, 22.0]}
         ...
         >>> kw = ft.Objectify({'key': 'id', 'lon': 0, 'lat': 1})
-        >>> _records2geojson([record], kw).next() == {
+        >>> next(_records2geojson([record], kw)) == {
         ...     'feature': {
-        ...         u'type': u'Feature',
-        ...         u'id': u'gid',
-        ...         u'geometry': {
-        ...             u'type': u'Point', u'coordinates': [12.2, 22.0]},
-        ...         u'properties': {u'p1': u'prop'}},
+        ...         'type': 'Feature',
+        ...         'id': 'gid',
+        ...         'geometry': {
+        ...             'type': 'Point', 'coordinates': [12.2, 22.0]},
+        ...         'properties': {'p1': 'prop'}},
         ...     'lons': [12.2],
         ...     'lats': [22.0]}
         True
@@ -666,21 +673,23 @@ def _records2geojson(records, kw):
     black_list = {kw.key, 'type', 'coordinates'}
 
     for row in records:
+        coordinates = row['coordinates']
+
         if row['type'] == 'Point':
-            lons = [row['coordinates'][kw.lon]]
-            lats = [row['coordinates'][kw.lat]]
+            lons = [coordinates[kw.lon]]
+            lats = [coordinates[kw.lat]]
         elif row['type'] == 'LineString':
-            lons = map(itemgetter(kw.lon), row['coordinates'])
-            lats = map(itemgetter(kw.lat), row['coordinates'])
+            lons = [itemgetter(kw.lon)(r) for r in coordinates]
+            lats = [itemgetter(kw.lat)(r) for r in coordinates]
         elif row['type'] == 'Polygon':
-            get = lambda keyfunc: [map(keyfunc, c) for c in row['coordinates']]
+            get = lambda keyfunc: [[keyfunc(x) for x in c] for c in coordinates]
             lons = list(it.chain.from_iterable(get(itemgetter(kw.lon))))
             lats = list(it.chain.from_iterable(get(itemgetter(kw.lat))))
         else:
             raise TypeError('Invalid type: %s' % row['type'])
 
-        geometry = {'type': row['type'], 'coordinates': row['coordinates']}
-        properties = dict(filter(lambda x: x[0] not in black_list, row.items()))
+        geometry = {'type': row['type'], 'coordinates': coordinates}
+        properties = dict(x for x in row.items() if x[0] not in black_list)
 
         if kw.sort_keys:
             geometry = order_dict(geometry, ['type', 'coordinates'])
@@ -717,18 +726,30 @@ def records2geojson(records, **kwargs):
         ensure_ascii (bool): Sort response dict by keys (default: False).
 
     Returns:
-        obj: StringIO.StringIO instance
+        obj: io.StringIO instance
 
     Examples:
+        >>> from json import loads
+
         >>> record = {
-        ... 'id': 'gid', 'p1': 'prop', 'type': 'Point',
-        ... 'coordinates': [12.2, 22.0]}
+        ...     'id': 'gid', 'p1': 'prop', 'type': 'Point',
+        ...     'coordinates': [12.2, 22.0]}
         ...
-        >>> records2geojson([record]).next()
-        '{"type": "FeatureCollection", "bbox": [12.2, 22.0, 12.2, 22.0], \
-"features": [{"type": "Feature", "id": "gid", "geometry": {"type": "Point", \
-"coordinates": [12.2, 22.0]}, "properties": {"p1": "prop"}}], "crs": {"type": \
-"name", "properties": {"name": null}}}'
+        >>> result = loads(next(records2geojson([record])))
+        >>> result['type'] == 'FeatureCollection'
+        True
+        >>> result['bbox']
+        [12.2, 22.0, 12.2, 22.0]
+        >>> result['crs'] == {
+        ...     'type': 'name', 'properties': {'name': None}}
+        True
+        >>> features = result['features']
+        >>> sorted(features[0].keys()) == [
+        ...     'geometry', 'id', 'properties', 'type']
+        True
+        >>> features[0]['geometry'] == {
+        ...     'type': 'Point', 'coordinates': [12.2, 22.0]}
+        True
     """
     defaults = {'key': 'id', 'lon': 0, 'lat': 1, 'indent': 2, 'sort_keys': True}
     kw = ft.Objectify(kwargs, **defaults)
@@ -743,7 +764,7 @@ def records2geojson(records, **kwargs):
     output = {
         'type': 'FeatureCollection',
         'bbox': [min(lons), min(lats), max(lons), max(lats)],
-        'features': map(itemgetter('feature'), results),
+        'features': [itemgetter('feature')(r) for r in results],
         'crs': crs}
 
     if kw.sort_keys:
@@ -752,4 +773,4 @@ def records2geojson(records, **kwargs):
 
     dkwargs = ft.dfilter(kwargs, ['indent', 'sort_keys'], True)
     json = dumps(output, cls=ft.CustomEncoder, **dkwargs)
-    return StringIO(json)
+    return StringIO(str(json))

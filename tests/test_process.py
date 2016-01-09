@@ -17,7 +17,8 @@ from decimal import Decimal
 from operator import itemgetter
 from collections import defaultdict
 
-from tabutils import process as pr
+from builtins import *
+from tabutils import process as pr, stats
 
 
 def setup_module():
@@ -32,10 +33,10 @@ class Test:
     def test_typecast(self):
         records = [{'float': '1.5'}]
         types = [{'id': 'float', 'type': 'bool'}]
-        nt.assert_equal(pr.type_cast(records, types).next(), {'float': False})
+        nt.assert_equal({'float': False}, next(pr.type_cast(records, types)))
 
         with nt.assert_raises(ValueError):
-            pr.type_cast(records, types, warn=True).next()
+            next(pr.type_cast(records, types, warn=True))
 
     def test_detect_types(self):
         record = {
@@ -51,11 +52,11 @@ class Test:
 
         records = it.repeat(record)
         records, result = pr.detect_types(records)
-        nt.assert_equal(result['count'], 17)
-        nt.assert_equal(result['confidence'], Decimal('0.95'))
+        nt.assert_equal(17, result['count'])
+        nt.assert_equal(Decimal('0.95'), result['confidence'])
         nt.assert_true(result['accurate'])
 
-        types = {
+        expected = {
             'null': 'null',
             'bool': 'bool',
             'int': 'int',
@@ -66,17 +67,17 @@ class Test:
             'datetime': 'datetime',
         }
 
-        nt.assert_equal({r['id']: r['type'] for r in result['types']}, types)
-        nt.assert_equal(records.next(), record)
+        nt.assert_equal(expected, {r['id']: r['type'] for r in result['types']})
+        nt.assert_equal(record, next(records))
 
         result = pr.detect_types(records, 0.99)[1]
-        nt.assert_equal(result['count'], 100)
-        nt.assert_equal(result['confidence'], Decimal('0.97'))
+        nt.assert_equal(100, result['count'])
+        nt.assert_equal(Decimal('0.97'), result['confidence'])
         nt.assert_false(result['accurate'])
 
         result = pr.detect_types([record, record])[1]
-        nt.assert_equal(result['count'], 2)
-        nt.assert_equal(result['confidence'], Decimal('0.87'))
+        nt.assert_equal(2, result['count'])
+        nt.assert_equal(Decimal('0.87'), result['confidence'])
         nt.assert_false(result['accurate'])
 
     def test_fillempty(self):
@@ -91,56 +92,59 @@ class Test:
             {'a': '0', 'b': 'mixed', 'c': '17'}]
 
         new_value_1 = {'a': '1', 'b': 'too short!', 'c': ''}
-
         more_values_1 = [values[0], new_value_1, values[2]]
 
         fields = ['a']
-        nt.assert_equal(list(pr.fillempty(records, 0, fields=fields)), values)
+        nt.assert_equal(values, list(pr.fillempty(records, 0, fields=fields)))
 
         filled = pr.fillempty(records, method='front')
-        nt.assert_equal(list(filled), more_values_1)
+        nt.assert_equal(more_values_1, list(filled))
 
         new_value_2 = {'a': '1', 'b': '27', 'c': '17'}
         new_value_3 = {'a': '0', 'b': 'too short!', 'c': '17'}
         more_values_2 = [new_value_2, new_value_3, values[2]]
         filled = pr.fillempty(records, method='back')
-        nt.assert_equal(list(filled), more_values_2)
+        nt.assert_equal(more_values_2, list(filled))
 
         more_values_3 = [values[0], new_value_3, values[2]]
         filled = pr.fillempty(records, method='back', limit=1)
-        nt.assert_equal(list(filled), more_values_3)
+        nt.assert_equal(more_values_3, list(filled))
 
         kwargs = {'method': 'b', 'fields': ['a']}
         new_value_4 = {'a': 'too short!', 'b': 'too short!', 'c': None}
         more_values_4 = [values[0], new_value_4, values[2]]
-        nt.assert_equal(list(pr.fillempty(records, **kwargs)), more_values_4)
+        nt.assert_equal(more_values_4, list(pr.fillempty(records, **kwargs)))
 
     def test_merge(self):
         pr.merge([{'a': 1, 'b': 2}, {'b': 10, 'c': 11}])
         [('a', 1), ('b', 10), ('c', 11)]
         records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
+
         # Combine all keys
         pred = lambda key: True
         pr.merge(records, pred=pred, op=sum)
         [('a', 1), ('b', 6), ('c', 8), ('d', 6)]
         fltrer = lambda x: x is not None
-        first = lambda pair: filter(fltrer, pair)[0]
+        first = lambda pair: next(filter(fltrer, pair))
         kwargs = {'pred': pred, 'op': first, 'default': None}
         pr.merge(records, **kwargs)
         [('a', 1), ('b', 2), ('c', 3), ('d', 6)]
+
         # This will only reliably give the expected result for 2 records
-        average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
-        kwargs = {'pred': pred, 'op': average, 'default': None}
+        kwargs = {'pred': pred, 'op': stats.mean, 'default': None}
         pr.merge(records, **kwargs)
         [('a', 1), ('b', 3.0), ('c', 4.0), ('d', 6.0)]
+
         # Only combine key 'b'
         pred = lambda key: key == 'b'
         pr.merge(records, pred=pred, op=sum)
         [('a', 1), ('b', 6), ('c', 5), ('d', 6)]
+
         # Only combine keys that have the same value of 'b'
         pred = itemgetter('b')
         pr.merge(records, pred=pred, op=sum)
         [('a', 1), ('b', 6), ('c', 5), ('d', 6)]
+
         # This will reliably work for any number of records
         counted = defaultdict(int)
         pred = lambda key: True
@@ -178,7 +182,7 @@ class Test:
         ]
 
         pred = lambda x: x['name'][0]
-        it.islice(pr.unique(records, pred=pred), 3, 4).next()['name']
+        next(it.islice(pr.unique(records, pred=pred), 3, 4))['name']
         'rob'
 
     def test_cut(self):
@@ -188,10 +192,10 @@ class Test:
             {'field_1': 3, 'field_2': 'jane', 'field_3': 'female'},
         ]
 
-        pr.cut(records, exclude=['field_2']).next() == {
+        next(pr.cut(records, exclude=['field_2'])) == {
             'field_1': 1, 'field_3': 'male'}
         True
-        pr.cut(records, include=['field_2'], exclude=['field_2']).next()
+        next(pr.cut(records, include=['field_2'], exclude=['field_2']))
         {'field_2': 'bill'}
 
     def test_grep(self):
@@ -204,14 +208,14 @@ class Test:
         ]
 
         rules = [{'fields': ['day'], 'pattern': lambda x: x == 1}]
-        pr.grep(records, rules).next()['name']
+        next(pr.grep(records, rules))['name']
         'bill'
         rules = [{'pattern': lambda x: x in {1, 'rob'}}]
-        pr.grep(records, rules).next()['name']
+        next(pr.grep(records, rules))['name']
         'rob'
         rules = [{'pattern': lambda x: x in {1, 'rob'}}]
-        pr.grep(records, rules, any_match=True).next()['name']
+        next(pr.grep(records, rules, any_match=True))['name']
         'bill'
         rules = [{'fields': ['name'], 'pattern': 'o'}]
-        pr.grep(records, rules, inverse=True).next()['name']
+        next(pr.grep(records, rules, inverse=True))['name']
         'bill'

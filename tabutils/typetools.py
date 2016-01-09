@@ -20,14 +20,13 @@ Attributes:
     NULL_YEAR (int): Year to be consider null
     NULL_TIME (str): ISO format time to be consider null
 """
-
 from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
 from functools import partial
-from datetime import datetime as dt, date, time
 
+from builtins import *
 from . import fntools as ft, convert as cv
 
 NULL_YEAR = 9999
@@ -65,11 +64,11 @@ def guess_type_by_field(content):
     Examples:
         >>> fields = ['date', 'raw_value', 'date_and_time', 'length', 'field']
         >>> {r['id']: r['type'] for r in guess_type_by_field(fields)} == {
-        ...     u'date': u'date',
-        ...     u'raw_value': u'float',
-        ...     u'date_and_time': u'datetime',
-        ...     u'length': u'float',
-        ...     u'field': u'text',
+        ...     'date': 'date',
+        ...     'raw_value': 'float',
+        ...     'date_and_time': 'datetime',
+        ...     'length': 'float',
+        ...     'field': 'text',
         ... }
         ...
         True
@@ -114,6 +113,8 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         `process.detect_types`
 
     Examples:
+        >>> from datetime import datetime as dt, date, time
+
         >>> record = {
         ...     'null': 'None',
         ...     'bool': 'false',
@@ -125,14 +126,14 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         ...     'datetime': '5/4/82 2pm',
         ... }
         >>> {r['id']: r['type'] for r in guess_type_by_value(record)} == {
-        ...     u'null': u'null',
-        ...     u'bool': u'bool',
-        ...     u'int': u'int',
-        ...     u'float': u'float',
-        ...     u'text': u'text',
-        ...     u'date': u'date',
-        ...     u'time': u'time',
-        ...     u'datetime': u'datetime'}
+        ...     'null': 'null',
+        ...     'bool': 'bool',
+        ...     'int': 'int',
+        ...     'float': 'float',
+        ...     'text': 'text',
+        ...     'date': 'date',
+        ...     'time': 'time',
+        ...     'datetime': 'datetime'}
         ...
         True
         >>> record = {
@@ -146,14 +147,14 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         ...     'datetime': dt(1982, 5, 4, 2),
         ... }
         >>> {r['id']: r['type'] for r in guess_type_by_value(record)} == {
-        ...     u'null': u'null',
-        ...     u'bool': u'bool',
-        ...     u'int': u'int',
-        ...     u'float': u'float',
-        ...     u'text': u'text',
-        ...     u'date': u'date',
-        ...     u'time': u'time',
-        ...     u'datetime': u'datetime'}
+        ...     'null': 'null',
+        ...     'bool': 'bool',
+        ...     'int': 'int',
+        ...     'float': 'float',
+        ...     'text': 'text',
+        ...     'date': 'date',
+        ...     'time': 'time',
+        ...     'datetime': 'datetime'}
         ...
         True
     """
@@ -171,7 +172,7 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         {'type': 'date', 'func': is_date},
         {'type': 'text', 'func': lambda x: hasattr(x, 'lower')}]
 
-    for key, value in record.iteritems():
+    for key, value in record.items():
         for g in guess_funcs:
             result = type_test(g['func'], g['type'], key, value)
 
@@ -189,6 +190,8 @@ def is_date(content):
         content (scalar): the content to analyze
 
     Examples:
+        >>> from datetime import datetime as dt, date, time
+
         >>> is_date('5/4/82 2pm')
         True
         >>> is_date('5/4/82')
@@ -225,6 +228,8 @@ def is_time(content):
         content (scalar): the content to analyze
 
     Examples:
+        >>> from datetime import datetime as dt, date, time
+
         >>> is_time('5/4/82 2pm')
         True
         >>> is_time('5/4/82')
@@ -261,6 +266,8 @@ def is_datetime(content):
         content (scalar): the content to analyze
 
     Examples:
+        >>> from datetime import datetime as dt, date, time
+
         >>> is_datetime('5/4/82 2pm')
         True
         >>> is_datetime('5/4/82')

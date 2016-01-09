@@ -15,10 +15,11 @@ import itertools as it
 import requests
 import responses
 
-from StringIO import StringIO
+from io import StringIO
 from operator import itemgetter
+from builtins import *
 
-from tabutils import fntools as ft, io
+from tabutils import fntools as ft, io, stats
 
 
 def setup_module():
@@ -30,11 +31,11 @@ def setup_module():
 
 class TestIterStringIO:
     def test_strip(self):
-        nt.assert_equal(ft.strip('2,123.45'), '2123.45')
+        nt.assert_equal('2123.45', ft.strip('2,123.45'))
 
         parsed = ft.strip('2.123,45', thousand_sep='.', decimal_sep=',')
-        nt.assert_equal(parsed, '2123.45')
-        nt.assert_equal(ft.strip('spam'), 'spam')
+        nt.assert_equal('2123.45', parsed)
+        nt.assert_equal('spam', ft.strip('spam'))
 
     def test_is_numeric(self):
         nt.assert_true(ft.is_numeric('2,123.45'))
@@ -73,27 +74,27 @@ class TestIterStringIO:
 
     def test_byte_array(self):
         content = 'Iñtërnâtiônàližætiøn'
-        value = bytearray(b'Iñtërnâtiônàližætiøn')
-        nt.assert_equal(ft.byte(content), value)
-        nt.assert_equal(ft.byte(iter(content)), value)
-        nt.assert_equal(ft.byte(list(content)), value)
+        expected = bytearray('Iñtërnâtiônàližætiøn'.encode('utf-8'))
+        nt.assert_equal(expected, ft.byte(content))
+        nt.assert_equal(expected, ft.byte(iter(content)))
+        nt.assert_equal(expected, ft.byte(list(content)))
 
     def test_afterish(self):
-        nt.assert_equal(ft.afterish('1001', '.'), -1)
-        nt.assert_equal(ft.afterish('1,001'), 3)
-        nt.assert_equal(ft.afterish('2,100,001.00'), 6)
-        nt.assert_equal(ft.afterish('2,100,001.00', exclude='.'), 3)
-        nt.assert_equal(ft.afterish('1,000.00', '.', ','), 2)
+        nt.assert_equal(-1, ft.afterish('1001', '.'))
+        nt.assert_equal(3, ft.afterish('1,001'))
+        nt.assert_equal(6, ft.afterish('2,100,001.00'))
+        nt.assert_equal(3, ft.afterish('2,100,001.00', exclude='.'))
+        nt.assert_equal(2, ft.afterish('1,000.00', '.', ','))
 
         with nt.assert_raises(TypeError):
             ft.afterish('eggs', '.')
 
     def test_get_separators(self):
-        value = {'thousand_sep': ',', 'decimal_sep': '.'}
-        nt.assert_equal(ft.get_separators('2,123.45'), value)
+        expected = {'thousand_sep': ',', 'decimal_sep': '.'}
+        nt.assert_equal(expected, ft.get_separators('2,123.45'))
 
-        value = {'thousand_sep': '.', 'decimal_sep': ','}
-        nt.assert_equal(ft.get_separators('2.123,45'), value)
+        expected = {'thousand_sep': '.', 'decimal_sep': ','}
+        nt.assert_equal(expected, ft.get_separators('2.123,45'))
 
         with nt.assert_raises(TypeError):
             ft.get_separators('spam')
@@ -104,48 +105,48 @@ class TestIterStringIO:
         f = StringIO(content)
         records = io.read_csv(f)
         previous = {}
-        current = records.next()
-        value = {'column_a': '1', 'column_b': '27', 'column_c': ''}
-        nt.assert_equal(current, value)
+        current = next(records)
+        expected = {'column_a': '1', 'column_b': '27', 'column_c': ''}
+        nt.assert_equal(expected, current)
 
         length = len(current)
         filled = ft.fill(previous, current, value=0)
         previous = dict(it.islice(filled, length))
-        count = filled.next()
+        count = next(filled)
         nt.assert_equal(count, {'column_a': 0, 'column_b': 0, 'column_c': 1})
 
-        value = {'column_a': '1', 'column_b': '27', 'column_c': 0}
-        nt.assert_equal(previous, value)
+        expected = {'column_a': '1', 'column_b': '27', 'column_c': 0}
+        nt.assert_equal(expected, previous)
 
-        current = records.next()
+        current = next(records)
 
-        value = {
+        expected = {
             'column_a': '',
             'column_b': u"too short!",
             'column_c': None,
         }
 
-        nt.assert_equal(current, value)
+        nt.assert_equal(expected, current)
 
         kwargs = {'fill_key': 'column_b', 'count': count}
         filled = ft.fill(previous, current, **kwargs)
         previous = dict(it.islice(filled, length))
-        count = filled.next()
-        nt.assert_equal(count, {'column_a': 1, 'column_b': 0, 'column_c': 2})
+        count = next(filled)
+        nt.assert_equal({'column_a': 1, 'column_b': 0, 'column_c': 2}, count)
 
-        value = {
+        expected = {
             'column_a': u"too short!",
             'column_b': u"too short!",
             'column_c': u"too short!",
         }
 
-        nt.assert_equal(previous, value)
+        nt.assert_equal(expected, previous)
 
     @responses.activate
     def test_chunk(self):
         content = io.StringIO('Iñtërnâtiônàližætiøn')
-        nt.assert_equal(ft.chunk(content, 5).next(), 'Iñtër')
-        nt.assert_equal(ft.chunk(content).next(), 'nâtiônàližætiøn')
+        nt.assert_equal('Iñtër', next(ft.chunk(content, 5)))
+        nt.assert_equal('nâtiônàližætiøn', next(ft.chunk(content)))
 
         url = 'http://google.com'
         body = '<!doctype html><html itemtype="http://schema.org/page">'
@@ -156,8 +157,8 @@ class TestIterStringIO:
         # The chunk size is the number of bytes it should read into
         # memory. This is not necessarily the length of each item returned
         # as decoding can take place.
-        nt.assert_equal(len(ft.chunk(r.iter_content, 20, 29, 200).next()), 20)
-        nt.assert_equal(len(ft.chunk(r.iter_content).next()), 55)
+        nt.assert_equal(20, len(next(ft.chunk(r.iter_content, 20, 29, 200))))
+        nt.assert_equal(55, len(next(ft.chunk(r.iter_content))))
 
     def test_combine(self):
         records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
@@ -165,31 +166,30 @@ class TestIterStringIO:
         # Combine all keys
         pred = lambda key: True
         x, y = records[0], records[1]
-        nt.assert_equal(ft.combine(x, y, 'a', pred=pred, op=sum), 1)
-        nt.assert_equal(ft.combine(x, y, 'b', pred=pred, op=sum), 6)
-        nt.assert_equal(ft.combine(x, y, 'c', pred=pred, op=sum), 8)
+        nt.assert_equal(1, ft.combine(x, y, 'a', pred=pred, op=sum))
+        nt.assert_equal(6, ft.combine(x, y, 'b', pred=pred, op=sum))
+        nt.assert_equal(8, ft.combine(x, y, 'c', pred=pred, op=sum))
 
         fltrer = lambda x: x is not None
-        first = lambda x: filter(fltrer, x)[0]
+        first = lambda x: next(filter(fltrer, x))
         kwargs = {'pred': pred, 'op': first, 'default': None}
-        nt.assert_equal(ft.combine(x, y, 'b', **kwargs), 2)
+        nt.assert_equal(2, ft.combine(x, y, 'b', **kwargs))
 
-        average = lambda x: sum(filter(fltrer, x)) / len(filter(fltrer, x))
-        kwargs = {'pred': pred, 'op': average, 'default': None}
-        nt.assert_equal(ft.combine(x, y, 'a', **kwargs), 1.0)
-        nt.assert_equal(ft.combine(x, y, 'b', **kwargs), 3.0)
+        kwargs = {'pred': pred, 'op': stats.mean, 'default': None}
+        nt.assert_equal(1.0, ft.combine(x, y, 'a', **kwargs))
+        nt.assert_equal(3.0, ft.combine(x, y, 'b', **kwargs))
 
         # Only combine key 'b'
         pred = lambda key: key == 'b'
-        nt.assert_equal(ft.combine(x, y, 'c', pred=pred, op=sum), 5)
+        nt.assert_equal(5, ft.combine(x, y, 'c', pred=pred, op=sum))
 
         # Only combine keys that have the same value of 'b'
         pred = itemgetter('b')
-        nt.assert_equal(ft.combine(x, y, 'b', pred=pred, op=sum), 6)
-        nt.assert_equal(ft.combine(x, y, 'c', pred=pred, op=sum), 5)
+        nt.assert_equal(6, ft.combine(x, y, 'b', pred=pred, op=sum))
+        nt.assert_equal(5, ft.combine(x, y, 'c', pred=pred, op=sum))
 
     def test_op_everseen(self):
         content = [4, 6, 3, 8, 2, 1]
-        value = [4, 4, 3, 3, 2, 1]
-        nt.assert_equal(list(ft.op_everseen(content, pad=True)), value)
-        nt.assert_equal(list(ft.op_everseen(content, op='gt')), [4, 6, 8])
+        expected = [4, 4, 3, 3, 2, 1]
+        nt.assert_equal(expected, list(ft.op_everseen(content, pad=True)))
+        nt.assert_equal([4, 6, 8], list(ft.op_everseen(content, op='gt')))

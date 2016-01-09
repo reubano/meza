@@ -197,19 +197,29 @@ def _read_any(f, reader, args, pos=0, **kwargs):
                 yield r
                 pos += 1
     except (UnicodeDecodeError, csvError, TypeError):
-        # bytes or the wrong encoding was used so detect correct one
+        # bytes or the wrong encoding was used
         if recursed:
             logging.error('Unable to detect proper encoding for %s.', f.name)
             raise
-        else:
+
+        f.seek(0)
+
+        try:
+            # See if we have bytes to avoid reopening the file
+            encoding = detect_encoding(f)['encoding']
+        except UnicodeDecodeError:
+            # We had an incorrectly encoded file, so reopen with bytes and
+            # detect the encoding
             f.close()
 
             with open(f.name, 'rb') as new_f:
                 encoding = detect_encoding(new_f)['encoding']
+        else:
+            f.close()
 
-            with open(f.name, 'rU', encoding=encoding) as enc_f:
-                for r in _read_any(enc_f, reader, args, pos, **kwargs):
-                    yield r
+        with open(f.name, 'rU', encoding=encoding) as enc_f:
+            for r in _read_any(enc_f, reader, args, pos, **kwargs):
+                yield r
 
 
 def read_any(filepath, reader, mode='rU', *args, **kwargs):

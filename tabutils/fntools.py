@@ -872,6 +872,26 @@ def array_substitute(content, needle, replace):
             yield list(array_substitute(item, needle, replace))
 
 
+def def_itemgetter(attr, default=None):
+    """like operator.itemgetter but fills in missing keys with a default value
+
+    Args:
+        attr (str):
+        default (scalar):
+
+    Examples:
+        >>> records = [{'key': 1}, {'key': 3}, {'value': 3}]
+        >>> sorted(records, key=operator.itemgetter('key'))[0]
+        ... # doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        KeyError:...
+        >>> keyfunc = def_itemgetter('key')
+        >>> sorted(records, key=keyfunc, reverse=True)[0] == {'key': 3}
+        True
+    """
+    return lambda obj: obj.get(attr, default)
+
+
 def op_everseen(iterable, key=None, pad=False, op='lt'):
     """List min/max/equal... elements, preserving order. Remember all
     elements ever seen.

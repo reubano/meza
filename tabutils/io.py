@@ -821,41 +821,84 @@ def read_json(filepath, mode='rU', path='item', newline=False):
     return read_any(filepath, reader, mode)
 
 
-def read_geojson(filepath, mode='rU'):
+def read_geojson(filepath, key='id', mode='rU', **kwargs):
     """Reads a geojson file
 
     Args:
         filepath (str): The geojson file path or file like object.
+        key (str): GeoJSON Feature ID (default: 'id').
         mode (Optional[str]): The file open mode (default: 'rU').
+
+    Kwargs:
+        lat_first (bool): Latitude listed as first coordinate (default: False).
 
     Returns:
         Iterable: The parsed records
 
+    Raise:
+        TypeError if no features list or invalid geometry type.
+
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
+        `tabutils.convert.records2geojson`
 
     Examples:
+        >>> from decimal import Decimal
+
         >>> filepath = p.join(DATA_DIR, 'test.geojson')
         >>> records = read_geojson(filepath)
         >>> next(records) == {
-        ...     'id': None,
-        ...     'prop0': 'value0',
+        ...     'id': 6635402,
+        ...     'iso3': 'ABW',
+        ...     'bed_prv_pr': Decimal('0.003'),
+        ...     'ic_mhg_cr': Decimal('0.0246'),
+        ...     'bed_prv_cr': 0,
         ...     'type': 'Point',
-        ...     'coordinates': [102, 0.5]}
+        ...     'lon': Decimal('-70.0624999987871'),
+        ...     'lat': Decimal('12.637499976568533')}
         True
     """
     def reader(f, **kwargs):
+        lat_first = kwargs.get('lat_first')
+
         try:
             features = items(f, 'features.item')
         except KeyError:
             raise TypeError('Only GeoJSON with features are supported.')
         else:
-            for feature in features:
-                _id = {'id': feature.get('id')}
-                record = feature.get('properties') or {}
-                yield pr.merge([_id, record, feature['geometry']])
+            def get_point(coords):
+                if lat_first:
+                    point = (coords[1], coords[0])
+                else:
+                    point = (coords[0], coords[1])
 
-    return read_any(filepath, reader, mode)
+                return point
+
+            for feature in features:
+                type_ = feature['geometry']['type']
+                properties = feature.get('properties') or {}
+                coords = feature['geometry']['coordinates']
+                record = {
+                    'id': feature.get(key, properties.get(key)),
+                    'type': feature['geometry']['type']}
+
+                if type_ == 'Point':
+                    record['lon'], record['lat'] = get_point(coords)
+                    yield pr.merge([record, properties])
+                elif type_ == 'LineString':
+                    for point in coords:
+                        record['lon'], record['lat'] = get_point(point)
+                        yield pr.merge([record, properties])
+                elif type_ == 'Polygon':
+                    for pos, poly in enumerate(coords):
+                        for point in poly:
+                            record['lon'], record['lat'] = get_point(point)
+                            record['pos'] = pos
+                            yield pr.merge([record, properties])
+                else:
+                    raise TypeError('Invalid geometry type {}.'.format(type_))
+
+    return read_any(filepath, reader, mode, **kwargs)
 
 
 def read_yaml(filepath, mode='rU', **kwargs):

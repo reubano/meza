@@ -18,6 +18,7 @@ from os import path as p
 from json import loads
 from tempfile import TemporaryFile
 from io import StringIO
+from decimal import Decimal
 
 from builtins import *
 from tabutils import io, convert as cv
@@ -249,15 +250,24 @@ class TestInput:
 class TestGeoJSON:
     def __init__(self):
         self.cls_initialized = False
-        self.bbox = [100, 0, 105, 1]
+        self.bbox = [
+            -70.0624999987871, 12.595833309901533, -70.0208333321201,
+            12.637499976568533]
+
         self.filepath = p.join(io.DATA_DIR, 'test.geojson')
+        names = ['test', 'line', 'polygon']
+        self.filepaths = [p.join(io.DATA_DIR, '%s.geojson' % n) for n in names]
 
     def test_geojson(self):
         expected = {
-            'id': None,
-            'prop0': 'value0',
+            'id': 6635402,
+            'iso3': 'ABW',
+            'bed_prv_pr': Decimal('0.003'),
+            'ic_mhg_cr': Decimal('0.0246'),
+            'bed_prv_cr': 0,
             'type': 'Point',
-            'coordinates': [102, 0.5]}
+            'lon': Decimal('-70.0624999987871'),
+            'lat': Decimal('12.637499976568533')}
 
         records = io.read_geojson(self.filepath)
         record = next(records)
@@ -265,40 +275,33 @@ class TestGeoJSON:
 
         for record in records:
             nt.assert_true('id' in record)
-
-            if record['type'] == 'Point':
-                nt.assert_equal(2, len(record['coordinates']))
-            elif record['type'] == 'LineString':
-                nt.assert_greater_equal(len(record['coordinates']), 2)
-                nt.assert_equal(2, len(record['coordinates'][0]))
-            elif record['type'] == 'Polygon':
-                nt.assert_greater_equal(len(record['coordinates']), 1)
-                nt.assert_greater_equal(len(record['coordinates'][0]), 3)
-                nt.assert_equal(2, len(record['coordinates'][0][0]))
+            nt.assert_equal(record['lon'], record['lon'])
+            nt.assert_equal(record['lat'], record['lat'])
 
     def test_geojson_with_id(self):
-        records = io.read_geojson(self.filepath)
-        f = cv.records2geojson(records, key='id')
-        geojson = loads(f.read())
+        for filepath in self.filepaths:
+            records = io.read_geojson(filepath)
+            f = cv.records2geojson(records, key='id')
+            geojson = loads(f.read())
 
-        nt.assert_equal('FeatureCollection', geojson['type'])
-        nt.assert_true('crs' in geojson)
-        nt.assert_equal(self.bbox, geojson['bbox'])
-        nt.assert_equal(3, len(geojson['features']))
+            nt.assert_equal('FeatureCollection', geojson['type'])
+            nt.assert_true('crs' in geojson)
+            nt.assert_equal(self.bbox, geojson['bbox'])
+            nt.assert_true(geojson['features'])
 
-        for feature in geojson['features']:
-            nt.assert_equal('Feature', feature['type'])
-            nt.assert_true('id' in feature)
-            nt.assert_less_equal(len(feature['properties']), 2)
+            for feature in geojson['features']:
+                nt.assert_equal('Feature', feature['type'])
+                nt.assert_true('id' in feature)
+                nt.assert_less_equal(2, len(feature['properties']))
 
-            geometry = feature['geometry']
+                geometry = feature['geometry']
 
-            if geometry['type'] == 'Point':
-                nt.assert_equal(2, len(geometry['coordinates']))
-            elif geometry['type'] == 'LineString':
-                nt.assert_equal(2, len(geometry['coordinates'][0]))
-            elif geometry['type'] == 'Polygon':
-                nt.assert_equal(2, len(geometry['coordinates'][0][0]))
+                if geometry['type'] == 'Point':
+                    nt.assert_equal(2, len(geometry['coordinates']))
+                elif geometry['type'] == 'LineString':
+                    nt.assert_equal(2, len(geometry['coordinates'][0]))
+                elif geometry['type'] == 'Polygon':
+                    nt.assert_equal(2, len(geometry['coordinates'][0][0]))
 
     def test_geojson_with_crs(self):
         records = io.read_geojson(self.filepath)

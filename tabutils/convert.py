@@ -600,8 +600,7 @@ def records2csv(records, encoding=ENCODING, bom=False):
 
 
 def records2json(records, **kwargs):
-    """
-    Converts records into a json file like object.
+    """Converts records into a json file like object.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
@@ -612,6 +611,9 @@ def records2json(records, **kwargs):
         newline (bool): Output newline delimited json (default: False)
         sort_keys (bool): Sort rows by keys (default: True).
         ensure_ascii (bool): Sort response dict by keys (default: False).
+
+    See also:
+        `tabutils.convert.records2geojson`
 
     Returns:
         obj: io.StringIO instance
@@ -637,59 +639,45 @@ def records2json(records, **kwargs):
     return StringIO(str(json))
 
 
-def _records2geojson(records, kw):
-    """Helper function for converting records into a GeoJSON file like object.
+def gen_features(subresults, kw):
+    """Generates a geojson feature.
 
      Args:
-        records (Iter[dict]): Rows of data whose keys are the field names.
+        subresults (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
         kw (obj): `fntools.Objectify` instance with the following Attributes:
             key (str): GeoJSON Feature ID
-            lat (str): latitude field name
             lon (str): longitude field name
+            lat (str): latitude field name
             sort_keys (bool): Sort rows by keys
 
+    See also:
+        `tabutils.convert.records2geojson`
+
     Yields:
-        tuple(dict, float, float): tuple of feature, lon, and lat
+        dict: a geojson feature
 
     Examples:
         >>> record = {
         ...     'id': 'gid', 'p1': 'prop', 'type': 'Point',
-        ...     'coordinates': [12.2, 22.0]}
-        ...
-        >>> kw = ft.Objectify({'key': 'id', 'lon': 0, 'lat': 1})
-        >>> next(_records2geojson([record], kw)) == {
-        ...     'feature': {
-        ...         'type': 'Feature',
-        ...         'id': 'gid',
-        ...         'geometry': {
-        ...             'type': 'Point', 'coordinates': [12.2, 22.0]},
-        ...         'properties': {'p1': 'prop'}},
-        ...     'lons': [12.2],
-        ...     'lats': [22.0]}
+        ...     'lon': Decimal('12.2'), 'lat': Decimal('22.0')}
+        >>> subresults = [((record['lon'], record['lat']), record)]
+        >>> kw = ft.Objectify({'key': 'id', 'lon': 'lon', 'lat': 'lat'})
+        >>> next(gen_features(subresults, kw)) == {
+        ...     'type': 'Feature',
+        ...     'id': 'gid',
+        ...     'geometry': {
+        ...         'type': 'Point',
+        ...         'coordinates': (Decimal('12.2'), Decimal('22.0'))},
+        ...     'properties': {'id': 'gid', 'p1': 'prop'}}
         True
     """
-    black_list = {kw.key, 'type', 'coordinates'}
+    black_list = {'type', kw.lon, kw.lat}
 
-    for row in records:
-        coordinates = row['coordinates']
-
-        if row['type'] == 'Point':
-            lons = [coordinates[kw.lon]]
-            lats = [coordinates[kw.lat]]
-        elif row['type'] == 'LineString':
-            lons = [itemgetter(kw.lon)(r) for r in coordinates]
-            lats = [itemgetter(kw.lat)(r) for r in coordinates]
-        elif row['type'] == 'Polygon':
-            get = lambda keyfunc: [[keyfunc(x) for x in c] for c in coordinates]
-            lons = list(it.chain.from_iterable(get(itemgetter(kw.lon))))
-            lats = list(it.chain.from_iterable(get(itemgetter(kw.lat))))
-        else:
-            raise TypeError('Invalid type: %s' % row['type'])
-
-        geometry = {'type': row['type'], 'coordinates': coordinates}
+    for coordinates, row in subresults:
         properties = dict(x for x in row.items() if x[0] not in black_list)
+        geometry = {'type': row['type'], 'coordinates': coordinates}
 
         if kw.sort_keys:
             geometry = order_dict(geometry, ['type', 'coordinates'])
@@ -704,7 +692,53 @@ def _records2geojson(records, kw):
             feature_order = ['type', 'id', 'geometry', 'properties']
             feature = order_dict(feature, feature_order)
 
-        yield {'feature': feature, 'lons': lons, 'lats': lats}
+        yield feature
+
+
+def gen_subresults(records, kw):
+    """Helper function for converting record groups into a GeoJSON file like object.
+
+     Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        kw (obj): `fntools.Objectify` instance with the following Attributes:
+            key (str): GeoJSON Feature ID
+            lon (str): longitude field name
+            lat (str): latitude field name
+
+    See also:
+        `tabutils.convert.records2geojson`
+
+    Yields:
+        tuple(iter, dict): tuple of coordinates and row
+
+    Examples:
+        >>> kw = ft.Objectify({'key': 'id', 'lon': 'lon', 'lat': 'lat'})
+        >>> record = {
+        ...     'lon': Decimal('1.2'), 'lat': Decimal('22.0'), 'type': 'Point'}
+        >>> next(gen_subresults([record], kw))[0]
+        (Decimal('1.2'), Decimal('22.0'))
+        >>> record = {'lon': 1.2, 'lat': 22.0, 'type': 'LineString'}
+        >>> next(gen_subresults([record], kw))[0]
+        [(1.2, 22.0)]
+    """
+    for id_, group in it.groupby(records, ft.def_itemgetter(kw.key)):
+        first_row = next(group)
+        type_ = first_row['type']
+        sub_records = it.chain([first_row], group)
+
+        if type_ == 'Point':
+            for row in sub_records:
+                yield ((row[kw.lon], row[kw.lat]), row)
+        elif type_ == 'LineString':
+            yield ([(r[kw.lon], r[kw.lat]) for r in sub_records], first_row)
+        elif type_ == 'Polygon':
+            groups = it.groupby(sub_records, itemgetter('pos'))
+            polygon = [[(r[kw.lon], r[kw.lat]) for r in g[1]] for g in groups]
+            yield (polygon, first_row)
+        else:
+            raise TypeError('Invalid type: %s' % type_)
 
 
 def records2geojson(records, **kwargs):
@@ -712,18 +746,23 @@ def records2geojson(records, **kwargs):
 
      Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `tabutils.io.read_geojson`.
 
         kwargs (dict): Keyword arguments.
 
     Kwargs:
-        key (str): GeoJSON Feature ID (default: 'geoid').
-        lat (str): latitude field name (default: 'lat').
-        lon (str): longitude field name (default: 'lon').
-        crs (str): coordinate reference system field name (default: 'crs').
+        key (str): GeoJSON Feature ID (default: 'id').
+        lon (int): longitude field name (default: 'lon').
+        lat (int): latitude field name (default: 'lat').
+        crs (str): coordinate reference system field name (default:
+            'urn:ogc:def:crs:OGC:1.3:CRS84').
         indent (int): Number of spaces to indent (default: 2).
         sort_keys (bool): Sort rows by keys (default: True).
         ensure_ascii (bool): Sort response dict by keys (default: False).
+
+    See also:
+        `tabutils.convert.records2json`
+        `tabutils.io.read_geojson`
 
     Returns:
         obj: io.StringIO instance
@@ -733,15 +772,15 @@ def records2geojson(records, **kwargs):
 
         >>> record = {
         ...     'id': 'gid', 'p1': 'prop', 'type': 'Point',
-        ...     'coordinates': [12.2, 22.0]}
+        ...     'lon': Decimal('12.2'), 'lat': Decimal('22.0')}
         ...
         >>> result = loads(next(records2geojson([record])))
         >>> result['type'] == 'FeatureCollection'
         True
         >>> result['bbox']
         [12.2, 22.0, 12.2, 22.0]
-        >>> result['crs'] == {
-        ...     'type': 'name', 'properties': {'name': None}}
+        >>> crs = 'urn:ogc:def:crs:OGC:1.3:CRS84'
+        >>> result['crs'] == {'type': 'name', 'properties': {'name': crs}}
         True
         >>> features = result['features']
         >>> sorted(features[0].keys()) == [
@@ -751,12 +790,36 @@ def records2geojson(records, **kwargs):
         ...     'type': 'Point', 'coordinates': [12.2, 22.0]}
         True
     """
-    defaults = {'key': 'id', 'lon': 0, 'lat': 1, 'indent': 2, 'sort_keys': True}
+    defaults = {
+        'key': 'id', 'lon': 'lon', 'lat': 'lat', 'indent': 2, 'sort_keys': True,
+        'crs': 'urn:ogc:def:crs:OGC:1.3:CRS84'}
+
     kw = ft.Objectify(kwargs, **defaults)
-    results = list(_records2geojson(records, kw))
-    lons = list(it.chain.from_iterable(map(itemgetter('lons'), results)))
-    lats = list(it.chain.from_iterable(map(itemgetter('lats'), results)))
     crs = {'type': 'name', 'properties': {'name': kw.crs}}
+
+    subresults = gen_subresults(records, kw)
+    features = list(gen_features(subresults, kw))
+    coords = [f['geometry']['coordinates'] for f in features]
+    get_lon = lambda x: map(itemgetter(0), x)
+    get_lat = lambda x: map(itemgetter(1), x)
+
+    try:
+        chained = (it.chain.from_iterable(map(get_lon, c)) for c in coords)
+        lons = set(it.chain.from_iterable(chained))
+    except TypeError:
+        try:
+            lons = set(it.chain.from_iterable(map(get_lon, coords)))
+        except TypeError:
+            # it's a point
+            lons = set(get_lon(coords))
+            lats = set(get_lat(coords))
+        else:
+            # it's a line
+            lats = set(it.chain.from_iterable(map(get_lat, coords)))
+    else:
+        # it's a polygon
+        chained = (it.chain.from_iterable(map(get_lat, c)) for c in coords)
+        lats = set(it.chain.from_iterable(chained))
 
     if kw.sort_keys:
         crs = order_dict(crs, ['type', 'properties'])
@@ -764,7 +827,7 @@ def records2geojson(records, **kwargs):
     output = {
         'type': 'FeatureCollection',
         'bbox': [min(lons), min(lats), max(lons), max(lats)],
-        'features': [itemgetter('feature')(r) for r in results],
+        'features': features,
         'crs': crs}
 
     if kw.sort_keys:

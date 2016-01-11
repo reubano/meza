@@ -1160,6 +1160,9 @@ def get_reader(extension):
     Returns:
         func: The file reading function
 
+    See also:
+        `tabutils.io.read`
+
     Raises:
         TypeError: If unable to find a suitable reader.
 
@@ -1181,10 +1184,43 @@ def get_reader(extension):
         'yaml': read_yaml,
         'yml': read_yaml,
         'html': read_html,
+        'tsv': read_tsv,
         'fixed': read_fixed_csv,
     }
 
     try:
-        return switch[extension]
+        return switch[extension.lstrip('.').lower()]
     except IndexError:
         raise TypeError('Reader for extension `%s` not found!' % extension)
+
+
+def read(filepath, **kwargs):
+    """Reads the filepath for any supported file format.
+
+    Args:
+        filepath (str): The filepath to read.
+
+    Returns:
+        Iterable: The parsed records
+
+    See also:
+        `tabutils.io.get_reader`
+        `tabutils.io.join`
+
+    Examples:
+        >>> filepath = p.join(DATA_DIR, 'test.xls')
+        >>> next(read(filepath, sanitize=True)) == {
+        ...     'some_value': '234.0',
+        ...     'some_date': '1982-05-04',
+        ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
+        ...     'unicode_test': 'Ādam'}
+        True
+        >>> filepath = p.join(DATA_DIR, 'test.csv')
+        >>> next(read(filepath, sanitize=True)) == {
+        ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
+        ...     'some_date': '05/04/82',
+        ...     'some_value': '234',
+        ...     'unicode_test': 'Ādam'}
+        True
+    """
+    return get_reader(p.splitext(filepath)[1])(filepath, **kwargs)

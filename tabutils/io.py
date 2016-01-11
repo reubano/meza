@@ -27,18 +27,21 @@ import sys
 import hashlib
 import sqlite3
 import logging
+import yaml
+import json
 
 from os import path as p
 from io import StringIO, TextIOBase
 from datetime import time
-from json import loads
 from mmap import mmap
 from collections import deque
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 from http import client
 from csv import Error as csvError
+
 from builtins import *
 from six.moves import zip_longest
+from bs4 import BeautifulSoup, FeatureNotFound
 from ijson import items
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from chardet.universaldetector import UniversalDetector
@@ -814,7 +817,7 @@ def read_json(filepath, mode='rU', path='item', newline=False):
         ...     'integer': 40}
         True
     """
-    reader = lambda f, **kw: map(loads, f) if newline else items(f, path)
+    reader = lambda f, **kw: map(json.loads, f) if newline else items(f, path)
     return read_any(filepath, reader, mode)
 
 
@@ -853,6 +856,109 @@ def read_geojson(filepath, mode='rU'):
                 yield pr.merge([_id, record, feature['geometry']])
 
     return read_any(filepath, reader, mode)
+
+
+def read_yaml(filepath, mode='rU', **kwargs):
+    """Reads a YAML file
+
+    TODO: convert to a streaming parser
+
+    Args:
+        filepath (str): The json file path or file like object.
+        mode (Optional[str]): The file open mode (default: 'rU').
+
+    Returns:
+        Iterable: The parsed records
+
+    See also:
+        `io.read_any`
+
+    Examples:
+        >>> from datetime import date, datetime as dt
+
+        >>> filepath = p.join(DATA_DIR, 'test.yml')
+        >>> records = read_yaml(filepath)
+        >>> next(records) == {
+        ...     'text': 'Chicago Reader',
+        ...     'float': 1.0,
+        ...     'datetime': dt(1971, 1, 1, 4, 14),
+        ...     'boolean': True,
+        ...     'time': '04:14:00',
+        ...     'date': date(1971, 1, 1),
+        ...     'integer': 40}
+        True
+    """
+    return read_any(filepath, yaml.load, mode, **kwargs)
+
+
+def read_html(filepath, table=0, mode='rU', **kwargs):
+    """Reads tables from an html file
+
+    TODO: convert to lxml.etree.iterparse
+    http://lxml.de/parsing.html#iterparse-and-iterwalk
+
+    Args:
+        filepath (str): The json file path or file like object.
+        table (int): Zero indexed table to open (default: 0)
+        mode (Optional[str]): The file open mode (default: 'rU').
+        kwargs (dict): Keyword arguments
+
+    Kwargs:
+        encoding (str): File encoding.
+
+        sanitize (bool): Underscorify and lowercase field names
+            (default: False).
+
+        dedupe (bool): Deduplicate field names (default: False).
+
+    Returns:
+        Iterable: The parsed records
+
+    See also:
+        `io.read_any`
+
+    Examples:
+        >>> filepath = p.join(DATA_DIR, 'test.html')
+        >>> records = read_html(filepath, sanitize=True)
+        >>> next(records) == {
+        ...     '': 'Mediterranean',
+        ...     'january': '82',
+        ...     'february': '346',
+        ...     'march': '61',
+        ...     'april': '1,244',
+        ...     'may': '95',
+        ...     'june': '\xa010',
+        ...     'july': '230',
+        ...     'august': '684',
+        ...     'september': '268',
+        ...     'october': '432',
+        ...     'november': '105',
+        ...     'december': '203',
+        ...     'total_to_date': '3,760'}
+        True
+    """
+    def reader(f, **kwargs):
+        try:
+            soup = BeautifulSoup(f, 'lxml-xml')
+        except FeatureNotFound:
+            soup = BeautifulSoup(f, 'html.parser')
+
+        sanitize = kwargs.get('sanitize')
+        dedupe = kwargs.get('dedupe')
+        tbl = soup.find_all('table')[table]
+        rows = iter(tbl.find_all('tr'))
+        first_row = next(rows)
+        ths = first_row.find_all('th')
+        names = (next(th.children).string for th in ths)
+        uscored = ft.underscorify(names) if sanitize else names
+        header = list(ft.dedupe(uscored) if dedupe else uscored)
+
+        for tr in rows:
+            row = (td.string for td in tr.find_all('td'))
+            yield dict(zip(header, row))
+            # yield {'r': list(row)}
+
+    return read_any(filepath, reader, mode, **kwargs)
 
 
 def write(filepath, content, mode='wb+', **kwargs):
@@ -1021,6 +1127,9 @@ def get_reader(extension):
         'sqlite': read_sqlite,
         'dbf': read_dbf,
         'tsv': read_tsv,
+        'yaml': read_yaml,
+        'yml': read_yaml,
+        'html': read_html,
         'fixed': read_fixed_csv,
     }
 

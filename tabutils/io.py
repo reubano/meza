@@ -334,7 +334,6 @@ def read_mdb(filepath, table=None, **kwargs):
         ...     'livery': '',
         ...     'date_of_order_of_court': '06/05/60 00:00:00',
         ...     'source_ref': 'MF 324'}
-        ...
         True
     """
     args = ['mdb-tables', '-1', filepath]
@@ -410,7 +409,6 @@ def read_dbf(filepath, **kwargs):
         ...      'mtfcc10': 'G5200',
         ...      'geoid10': '2708',
         ...      'intptlon10': '-092.9323194'}
-        ...
         True
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
@@ -441,7 +439,6 @@ def read_sqlite(filepath, table=None):
         ...     'some_date': '05/04/82',
         ...     'some_value': 234,
         ...     'unicode_test': 'Ādam'}
-        ...
         True
     """
     con = sqlite3.connect(filepath)
@@ -491,7 +488,6 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...     'some_date': '05/04/82',
         ...     'some_value': '234',
         ...     'unicode_test': 'Ādam'}
-        ...
         True
     """
     def reader(f, **kwargs):
@@ -551,7 +547,6 @@ def read_tsv(filepath, mode='rU', **kwargs):
         ...     'some_date': '05/04/82',
         ...     'some_value': '234',
         ...     'unicode_test': 'Ādam'}
-        ...
         True
     """
     return read_csv(filepath, mode, dialect='excel-tab', **kwargs)
@@ -594,7 +589,6 @@ def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
         ...     'column_4': 'True',
         ...     'column_5': '1.0',
         ...     'column_6': '04:14:001971-01-01T04:14:00'}
-        ...
         True
     """
     def reader(f, **kwargs):
@@ -727,7 +721,6 @@ def read_xls(filepath, **kwargs):
         ...     'some_date': '1982-05-04',
         ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
         ...     'unicode_test': 'Ādam'}
-        ...
         True
     """
     has_header = kwargs.get('has_header', True)
@@ -804,7 +797,6 @@ def read_json(filepath, mode='rU', path='item', newline=False):
         ...     'time': '04:14:00',
         ...     'date': '1971-01-01',
         ...     'integer': 40}
-        ...
         True
     """
     reader = lambda f, **kw: map(loads, f) if newline else items(f, path)
@@ -832,7 +824,6 @@ def read_geojson(filepath, mode='rU'):
         ...     'prop0': 'value0',
         ...     'type': 'Point',
         ...     'coordinates': [102, 0.5]}
-        ...
         True
     """
     def reader(f, **kwargs):
@@ -968,7 +959,6 @@ def detect_encoding(f, verbose=False):
         >>> with open(filepath, 'rb') as f:
         ...     result = detect_encoding(f)
         ...     result == {'confidence': 0.99, 'encoding': 'utf-8'}
-        ...
         True
     """
     pos = f.tell()

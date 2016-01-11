@@ -34,7 +34,6 @@ __email__ = 'reubano@gmail.com'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 
-
 CURRENCIES = ('$', '£', '€')
 ENCODING = 'utf-8'
 DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)

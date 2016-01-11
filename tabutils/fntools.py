@@ -362,6 +362,9 @@ def dfilter(content, blacklist=None, inverse=False):
         blacklist (Seq[str]): The fields to remove (default: None)
         inverse (bool): Keep fields instead of removing them (default: False)
 
+    See also:
+        `tabutils.process.cut`
+
     Returns:
         dict: The filtered content
 
@@ -656,7 +659,7 @@ def fill(previous, current, **kwargs):
         dict: The updated count.
 
     See also:
-        `process.fillempty`
+        `tabutils.process.fillempty`
 
     Examples:
         >>> previous = {}
@@ -744,7 +747,7 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
         (scalar): the combined value
 
     See also:
-        `process.merge`
+        `tabutils.process.merge`
 
     Examples:
         >>> records = [

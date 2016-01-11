@@ -54,16 +54,17 @@ def type_cast(records, types, warn=False):
         dict: Type casted record. A row of data whose keys are the field names.
 
     See also:
-        `process.json_recode`
-        `typetools.guess_type_by_field`
-        `typetools.guess_type_by_value`
-        `convert.to_int`
-        `convert.to_float`
-        `convert.to_decimal`
-        `convert.to_date`
-        `convert.to_time`
-        `convert.to_datetime`
-        `convert.to_bool`
+        `tabutils.process.detect_types`
+        `tabutils.process.json_recode`
+        `tabutils.typetools.guess_type_by_field`
+        `tabutils.typetools.guess_type_by_value`
+        `tabutils.convert.to_int`
+        `tabutils.convert.to_float`
+        `tabutils.convert.to_decimal`
+        `tabutils.convert.to_date`
+        `tabutils.convert.to_time`
+        `tabutils.convert.to_datetime`
+        `tabutils.convert.to_bool`
 
     Examples:
         >>> import datetime
@@ -121,7 +122,7 @@ def json_recode(records):
             field names.
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> import datetime
@@ -170,9 +171,9 @@ def gen_confidences(tally, types, a=1):
         Iter(decimal): Generator of confidences
 
     See also:
-        `typetools.guess_type_by_field`
-        `typetools.guess_type_by_value`
-        `process.detect_types`
+        `tabutils.typetools.guess_type_by_field`
+        `tabutils.typetools.guess_type_by_value`
+        `tabutils.process.detect_types`
 
     Examples:
         >>> from decimal import Decimal
@@ -203,7 +204,7 @@ def gen_types(tally):
         dict: Field type. The parsed field and its type.
 
     See also:
-        `process.detect_types`
+        `tabutils.process.detect_types`
 
     Examples:
         >>> tally = {
@@ -228,11 +229,11 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        min_conf (float): minimum confidence level (default: 0.95)
-        hweight (int): weight to give header row, a higher value will
-            converge faster (default: 6). E.g.,
+        min_conf (float): minimum confidence level, a lower value will
+            converge faster (default: 0.95)
 
-        max_iter (int): maximum number of iterations to perform (default: 100)
+        hweight (int): weight to give header row, a higher value will
+            converge faster (default: 6).
 
             detect_types(records, 0.9, 3)['count'] == 23
             detect_types(records, 0.9, 4)['count'] == 10
@@ -241,14 +242,17 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
             detect_types(records, 0.95, 6)['count'] == 17
             detect_types(records, 0.95, 7)['count'] == 11
 
+        max_iter (int): maximum number of iterations to perform (default: 100)
+
     Returns:
         tuple(Iter[dict], dict): Tuple of records and the result
 
     See also:
-        `process.gen_types`
-        `process.gen_confidences`
-        `typetools.guess_type_by_field`
-        `typetools.guess_type_by_value`
+        `tabutils.process.type_cast`
+        `tabutils.process.gen_types`
+        `tabutils.process.gen_confidences`
+        `tabutils.typetools.guess_type_by_field`
+        `tabutils.typetools.guess_type_by_value`
 
     Examples:
         >>> record = {
@@ -344,7 +348,7 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `fntools.fill`
+        `tabutils.fntools.fill`
 
     Examples:
         >>> record = {'a': '1', 'b': '27', 'c': ''}
@@ -419,10 +423,10 @@ def merge(records, **kwargs):
             `max`, etc. Requires that `pred` is set. If a key is not
             present in a record, the value from `default` will be used. Note,
             since `op` applied inside of `reduce`, it may not perform as
-            expected for all functions for more than 2 records. E.g. an average
+            expected for all functions for more than 2 records. E.g. a mean
             function will be applied as follows:
 
-                ave([1, 2, 3]) --> ave([ave([1, 2]), 3])
+                mean([1, 2, 3]) --> mean([mean([1, 2]), 3])
 
             You would expect to get 2, but will instead get 2.25.
 
@@ -433,8 +437,8 @@ def merge(records, **kwargs):
         dict: merged record
 
     See also:
-        `process.aggregate`
-        `fntools.combine`
+        `tabutils.process.aggregate`
+        `tabutils.fntools.combine`
 
     Examples:
         >>> records = [
@@ -482,7 +486,7 @@ def aggregate(records, key, op, default=0):
         dict: The first record with an aggregated value for `key`
 
     See also:
-        `process.merge`
+        `tabutils.process.merge`
 
     Examples:
         >>> records = [
@@ -566,8 +570,8 @@ def pivot(records, data, column, op=sum, **kwargs):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `process.aggregate`
-        `process.normalize`
+        `tabutils.process.aggregate`
+        `tabutils.process.normalize`
 
     Examples:
         >>> records = [
@@ -620,7 +624,7 @@ def normalize(records, data, column, rows):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `process.pivot`
+        `tabutils.process.pivot`
 
     Examples:
         >>> records = [
@@ -728,13 +732,16 @@ def unique(records, fields=None, pred=None):
 def cut(records, **kwargs):
     """
     Edit records to only return specified columns. Like unix `cut`, but for
-    tabular data.'
+    tabular data.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
         kwargs (dict): keyword arguments
+
+    See also:
+        `tabutils.fntools.dfilter`
 
     Kwargs:
         include (Iter[str]): Column names to include. (default: None, i.e.,
@@ -779,7 +786,7 @@ def grep(records, rules, any_match=False, inverse=False):
             E.g., output from any `tabutils.io` read function.
 
         rules (Iter[dict]): Each rule dict must contain a `pattern`
-            key and the value can be either a string, function, or regular
+            key whose value can be either a string, function, or regular
             expression. A `fields` key is optional and corresponds to the
             columns you wish to pattern match. Default is to search all columns.
 
@@ -787,7 +794,7 @@ def grep(records, rules, any_match=False, inverse=False):
             (default: False)
 
         inverse (bool): Only return records which don't match the rules
-            (default: None, i.e., all columns)
+            (default: False)
 
     Returns:
         Iter[dict]: The filtered records.
@@ -842,7 +849,7 @@ def hash(records, fields=None, algo='md5'):
                 ripemd320, sha1, sha256, sha512, sha384, whirlpool
 
     See also:
-        `io.hash_file`
+        `tabutils.io.hash_file`
 
     Yields:
         dict: Record. A row of data whose keys are the field names.

@@ -43,7 +43,7 @@ class DBF2(DBF):
 
         Args:
             filepath (str): The dbf file path or file like object.
-            **kwargs: Keyword arguments that are passed to the DBF reader.
+            kwargs: Keyword arguments that are passed to the DBF reader.
 
         Kwargs:
             load (bool): Load all records into memory (default: false).

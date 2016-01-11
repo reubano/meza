@@ -238,12 +238,12 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
         encoding (str): File encoding.
 
     See also:
-        `io.read_csv`
-        `io.read_fixed_csv`
-        `io.read_json`
-        `io.read_geojson`
-        `io.write`
-        `io.hash_file`
+        `tabutils.io.read_csv`
+        `tabutils.io.read_fixed_csv`
+        `tabutils.io.read_json`
+        `tabutils.io.read_geojson`
+        `tabutils.io.write`
+        `tabutils.io.hash_file`
 
     Yields:
         scalar: Result of applying the reader func to the file.
@@ -281,7 +281,7 @@ def _read_csv(f, header=None, has_header=True, **kwargs):
         dict: A csv record.
 
     See also:
-        `io.read_csv`
+        `tabutils.io.read_csv`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
@@ -389,7 +389,7 @@ def read_dbf(filepath, **kwargs):
 
     Kwargs:
         load (bool): Load all records into memory (default: false).
-        encoding (bool): Character encoding (default: None, parsed from
+        encoding (str): Character encoding (default: None, parsed from
             the `language_driver`).
 
         sanitize (bool): Underscorify and lowercase field names
@@ -442,7 +442,7 @@ def read_sqlite(filepath, table=None):
         NotFound: If unable to find the resource.
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.sqlite')
@@ -491,8 +491,8 @@ def read_csv(filepath, mode='rU', **kwargs):
         NotFound: If unable to find the resource.
 
     See also:
-        `io.read_any`
-        `io._read_csv`
+        `tabutils.io.read_any`
+        `tabutils.io._read_csv`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
@@ -553,7 +553,7 @@ def read_tsv(filepath, mode='rU', **kwargs):
         NotFound: If unable to find the resource.
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.tsv')
@@ -593,7 +593,7 @@ def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
         NotFound: If unable to find the resource.
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'fixed.txt')
@@ -798,11 +798,14 @@ def read_json(filepath, mode='rU', path='item', newline=False):
         newline (Optional[bool]): Interpret file as newline-delimited
             (default: False).
 
+    Kwargs:
+        encoding (str): File encoding.
+
     Returns:
         Iterable: The parsed records
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.json')
@@ -831,6 +834,8 @@ def read_geojson(filepath, key='id', mode='rU', **kwargs):
 
     Kwargs:
         lat_first (bool): Latitude listed as first coordinate (default: False).
+
+        encoding (str): File encoding.
 
     Returns:
         Iterable: The parsed records
@@ -910,11 +915,14 @@ def read_yaml(filepath, mode='rU', **kwargs):
         filepath (str): The json file path or file like object.
         mode (Optional[str]): The file open mode (default: 'rU').
 
+    Kwargs:
+        encoding (str): File encoding.
+
     Returns:
         Iterable: The parsed records
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> from datetime import date, datetime as dt
@@ -958,7 +966,7 @@ def read_html(filepath, table=0, mode='rU', **kwargs):
         Iterable: The parsed records
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.html')
@@ -1024,7 +1032,7 @@ def write(filepath, content, mode='wb+', **kwargs):
         int: bytes written
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> from tempfile import TemporaryFile
@@ -1077,8 +1085,8 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
         str: File hash.
 
     See also:
-        `io.read_any`
-        `process.hash`
+        `tabutils.io.read_any`
+        `tabutils.process.hash`
 
     Examples:
         >>> from tempfile import TemporaryFile

@@ -101,7 +101,7 @@ def to_bool(content, trues=None, falses=None, warn=False):
             (default: False)
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Returns:
         bool: The parsed content.
@@ -160,7 +160,7 @@ def to_int(content, thousand_sep=',', decimal_sep='.', warn=False):
             (default: False)
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Returns:
         flt: The parsed number.
@@ -214,7 +214,7 @@ def to_float(content, thousand_sep=',', decimal_sep='.', warn=False):
         flt: The parsed number.
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> to_float('$123.45')
@@ -263,7 +263,7 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
         places (int): Number of decimal places to display (default: 2).
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> to_decimal('$123.45')
@@ -350,7 +350,7 @@ def to_datetime(content, dt_format=None, warn=False):
         obj: The datetime object or formatted datetime string.
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> fmt = '%Y-%m-%d %H:%M:%S'
@@ -407,7 +407,7 @@ def to_date(content, date_format=None, warn=False):
         obj: The date object or formatted date string.
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> to_date('5/4/82')
@@ -442,7 +442,7 @@ def to_time(content, time_format=None, warn=False):
         obj: The time object or formatted time string.
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> to_time('2:00 pm')
@@ -522,7 +522,7 @@ def df2records(df):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `process.pivot`
+        `tabutils.process.pivot`
 
     Examples:
         >>> try:
@@ -533,7 +533,6 @@ def df2records(df):
         ...    records = [{'a': 1, 'b': 2, 'c': 3}, {'a': 4, 'b': 5, 'c': 6}]
         ...    df = pd.DataFrame.from_records(records)
         ...    next(df2records(df)) == {'a': 1, 'b': 2, 'c': 3}
-        ...
         True
     """
     index = [_f for _f in df.index.names if _f]

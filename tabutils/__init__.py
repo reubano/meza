@@ -40,7 +40,9 @@ DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
 
 if sys.version_info.major >= 3:
     import csv
+    import statistics as stats
 else:
-    from . import unicsv as csv
+    from . import stats, unicsv as csv
 
 csv = csv
+stats = stats

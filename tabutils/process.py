@@ -32,6 +32,7 @@ from collections import defaultdict
 from operator import itemgetter
 from math import log1p
 from json import dumps, loads
+from collections import deque
 
 from builtins import *
 from six import iteritems
@@ -747,7 +748,7 @@ def tfilter(records, field, pred=None):
     return filter(predicate, records)
 
 
-def unique(records, fields=None, pred=None):
+def unique(records, fields=None, pred=None, bufsize=4096):
     """ Yields unique records
 
     Args:
@@ -759,6 +760,8 @@ def unique(records, fields=None, pred=None):
 
         pred (func): Predicate. Receives a record and should return a value for
             testing uniqueness. Overrides `fields`.
+
+        bufsize (Int): Max size in bytes of the lookup table.
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
@@ -781,7 +784,7 @@ def unique(records, fields=None, pred=None):
 'Iñtërnâtiônàližætiøn'
         True
     """
-    seen = set()
+    seen = deque([], bufsize)
 
     for r in records:
         if not pred:
@@ -790,8 +793,8 @@ def unique(records, fields=None, pred=None):
 
         entry = pred(r) if pred else tuple(items)
 
-        if entry not in seen:
-            seen.add(entry)
+        if entry not in set(seen):
+            seen.append(entry)
             yield r
 
 

@@ -194,7 +194,8 @@ def gen_confidences(tally, types, a=1):
 
 
 def gen_types(tally):
-    """Selects the field type with the highest count.
+    """Selects the field type with the highest count. Also intelligently
+    merges compatible types, e.g., 4 ints and 1 floats --> float.
 
     Args:
         tally (dict): Rows of data whose keys are the field names and whose
@@ -209,17 +210,46 @@ def gen_types(tally):
     Examples:
         >>> tally = {
         ...     'field_1': {'null': 3, 'bool': 1},
-        ...     'field_2': {'bool': 2, 'int': 4}}
+        ...     'field_2': {'bool': 2, 'int': 4},
+        ...     'field_3': {'float': 1, 'int': 5},
+        ...     'field_4': {'float': 1, 'time': 2},
+        ...     'field_5': {'date': 1, 'time': 2}}
         >>> types = sorted(gen_types(tally), key=itemgetter('id'))
-        >>> types[0] == {'id': 'field_1', 'type': 'null'}
+        >>> types[0] == {'id': 'field_1', 'type': 'bool'}
         True
-        >>> types[1] == {'id': 'field_2', 'type': 'int'}
+        >>> types[1] == {'id': 'field_2', 'type': 'bool'}
+        True
+        >>> types[2] == {'id': 'field_3', 'type': 'float'}
+        True
+        >>> types[3] == {'id': 'field_4', 'type': 'text'}
+        True
+        >>> types[4] == {'id': 'field_5', 'type': 'datetime'}
         True
     """
-    for key, value in iteritems(tally):
-        ttypes = [{'type': k, 'count': v} for k, v in iteritems(value)]
-        highest = sorted(ttypes, key=itemgetter('count'), reverse=True)[0]
-        yield {'id': key, 'type': highest['type']}
+
+    comp_types = [
+        ({'float', 'int'}, 'float'),
+        ({'date', 'time', 'datetime'}, 'datetime'),
+        ({'bool', 'int'}, 'bool')]
+
+    def gct(types):
+        non_null = [t for t in types if t != 'null']
+
+        if len(non_null) == 1:
+            type_ = non_null[0]
+        else:
+            for k, v in comp_types:
+                if k.issuperset(non_null):
+                    type_ = v
+                    break
+            else:
+                type_ = 'text'
+
+        return type_
+
+    for field, tcount in iteritems(tally):
+        type_ = gct(tcount) if len(tcount) > 1 else next(iter(tcount))
+        yield {'id': field, 'type': type_}
 
 
 def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):

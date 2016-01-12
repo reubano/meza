@@ -777,6 +777,33 @@ def cut(records, **kwargs):
     return filter(None, filtered) if kwargs.get('prune') else filtered
 
 
+def split(records, key=None, count=None, chunksize=None):
+    """
+    Split records into bite sized pieces. Like unix `split`, but for
+    tabular data.
+    """
+    chunksize = chunksize or count
+
+    for cpos, records_chunk in enumerate(ft.chunk(records, chunksize)):
+        if key:
+            for k, g in group(records_chunk, itemgetter(key)):
+                for pos, sub_records in enumerate(ft.chunk(g, count)):
+                    if count and count < (chunksize or 'inf'):
+                        args = (k, cpos + 1, pos + 1)
+                        suffix = '{0}_{1:02d}_{2:03d}'.format(*args)
+                    else:
+                        suffix = '{0}_{1:03d}'.format(k, cpos + 1)
+
+                    yield sub_records, suffix
+        else:
+            for pos, sub_records in enumerate(ft.chunk(records, count)):
+                if count and count < (chunksize or 'inf'):
+                    args = (cpos + 1, pos + 1)
+                    yield sub_records, '{0:02d}_{1:03d}'.format(*args)
+                else:
+                    yield sub_records, '{0:03d}'.format(cpos + 1)
+
+
 def grep(records, rules, any_match=False, inverse=False):
     """
     Yields rows which match all the given rules.

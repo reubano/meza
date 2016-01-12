@@ -1224,3 +1224,29 @@ def read(filepath, **kwargs):
         True
     """
     return get_reader(p.splitext(filepath)[1])(filepath, **kwargs)
+
+
+def join(filepaths, **kwargs):
+    """Reads multiple filepaths and yields all the resulting records.
+
+    Args:
+        filepaths (iter[str]): Iterator of filepaths.
+
+    Yields:
+        dict: A parsed record
+
+    See also:
+        `tabutils.io.read`
+
+    Examples:
+        >>> fs = [p.join(DATA_DIR, 'test.xls'), p.join(DATA_DIR, 'test.csv')]
+        >>> next(join(fs, sanitize=True)) == {
+        ...     'some_value': '234.0',
+        ...     'some_date': '1982-05-04',
+        ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
+        ...     'unicode_test': 'Ādam'}
+        True
+    """
+    for path in filepaths:
+        for record in read(path, **kwargs):
+            yield record

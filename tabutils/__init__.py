@@ -42,7 +42,7 @@ if sys.version_info.major >= 3:
     import csv
     import statistics as stats
 else:
-    from . import stats, unicsv as csv
+    from . import py2stats as stats, unicsv as csv
 
 csv = csv
 stats = stats

@@ -520,6 +520,8 @@ def aggregate(records, key, op, default=0):
         `tabutils.process.merge`
 
     Examples:
+        >>> from . import stats
+
         >>> records = [
         ...     {'a': 'item', 'amount': 200},
         ...     {'a': 'item', 'amount': 300},
@@ -527,7 +529,7 @@ def aggregate(records, key, op, default=0):
         ...
         >>> aggregate(records, 'amount', sum)['amount'] == 900
         True
-        >>> agg = aggregate(records, 'amount', lambda x: sum(x) / len(x))
+        >>> agg = aggregate(records, 'amount', stats.mean)
         >>> agg['amount'] == 300.0
         True
     """

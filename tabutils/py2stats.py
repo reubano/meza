@@ -3,8 +3,8 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils.stats
-~~~~~~~~~~~~~~
+tabutils.py2stats
+~~~~~~~~~~~~~~~~~
 
 Backport of py3 statistics functions
 

@@ -663,7 +663,7 @@ def records2array(records, types, native=False):
     return converted
 
 
-def records2csv(records, encoding=ENCODING, bom=False):
+def records2csv(records, encoding=ENCODING, bom=False, skip_header=False):
     """
     Converts records into a csv file like object.
 
@@ -673,6 +673,7 @@ def records2csv(records, encoding=ENCODING, bom=False):
 
         encoding (str): File encoding (default: ENCODING constant)
         bom (bool): Add Byte order marker (default: False)
+        skip_header (bool): Don't write the header (default: False)
 
     Returns:
         obj: io.StringIO instance
@@ -701,7 +702,7 @@ def records2csv(records, encoding=ENCODING, bom=False):
 
     row = next(irecords)
     w = csv.DictWriter(f, list(row.keys()))
-    w.writeheader()
+    None if skip_header else w.writeheader()
     w.writerow(row)
     w.writerows(irecords)
     f.seek(0)

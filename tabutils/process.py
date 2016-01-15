@@ -438,7 +438,8 @@ def merge(records, **kwargs):
         kwargs (dict): keyword arguments
 
     Kwargs:
-        pred (func): Predicate. Receives the current key and should return
+        pred (func): Predicate. Value of the `key` to combine. Can optionally
+            be a function which receives the current key and should return
             `True` if overlapping values should be combined. Can optionally be
             a keyfunc which receives a record. In this case, the entries will
             be combined if the value obtained after applying keyfunc to the
@@ -477,8 +478,7 @@ def merge(records, **kwargs):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> pred = lambda key: key == 'amount'
-        >>> merge(records, pred=pred, op=sum)['amount'] == 900
+        >>> merge(records, pred='amount', op=sum)['amount'] == 900
         True
         >>> merge(records)['amount'] == 400
         True
@@ -540,38 +540,50 @@ def aggregate(records, key, op, default=0):
     return dict(it.chain(iteritems(first), [(key, value)]))
 
 
-def group(records, keyfunc=None):
+def group(records, keyfunc, tupled=True, aggregator=list, **kwargs):
     """Groups records by keyfunc
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        keyfunc (func): Function which receives a record and selects which
-            value to sort/group by.
+        keyfunc (func): Either a fieldname or function which receives a record
+            and selects which value to sort/group by.
+
+        aggregator (func): A post processing function to call on the resulting
+            groups (default: list).
+
+        tupled (bool): Return the key, group tuples (default: True)
+
+        kwargs (dict): Keyword args passed to the aggregator.
 
     Returns:
         Iter(tuple[key, group]): Generator of tuples
 
     Examples:
         >>> records = [
-        ...     {'a': 'item', 'amount': 200},
-        ...     {'a': 'item', 'amount': 300},
-        ...     {'a': 'item', 'amount': 400}]
+        ...     {'item': 'a', 'amount': 200},
+        ...     {'item': 'b', 'amount': 200},
+        ...     {'item': 'c', 'amount': 400}]
         ...
-        >>> key, group = next(group(records, itemgetter('amount')))
+        >>> key, grp = next(group(records, 'amount'))
         >>> key
         200
-        >>> len(group)
-        1
-        >>> group[0]['a'] == 'item'
-        True
-        >>> group[0]['amount'] == 200
+        >>> len(grp)
+        2
+        >>> next(group(records, 'amount', False))[0] == {'item': 'a', 'amount': 200}
         True
     """
+    keyfunc = keyfunc if callable(keyfunc) else itemgetter(keyfunc)
     sorted_records = sorted(records, key=keyfunc)
     grouped = it.groupby(sorted_records, keyfunc)
-    return ((key, list(group)) for key, group in grouped)
+
+    if tupled:
+        result = ((key, aggregator(group, **kwargs)) for key, group in grouped)
+    else:
+        result = (aggregator(group, **kwargs) for key, group in grouped)
+
+    return result
 
 
 def peek(records, n=5):

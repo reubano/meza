@@ -813,7 +813,8 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
         key (str): Current key.
         value (Optional[scalar]): The 2nd record's value of the given `key`.
 
-        pred (func): Receives `key` and should return `True`
+        pred (func): Value of the `key` to combine. Can optionally
+            be a function which receives `key` and should return `True`
             if the values from both records should be combined. Can optionally
             be a keyfunc which receives the 2nd record and should return the
             value that `value` needs to equal in order to be combined.
@@ -841,14 +842,14 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> pred = lambda key: key == 'amount'
         >>> x, y = records[0], records[1]
-        >>> combine(x, y, 'a', pred=pred, op=sum) == 'item'
+        >>> combine(x, y, 'a', pred='amount', op=sum) == 'item'
         True
-        >>> combine(x, y, 'amount', pred=pred, op=sum)
+        >>> combine(x, y, 'amount', pred='amount', op=sum)
         500
     """
     value = y.get(key, default) if value is None else value
+    pred = pred if callable(pred) else partial(eq, pred)
 
     try:
         passed = pred(key)

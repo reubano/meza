@@ -813,7 +813,7 @@ def unique(records, fields=None, pred=None, bufsize=4096):
             yield r
 
 
-def cut(records, **kwargs):
+def cut(records, fields=None, exclude=False, prune=False):
     """
     Edit records to only return specified columns. Like unix `cut`, but for
     tabular data.
@@ -822,21 +822,17 @@ def cut(records, **kwargs):
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        kwargs (dict): keyword arguments
+        fields (Iter[str]): Column names to include. (default: None, i.e.,
+            all columns.').
+
+        exclude (bool): Exclude column names instead of including them
+            (default: False).
+
+        prune (bool): Remove empty rows from result (default: False).
+
 
     See also:
         `tabutils.fntools.dfilter`
-
-    Kwargs:
-        include (Iter[str]): Column names to include. (default: None, i.e.,
-            all columns.'). If the same field is also in `exclude`, it will
-            still be included.
-
-        exclude (Iter[str]): Column names to exclude (default: None, i.e.,
-            no columns.'). If the same field is also in `include`, it will
-            still be included.
-
-        prune (bool): Remove empty rows from result.
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
@@ -851,14 +847,11 @@ def cut(records, **kwargs):
         ...     'field_1': 1, 'field_2': 'bill', 'field_3': 'male'}
         ...
         True
-        >>> next(cut(records, include=['field_2']))['field_2'] == 'bill'
+        >>> next(cut(records, ['field_2']))['field_2'] == 'bill'
         True
     """
-    include = kwargs.get('include')
-    exclude = kwargs.get('exclude')
-    blacklist = include or exclude
-    filtered = (ft.dfilter(r, blacklist, include) for r in records)
-    return filter(None, filtered) if kwargs.get('prune') else filtered
+    filtered = (ft.dfilter(r, fields, not exclude) for r in records)
+    return filter(None, filtered) if prune else filtered
 
 
 def split(records, key=None, count=None, chunksize=None):

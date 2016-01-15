@@ -19,6 +19,8 @@ Examples:
 Attributes:
     DEF_TRUES (tuple[str]): Values to be consider True
     DEF_FALSES (tuple[str]): Values to be consider False
+    ARRAY_TYPE (dict): Python to array.array type lookup table
+    NP_TYPE (dict): Python to numpy type lookup table
 """
 from __future__ import (
     absolute_import, division, print_function, with_statement,
@@ -32,6 +34,7 @@ import codecs
 from functools import partial
 from collections import defaultdict
 from json import JSONEncoder
+from os import path as p
 
 from builtins import *
 from six.moves import filterfalse
@@ -41,6 +44,23 @@ from functools import reduce
 
 DEF_TRUES = ('yes', 'y', 'true', 't')
 DEF_FALSES = ('no', 'n', 'false', 'f')
+NP_TYPE = {
+    'bool': 'bool',
+    'int': 'i',
+    'float': 'f',
+    'double': 'd',
+    'datetime': 'datetime64[us]',
+    'time': 'timedelta64[us]',
+    'date': 'datetime64[D]',
+    'text': 'U'}
+
+ARRAY_TYPE = {
+    'bool': 'B',
+    'int': 'i',
+    'float': 'f',
+    'double': 'd',
+    'text': 'u'}
+
 logging.basicConfig()
 
 
@@ -78,6 +98,32 @@ class Objectify(object):
 
     def items(self):
         return iter(self.__dict__.items())
+
+
+class Andand(object):
+    """A Ruby inspired null soaking object
+
+    Examples:
+        >>> kwargs = {'key': 'value'}
+        >>> kw = Objectify(kwargs)
+        >>> kw.key == 'value'
+        True
+        >>> Andand(kw).key.missing.undefined.item
+        >>> Andand(kw).key.missing.undefined()
+    """
+
+    def __init__(self, item=None):
+        self.item = item
+
+    def __getattr__(self, name):
+        try:
+            item = getattr(self.item, name)
+            return item if name is 'item' else Andand(item)
+        except AttributeError:
+            return Andand()
+
+    def __call__(self):
+        return self.item
 
 
 class CustomEncoder(JSONEncoder):
@@ -160,6 +206,34 @@ def underscorify(content):
         True
     """
     return (slugify(item, separator='_') for item in content)
+
+
+def get_ext(path):
+    """ Gets a file (local )
+
+    Args:
+        content (Iter[str]): the content to dedupe
+
+    Returns:
+        (generator): the deduped content
+
+    Examples:
+        >>> get_ext('file.csv') == 'csv'
+        True
+    """
+    if 'format=' in path:
+        file_format = path.lower().split('format=')[1]
+
+        if '&' in file_format:
+            file_format = file_format.split('&')[0]
+    else:
+        file_format = p.splitext(path)[1].lstrip('.')
+
+    return file_format
+
+
+def get_dtype(type_, numpy=False):
+    return NP_TYPE.get(type_, object) if numpy else ARRAY_TYPE.get(type_, 'u')
 
 
 def dedupe(content):
@@ -924,3 +998,18 @@ def op_everseen(iterable, key=None, pad=False, op='lt'):
 
         if valid or pad:
             yield current
+
+
+def sum_and_count(x, y):
+    """A function used for calculating the mean of a list from a reduce.
+
+    >>> from operator import truediv
+
+    >>> l = [15, 18, 2, 36, 12, 78, 5, 6, 9]
+    >>> truediv(*reduce(sum_and_count, l)) == 20.11111111111111
+    True
+    """
+    try:
+        return (x[0] + y, x[1] + 1)
+    except TypeError:
+        return (x + y, 2)

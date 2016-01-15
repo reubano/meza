@@ -191,6 +191,18 @@ def remove_bom(row, bom):
     return row
 
 
+def get_encoding(filepath):
+    """
+    Examples:
+        >>> get_encoding(p.join(DATA_DIR, 'utf16_big.csv')) == 'UTF-16BE'
+        True
+    """
+    with open(filepath, 'rb') as f:
+        encoding = detect_encoding(f)['encoding']
+
+    return encoding
+
+
 def _read_any(f, reader, args, pos=0, **kwargs):
     recursed = pos
 

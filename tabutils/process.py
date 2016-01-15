@@ -541,6 +541,42 @@ def group(records, keyfunc=None):
     return ((key, list(group)) for key, group in grouped)
 
 
+def peek(records, n=5):
+    """
+    Provides a list of the first n rows of a records generator.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        n (int): The number of rows to preview
+
+    Returns:
+        tuple: The reconstituted records iterator and a list of its first n rows.
+
+
+    See also:
+        `tabutils.process.prepend`
+
+    Examples:
+        >>> records = [
+        ...     {'length': 5, 'species': 'setosa', 'color': 'red'},
+        ...     {'length': 5, 'species': 'setosa', 'color': 'blue'},
+        ...     {'length': 6, 'species': 'versi', 'color': 'red'},
+        ...     {'length': 6, 'species': 'versi', 'color': 'blue'}]
+        ...
+        >>> records, preview = peek(iter(records), 2)
+        >>> len(preview)
+        2
+        >>> preview[0] == {'length': 5, 'species': 'setosa', 'color': 'red'}
+        True
+        >>> records  # doctest: +ELLIPSIS
+        <itertools.chain object at 0x...>
+    """
+    preview = list(it.islice(records, n))
+    return (it.chain(preview, records), preview)
+
+
 def pivot(records, data, column, op=sum, **kwargs):
     """
     Create a spreadsheet-style pivot table.

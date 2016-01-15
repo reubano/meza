@@ -28,11 +28,17 @@ from json import dumps
 from collections import OrderedDict
 from operator import itemgetter
 from functools import partial
+from array import array
 
 from builtins import *
 from six.moves import filterfalse
 from dateutil.parser import parse
 from . import fntools as ft, csv, ENCODING, DEFAULT_DATETIME
+
+try:
+    import numpy as np
+except ImportError:
+    np = None
 
 
 def ctype2ext(content_type=None):
@@ -511,6 +517,58 @@ def to_filepath(filepath, **kwargs):
     return p.join(filepath, filename) if isdir else filepath
 
 
+def array2records(data, native=False):
+    """Converts either a numpy.recarray or a nested array.array into records
+
+    Args:
+        data (Iter[array]): The 2-D array.
+
+        native (bool): (default: False)
+
+    Returns:
+        Iterable of dicts
+
+    See also:
+        `tabutils.convert.df2records`
+
+    Examples:
+        >>> next(array2records(np.array([[1, 2, 3], [4, 5, 6]], 'i4'))) == {
+        ...     u'column_1': 1, u'column_2': 2, u'column_3': 3}
+        True
+        >>> data = [
+        ...     array('i', [1, 2, 3]),
+        ...     array('f', [1.0, 2.0, 3.0]),
+        ...     [array('u', 'one'), array('u', 'two'), array('u', 'three')]]
+        >>> next(array2records(data, True)) == {
+        ...     u'column_1': 1, u'column_2': 1.0, u'column_3': 'one'}
+        True
+    """
+    textify = lambda x: x.tounicode() if x.typecode == 'u' else x.tostring()
+    datify = lambda x: x.tolist() if hasattr(x, 'tolist') else map(textify, x)
+
+    if native and hasattr(data[0], 'typecode'):
+        header = None
+        data = zip(*map(datify, data))
+    elif native:
+        header = [stringify(h) for h in data[0]]
+        data = zip(*map(datify, data[1:]))
+    else:
+        header = data.dtype.names
+
+    if not header:
+        try:
+            size = data.shape[1]
+        except (IndexError, AttributeError):
+            data = iter(data)
+            first_row = next(data)
+            size = len(first_row)
+            data = it.chain([first_row], data)
+
+        header = ['column_%i' % (n + 1) for n in range(size)]
+
+    return (dict(zip(header, row)) for row in data)
+
+
 def df2records(df):
     """
     Converts a pandas DataFrame into records.
@@ -522,7 +580,7 @@ def df2records(df):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `tabutils.process.pivot`
+        `tabutils.process.array2records`
 
     Examples:
         >>> try:
@@ -551,6 +609,58 @@ def df2records(df):
             yield dict(zip(keys, values))
         else:
             yield dict(zip(keys, values[1:]))
+
+
+def records2array(records, types, native=False):
+    """Converts records into either a numpy.recarray or a nested array.array
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        types (Iter[dict]):
+
+        native (bool): (default: False)
+
+    Returns:
+        numpy.recarray
+
+    See also:
+        `tabutils.convert.records2df`
+
+    Examples:
+        >>> records = [{'alpha': 'a', 'beta': 2}, {'alpha': 'b', 'beta': 3}]
+        >>> types = [
+        ...     {'id': 'alpha', 'type': 'text'}, {'id': 'beta', 'type': 'int'}]
+        >>> records2array(records, types).beta
+        array([2, 3], dtype=int32)
+        >>> records2array(records, types, True) == [
+        ...     [array('u', u'alpha'), array('u', u'beta')],
+        ...     [array('u', u'a'), array('u', u'b')],
+        ...     array('i', [2, 3])]
+        True
+    """
+    numpy = np and not native
+    dtype = [ft.get_dtype(t['type'], numpy) for t in types]
+    ids = [t['id'] for t in types]
+
+    if numpy:
+        data = [tuple(r[id_] for id_ in ids) for r in records]
+
+        # dtype bug https://github.com/numpy/numpy/issues/2407
+        ndtype = [tuple(s.encode('ascii') for s in d) for d in zip(ids, dtype)]
+        ndarray = np.array(data, dtype=ndtype)
+        converted = ndarray.view(np.recarray)
+    else:
+        header = [array('u', t['id']) for t in types]
+        data = zip(*(r.values() for r in records))
+        values = [
+            [array(t, x) for x in v] if t in {'c', 'u'} else array(t, v)
+            for t, v in zip(dtype, data)]
+
+        converted = [header] + values
+
+    return converted
 
 
 def records2csv(records, encoding=ENCODING, bom=False):

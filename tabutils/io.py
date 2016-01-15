@@ -676,8 +676,8 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
         True
     """
     date_format = kwargs.get('date_format', '%Y-%m-%d')
-    dt_format = kwargs.get('date_format', '%Y-%m-%d %H:%M:%S')
-    time_format = kwargs.get('date_format', '%H:%M:%S')
+    dt_format = kwargs.get('dt_format', '%Y-%m-%d %H:%M:%S')
+    time_format = kwargs.get('time_format', '%H:%M:%S')
 
     def time_func(value):
         args = xldate_as_tuple(value, mode)[3:]

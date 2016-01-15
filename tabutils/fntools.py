@@ -166,7 +166,7 @@ def decode(content, encoding=ENCODING):
     return decoded
 
 
-def encode(content, encoding=ENCODING):
+def encode(content, encoding=ENCODING, parse_ints=False):
     """Encode unicode or ints into bytes (py2-str)
     """
     if hasattr(content, 'encode'):
@@ -174,7 +174,7 @@ def encode(content, encoding=ENCODING):
             encoded = encoder(encoding).encode(content)
         except UnicodeDecodeError:
             encoded = content
-    else:
+    elif parse_ints:
         try:
             length = (content.bit_length() // 8) + 1
         except AttributeError:
@@ -187,6 +187,8 @@ def encode(content, encoding=ENCODING):
                 h = '%x' % content
                 zeros = '0' * (len(h) % 2) + h
                 encoded = zeros.zfill(length * 2).decode('hex')
+    else:
+        encoded = content
 
     return encoded
 
@@ -205,7 +207,11 @@ def underscorify(content):
         >>> list(_) == ['all_caps', 'illegal', 'lots_of_space']
         True
     """
-    return (slugify(item, separator='_') for item in content)
+    for item in content:
+        try:
+            yield slugify(item, separator='_')
+        except TypeError:
+            yield slugify(item.encode(ENCODING), separator='_')
 
 
 def get_ext(path):
@@ -478,7 +484,13 @@ def byte(content):
         # it's a unicode or encoded iterable like ['H', 'e', 'l', 'l', 'o'],
         # ['I', 'ñ', 't', 'ë', 'r', 'n', 'â', 't', 'i', 'ô', 'n'],
         # or [b'I', b'\xc3\xb1', b't', b'\xc3\xab', b'r']
-        bytes_ = reduce(lambda x, y: x + y, map(encode, content), b'')
+        bytes_ = b''
+
+        for c in content:
+            try:
+                bytes_ += encode(c)
+            except TypeError:
+                bytes_ += encode(c, parse_ints=True)
 
     return bytearray(bytes_)
 

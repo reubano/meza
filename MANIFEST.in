@@ -2,5 +2,10 @@ recursive-include tests *
 recursive-include data *
 recursive-include helpers *
 include LICENSE
-include README.md
+include AUTHORS.rst
+include CHANGES.rst
+include CONTRIBUTING.rst
+include TODO.rst
+include README.rst
+include INSTALLATION.rst
 include *requirements.txt

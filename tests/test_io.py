@@ -206,6 +206,10 @@ class TestInput:
         expected = {'column_1': '1', 'column_2': '2', 'column_3': '3'}
         nt.assert_equal(expected, next(records))
 
+        filepath = p.join(io.DATA_DIR, 'test_bad.csv')
+        records = io.read_csv(filepath, first_row=1, first_col=1)
+        nt.assert_equal(self.sheet0, next(records))
+
         filepath = p.join(io.DATA_DIR, 'fixed_w_header.txt')
         widths = [0, 18, 29, 33, 38, 50]
         records = io.read_fixed_csv(filepath, widths, has_header=True)

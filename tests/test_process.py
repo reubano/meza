@@ -14,11 +14,11 @@ import nose.tools as nt
 import itertools as it
 
 from decimal import Decimal
-from operator import itemgetter
+from operator import itemgetter, div
 from collections import defaultdict
 
 from builtins import *
-from tabutils import process as pr, stats
+from tabutils import process as pr, stats, fntools as ft
 
 
 def setup_module():
@@ -116,39 +116,44 @@ class Test:
         nt.assert_equal(more_values_4, list(pr.fillempty(records, **kwargs)))
 
     def test_merge(self):
-        pr.merge([{'a': 1, 'b': 2}, {'b': 10, 'c': 11}])
-        [('a', 1), ('b', 10), ('c', 11)]
+        expected = [('a', 1), ('b', 10), ('c', 11)]
+        result = pr.merge([{'a': 1, 'b': 2}, {'b': 10, 'c': 11}])
+        assert_equal(expected, result)
+
+        #setup
         records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
 
         # Combine all keys
-        pred = lambda key: True
-        pr.merge(records, pred=pred, op=sum)
-        [('a', 1), ('b', 6), ('c', 8), ('d', 6)]
+        expected = [('a', 1), ('b', 6), ('c', 8), ('d', 6)]
+        result = pr.merge(records, pred=bool, op=sum)
+        nt.assert_equal(expected, result)
+
         fltrer = lambda x: x is not None
         first = lambda pair: next(filter(fltrer, pair))
         kwargs = {'pred': pred, 'op': first, 'default': None}
-        pr.merge(records, **kwargs)
-        [('a', 1), ('b', 2), ('c', 3), ('d', 6)]
+        expected = [('a', 1), ('b', 2), ('c', 3), ('d', 6)]
+        result = pr.merge(records, **kwargs)
+        nt.assert_equal(expected, result)
 
         # This will only reliably give the expected result for 2 records
         kwargs = {'pred': pred, 'op': stats.mean, 'default': None}
-        pr.merge(records, **kwargs)
-        [('a', 1), ('b', 3.0), ('c', 4.0), ('d', 6.0)]
+        expected = [('a', 1), ('b', 3.0), ('c', 4.0), ('d', 6.0)]
+        result = pr.merge(records, **kwargs)
+        nt.assert_equal(expected, result)
 
         # Only combine key 'b'
         pred = lambda key: key == 'b'
-        pr.merge(records, pred=pred, op=sum)
-        [('a', 1), ('b', 6), ('c', 5), ('d', 6)]
+        expected = [('a', 1), ('b', 6), ('c', 5), ('d', 6)]
+        result = pr.merge(records, pred=pred, op=sum)
+        nt.assert_equal(expected, result)
 
         # Only combine keys that have the same value of 'b'
-        pred = itemgetter('b')
-        pr.merge(records, pred=pred, op=sum)
-        [('a', 1), ('b', 6), ('c', 5), ('d', 6)]
+        expected = [('a', 1), ('b', 6), ('c', 5), ('d', 6)]
+        result = pr.merge(records, pred=itemgetter('b'), op=sum)
+        nt.assert_equal(expected, result)
 
         # This will reliably work for any number of records
         counted = defaultdict(int)
-        pred = lambda key: True
-        divide = lambda x: x[0] / x[1]
 
         records = [
             {'a': 1, 'b': 4, 'c': 0},
@@ -159,14 +164,23 @@ class Test:
             for k in r.keys():
                 counted[k] += 1
 
-        counted
-        [('a', 3), ('b', 3), ('c', 2), ('d', 1)]
-        summed = pr.merge(records, pred=pred, op=sum)
-        summed
-        [('a', 6), ('b', 15), ('c', 2), ('d', 7)]
-        kwargs = {'pred': pred, 'op': divide}
-        pr.merge([summed, counted], **kwargs)
-        [('a', 2.0), ('b', 5.0), ('c', 1.0), ('d', 7.0)]
+        expected = [('a', 3), ('b', 3), ('c', 2), ('d', 1)]
+        nt.assert_equal(expected, counted)
+
+        summed = pr.merge(records, pred=bool, op=sum)
+        expected = [('a', 6), ('b', 15), ('c', 2), ('d', 7)]
+        nt.assert_equal(expected, summed)
+
+        kwargs = {'pred': bool, 'op': div}
+        expected = [('a', 2.0), ('b', 5.0), ('c', 1.0), ('d', 7.0)]
+        result = pr.merge([summed, counted], **kwargs)
+        nt.assert_equal(expected, result)
+
+        # This should also reliably for any number of records
+        kwargs = {'pred': pred, 'op': ft.sum_and_count, 'default': None}
+        merged = pr.merge(records, **kwargs)
+        result = [(x, div(*y)) for x, y in merged]
+        nt.assert_equal(expected, result)
 
     def test_unique(self):
         records = [
@@ -182,8 +196,8 @@ class Test:
         ]
 
         pred = lambda x: x['name'][0]
-        next(it.islice(pr.unique(records, pred=pred), 3, 4))['name']
-        'rob'
+        result = next(it.islice(pr.unique(records, pred=pred), 3, 4))['name']
+        nt.assert_equal('rob', result)
 
     def test_cut(self):
         records = [
@@ -192,11 +206,12 @@ class Test:
             {'field_1': 3, 'field_2': 'jane', 'field_3': 'female'},
         ]
 
-        next(pr.cut(records, exclude=['field_2'])) == {
-            'field_1': 1, 'field_3': 'male'}
-        True
-        next(pr.cut(records, include=['field_2'], exclude=['field_2']))
-        {'field_2': 'bill'}
+        expected = {'field_1': 1, 'field_3': 'male'}
+        result = next(pr.cut(records, exclude=['field_2'])) ==
+        nt.assert_equal(expected, result)
+
+        result = next(pr.cut(records, include=['field_2'], exclude=['field_2']))
+        nt.assert_equal({'field_2': 'bill'}, result)
 
     def test_grep(self):
         records = [
@@ -208,14 +223,17 @@ class Test:
         ]
 
         rules = [{'fields': ['day'], 'pattern': lambda x: x == 1}]
-        next(pr.grep(records, rules))['name']
-        'bill'
+        result = next(pr.grep(records, rules))['name']
+        nt.assert_equal('bill', result)
+
         rules = [{'pattern': lambda x: x in {1, 'rob'}}]
-        next(pr.grep(records, rules))['name']
-        'rob'
+        result = next(pr.grep(records, rules))['name']
+        nt.assert_equal('rob', result)
+
         rules = [{'pattern': lambda x: x in {1, 'rob'}}]
-        next(pr.grep(records, rules, any_match=True))['name']
-        'bill'
+        result = next(pr.grep(records, rules, any_match=True))['name']
+        nt.assert_equal('bill', result)
+
         rules = [{'fields': ['name'], 'pattern': 'o'}]
-        next(pr.grep(records, rules, inverse=True))['name']
-        'bill'
+        result = next(pr.grep(records, rules, inverse=True))['name']
+        nt.assert_equal('bill', result)

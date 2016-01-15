@@ -212,7 +212,7 @@ class TestInput:
 
         filepath = p.join(io.DATA_DIR, 'fixed_w_header.txt')
         widths = [0, 18, 29, 33, 38, 50]
-        records = io.read_fixed_csv(filepath, widths, has_header=True)
+        records = io.read_fixed_fmt(filepath, widths, has_header=True)
         expected = {
             'News Paper': 'Chicago Reader',
             'Founded': '1971-01-01',

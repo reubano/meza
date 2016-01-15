@@ -251,7 +251,7 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
 
     See also:
         `tabutils.io.read_csv`
-        `tabutils.io.read_fixed_csv`
+        `tabutils.io.read_fixed_fmt`
         `tabutils.io.read_json`
         `tabutils.io.read_geojson`
         `tabutils.io.write`
@@ -580,7 +580,7 @@ def read_tsv(filepath, mode='rU', **kwargs):
     return read_csv(filepath, mode, dialect='excel-tab', **kwargs)
 
 
-def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
+def read_fixed_fmt(filepath, widths=None, mode='rU', **kwargs):
     """Reads a fixed-width csv file.
 
     Args:
@@ -610,7 +610,7 @@ def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
     Examples:
         >>> filepath = p.join(DATA_DIR, 'fixed.txt')
         >>> widths = [0, 18, 29, 33, 38, 50]
-        >>> records = read_fixed_csv(filepath, widths)
+        >>> records = read_fixed_fmt(filepath, widths)
         >>> next(records) == {
         ...     'column_1': 'Chicago Reader',
         ...     'column_2': '1971-01-01',
@@ -1197,7 +1197,7 @@ def get_reader(extension):
         'yml': read_yaml,
         'html': read_html,
         'tsv': read_tsv,
-        'fixed': read_fixed_csv,
+        'fixed': read_fixed_fmt,
     }
 
     try:

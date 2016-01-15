@@ -1,6 +1,7 @@
 recursive-include tests *
 recursive-include data *
 recursive-include helpers *
+include examples.py
 include LICENSE
 include AUTHORS.rst
 include CHANGES.rst

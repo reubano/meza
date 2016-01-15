@@ -985,10 +985,10 @@ def op_everseen(iterable, key=None, pad=False, op='lt'):
     """List min/max/equal... elements, preserving order. Remember all
     elements ever seen.
 
-    >>> from operator import itemgetter
     >>> list(op_everseen([4, 6, 3, 8, 2, 1]))
     [4, 3, 2, 1]
-    >>> seen = op_everseen([('a', 6), ('b', 4), ('c', 8)], itemgetter(1))
+    >>> op = operator.itemgetter(1)
+    >>> seen = op_everseen([('a', 6), ('b', 4), ('c', 8)], op)
     >>> list(seen) == [('a', 6), ('b', 4)]
     True
     """

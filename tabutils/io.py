@@ -103,7 +103,7 @@ class IterStringIO(TextIOBase):
 
     def _chain(self, iterable):
         iterable = iterable or []
-        return it.chain(*iterable)
+        return it.chain.from_iterable(iterable)
 
     def _read(self, iterable, n=None, newline=True):
         byte = ft.byte(it.islice(iterable, n) if n else iterable)
@@ -1076,8 +1076,7 @@ def write(filepath, content, mode='wb+', **kwargs):
 
         yield progress
 
-    args = [content]
-    return next(read_any(filepath, _write, mode, *args, **kwargs))
+    return next(read_any(filepath, _write, mode, content, **kwargs))
 
 
 def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):

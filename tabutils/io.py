@@ -1050,6 +1050,7 @@ def write(filepath, content, mode='wb+', **kwargs):
         >>> from tempfile import TemporaryFile
         >>> write(TemporaryFile(), StringIO('Hello World'))
         11
+        >>> write(StringIO(), StringIO('Hello World'))
     """
     def _write(f, content, **kwargs):
         chunksize = kwargs.get('chunksize')
@@ -1236,11 +1237,13 @@ def read(filepath, **kwargs):
     return get_reader(p.splitext(filepath)[1])(filepath, **kwargs)
 
 
-def join(filepaths, **kwargs):
+def join(*filepaths, **kwargs):
     """Reads multiple filepaths and yields all the resulting records.
 
     Args:
         filepaths (iter[str]): Iterator of filepaths.
+
+        kwargs (dict): keyword args passed to the individual readers.
 
     Yields:
         dict: A parsed record
@@ -1250,7 +1253,7 @@ def join(filepaths, **kwargs):
 
     Examples:
         >>> fs = [p.join(DATA_DIR, 'test.xls'), p.join(DATA_DIR, 'test.csv')]
-        >>> next(join(fs, sanitize=True)) == {
+        >>> next(join(*fs, sanitize=True)) == {
         ...     'some_value': '234.0',
         ...     'some_date': '1982-05-04',
         ...     'sparse_data': 'Iñtërnâtiônàližætiøn',

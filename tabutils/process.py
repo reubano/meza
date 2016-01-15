@@ -470,6 +470,7 @@ def merge(records, **kwargs):
 
     See also:
         `tabutils.process.aggregate`
+        `tabutils.process.join`
         `tabutils.fntools.combine`
 
     Examples:

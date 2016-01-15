@@ -1195,7 +1195,6 @@ def get_reader(extension):
         'yaml': read_yaml,
         'yml': read_yaml,
         'html': read_html,
-        'tsv': read_tsv,
         'fixed': read_fixed_fmt,
     }
 

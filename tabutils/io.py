@@ -284,10 +284,11 @@ def _read_csv(f, header=None, has_header=True, **kwargs):
 
     Args:
         f (obj): The csv file like object.
-        encoding (str): File encoding.
+        header (Seq[str]): Sequence of column names.
+        has_header (bool): Whether or not file has a header.
 
     Kwargs:
-        header (Seq[str]): Sequence of column names.
+        first_col (int): The first column (default: 0).
 
     Yields:
         dict: A csv record.
@@ -305,14 +306,17 @@ def _read_csv(f, header=None, has_header=True, **kwargs):
         ...         ('Unicode Test', 'Ādam')]
         True
     """
+    first_col = kwargs.pop('first_col', 0)
+
     if header and has_header:
         next(f)
     elif not (header or has_header):
         raise ValueError('Either `header` or `has_header` must be specified.')
 
+    header = (list(it.repeat(0, first_col)) + header) if first_col else header
     reader = csv.DictReader(f, header, **kwargs)
 
-    # Remove `None` keys
+    # Remove empty keys
     records = (dict(x for x in r.items() if x[0]) for r in reader)
 
     # Remove empty rows
@@ -625,7 +629,6 @@ def read_fixed_fmt(filepath, widths=None, mode='rU', **kwargs):
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.get('has_header')
         first_row = kwargs.get('first_row', 0)
-        first_col = kwargs.get('first_col', 0)
         schema = tuple(zip_longest(widths, widths[1:]))
         [next(f) for _ in range(first_row)]
 

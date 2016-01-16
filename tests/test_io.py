@@ -207,8 +207,9 @@ class TestInput:
         nt.assert_equal(expected, next(records))
 
         filepath = p.join(io.DATA_DIR, 'test_bad.csv')
-        records = io.read_csv(filepath, first_row=1, first_col=1)
-        nt.assert_equal(self.sheet0, next(records))
+        kwargs = {'sanitize': True, 'first_row': 1, 'first_col': 1}
+        records = io.read_csv(filepath, **kwargs)
+        nt.assert_equal(self.sheet0_alt, next(records))
 
         filepath = p.join(io.DATA_DIR, 'fixed_w_header.txt')
         widths = [0, 18, 29, 33, 38, 50]

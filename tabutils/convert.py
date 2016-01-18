@@ -570,8 +570,7 @@ def array2records(data, native=False):
 
 
 def df2records(df):
-    """
-    Converts a pandas DataFrame into records.
+    """Converts a pandas DataFrame into records.
 
     Args:
         df (obj): pandas.DataFrame object
@@ -664,8 +663,7 @@ def records2array(records, types, native=False):
 
 
 def records2csv(records, encoding=ENCODING, bom=False, skip_header=False):
-    """
-    Converts records into a csv file like object.
+    """Converts records into a csv file like object.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.

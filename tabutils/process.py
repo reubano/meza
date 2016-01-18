@@ -620,8 +620,7 @@ def prepend(records, row):
 
 
 def peek(records, n=5):
-    """
-    Provides a list of the first n rows of a records generator.
+    """Provides a list of the first n rows of a records generator.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
@@ -630,8 +629,8 @@ def peek(records, n=5):
         n (int): The number of rows to preview
 
     Returns:
-        tuple: The reconstituted records iterator and a list of its first n rows.
-
+        tuple: The reconstituted records iterator and a list of its first n
+            rows.
 
     See also:
         `tabutils.process.prepend`
@@ -656,8 +655,7 @@ def peek(records, n=5):
 
 
 def pivot(records, data, column, op=sum, **kwargs):
-    """
-    Create a spreadsheet-style pivot table.
+    """Create a spreadsheet-style pivot table.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
@@ -723,8 +721,7 @@ def pivot(records, data, column, op=sum, **kwargs):
 
 
 def normalize(records, data, column, rows):
-    """
-    Yields normalized records from a spreadsheet-style pivot table.
+    """Yields normalized records from a spreadsheet-style pivot table.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
@@ -874,8 +871,7 @@ def unique(records, fields=None, pred=None, bufsize=4096):
 
 
 def cut(records, fields=None, exclude=False, prune=False):
-    """
-    Edit records to only return specified columns. Like unix `cut`, but for
+    """Edit records to only return specified columns. Like unix `cut`, but for
     tabular data.
 
     Args:
@@ -911,8 +907,7 @@ def cut(records, fields=None, exclude=False, prune=False):
 
 
 def split(records, key=None, count=None, chunksize=None):
-    """
-    Split records into bite sized pieces. Like unix `split`, but for
+    """Split records into bite sized pieces. Like unix `split`, but for
     tabular data.
     """
     chunksize = chunksize or count
@@ -938,8 +933,7 @@ def split(records, key=None, count=None, chunksize=None):
 
 
 def grep(records, rules, any_match=False, inverse=False):
-    """
-    Yields rows which match all the given rules.
+    """Yields rows which match all the given rules.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.

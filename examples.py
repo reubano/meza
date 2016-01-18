@@ -101,7 +101,7 @@ Examples:
         ...     'D': 0.6536357538927619}
         True
 
-        >>> sorted(df, key=itemgetter('B'))[0] == {
+        >>> next(pr.sort(df, 'B')) == {
         ...     'A': 0.535204782203361,
         ...     'B': 0.06763103158333483,
         ...     'C': 0.023510063056781383,
@@ -156,7 +156,7 @@ Examples:
         False
         >>> records = list(io.read_csv(f1))
 
-        >>> sorted(records, key=itemgetter('col_2'))[0] == {
+        >>> next(pr.sort(records, 'col_2')) == {
         ...     'col_1': '2', 'col_2': 'bob', 'col_3': 'male'}
         True
 

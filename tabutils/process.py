@@ -38,6 +38,8 @@ from builtins import *
 from six import iteritems
 from . import convert as cv, fntools as ft, typetools as tt, ENCODING
 
+sort = lambda records, key: iter(sorted(records, key=itemgetter(key)))
+
 
 def type_cast(records, types, warn=False):
     """Casts record entries based on field types.

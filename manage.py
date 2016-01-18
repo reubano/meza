@@ -75,12 +75,15 @@ def require():
 @manager.arg('where', 'w', help='test path', default=None)
 @manager.arg(
     'stop', 'x', help='Stop after first error', type=bool, default=False)
+@manager.arg(
+    'failed', 'f', help='Run failed tests', type=bool, default=False)
 @manager.arg('tox', 't', help='Run tox tests')
 @manager.command
-def test(where=None, stop=False, tox=False):
+def test(where=None, stop=False, failed=False, tox=False):
     """Run nose, tox, and script tests"""
     opts = '-xv' if stop else '-v'
     opts += 'w %s' % where if where else ''
+    opts += ' --failed' if failed else ''
 
     try:
         if tox:

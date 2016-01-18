@@ -572,7 +572,8 @@ def group(records, keyfunc, tupled=True, aggregator=list, **kwargs):
         200
         >>> len(grp)
         2
-        >>> next(group(records, 'amount', False))[0] == {'item': 'a', 'amount': 200}
+        >>> next(group(records, 'amount', False))[0] == {
+        ...     'item': 'a', 'amount': 200}
         True
     """
     keyfunc = keyfunc if callable(keyfunc) else itemgetter(keyfunc)

@@ -1013,6 +1013,17 @@ def op_everseen(iterable, key=None, pad=False, op='lt'):
             yield current
 
 
+def fpartial(op):
+    """Takes a function that accepts 2 arguments, and returns an equivalent
+    function that accepts one iterable argument.
+
+    >>> div = fpartial(operator.truediv)
+    >>> div([4, 3, 2])
+    0.6666666666666666
+    """
+    return partial(reduce, op)
+
+
 def sum_and_count(x, y):
     """A function used for calculating the mean of a list from a reduce.
 
@@ -1021,8 +1032,10 @@ def sum_and_count(x, y):
     >>> l = [15, 18, 2, 36, 12, 78, 5, 6, 9]
     >>> truediv(*reduce(sum_and_count, l)) == 20.11111111111111
     True
+    >>> truediv(*fpartial(sum_and_count)(l)) == 20.11111111111111
+    True
     """
     try:
         return (x[0] + y, x[1] + 1)
     except TypeError:
-        return (x + y, 2)
+        return ((x or 0) + (y or 0), len([i for i in [x, y] if i is not None]))

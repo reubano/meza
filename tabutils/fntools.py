@@ -61,6 +61,13 @@ ARRAY_TYPE = {
     'double': 'd',
     'text': 'u'}
 
+ARRAY_NULL_TYPE = {
+    'B': False,
+    'i': 0,
+    'f': 0.0,
+    'd': 0.0,
+    'u': ''}
+
 logging.basicConfig()
 
 

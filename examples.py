@@ -17,6 +17,7 @@ Examples:
         >>> import pandas as pd
 
         >>> from io import StringIO
+        >>> from array import array
         >>> from json import loads
         >>> from functools import partial
         >>> from operator import itemgetter, eq, lt, gt
@@ -365,6 +366,19 @@ Examples:
         >>> next(cv.array2records(ndarray)) == {'A': 1, 'B': 2.0, 'C': 'Hello'}
         True
 
+        # Convert records to a native array
+        >>> cv.records2array(records, result['types'], True) == [
+        ...     [array('u', 'a'), array('u', 'c'), array('u', 'b')],
+        ...     [array('u', 'one'), array('u', 'five')],
+        ...     array('f', [2.0, 20.100000381469727]),
+        ...     array('i', [0, 10])]
+        True
+
+        # Convert a native array to records
+        >>> arr = [array('i', [1, 2, 3, 4, 5]), array('f', [1, 2, 3, 4, 5])]
+        >>> next(cv.array2records(arr, True)) == {
+        ...     'column_1': 1, 'column_2': 1.0}
+        True
 
     Cookbook
 

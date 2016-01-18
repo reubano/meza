@@ -628,14 +628,16 @@ def records2array(records, types, native=False):
         `tabutils.convert.records2df`
 
     Examples:
-        >>> records = [{'alpha': 'a', 'beta': 2}, {'alpha': 'b', 'beta': 3}]
+        >>> records = [{'alpha': 'aa', 'beta': 2}, {'alpha': 'bee', 'beta': 3}]
         >>> types = [
         ...     {'id': 'alpha', 'type': 'text'}, {'id': 'beta', 'type': 'int'}]
+        >>> records2array(records, types).alpha.tolist() == ['aa', 'bee']
+        True
         >>> records2array(records, types).beta
         array([2, 3], dtype=int32)
         >>> records2array(records, types, True) == [
         ...     [array('u', u'alpha'), array('u', u'beta')],
-        ...     [array('u', u'a'), array('u', u'b')],
+        ...     [array('u', u'aa'), array('u', u'bee')],
         ...     array('i', [2, 3])]
         True
     """
@@ -644,7 +646,7 @@ def records2array(records, types, native=False):
     ids = [t['id'] for t in types]
 
     if numpy:
-        data = [tuple(r[id_] for id_ in ids) for r in records]
+        data = [tuple(r.get(id_) for id_ in ids) for r in records]
 
         # dtype bug https://github.com/numpy/numpy/issues/2407
         ndtype = [tuple(s.encode('ascii') for s in d) for d in zip(ids, dtype)]

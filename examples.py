@@ -294,7 +294,7 @@ Examples:
 
     Interoperability
 
-        >>> records = [{'a': 1, 'b': 2}, {'a': 5, 'b': 10, 'c': 20}]
+        >>> records = [{'a': 'one', 'b': 2}, {'a': 'five', 'b': 10, 'c': 20.1}]
 
         # Convert records to a DataFrame
         >>> df = pd.DataFrame(records)
@@ -312,8 +312,15 @@ Examples:
         # Convert records to a structured array
         >>> records, result = pr.detect_types(records)
         >>> recarray = cv.records2array(records, result['types'])
-        >>> recarray.a
-        array([1, 5], dtype=int32)
+        >>> recarray.a.tolist() == ['one', 'five']
+        True
+        >>> recarray.b
+        array([ 2, 10], dtype=int32)
+        >>> clist = recarray.c.tolist()
+        >>> np.isnan(clist[0])
+        True
+        >>> clist[1]
+        20.100000381469727
 
         # First create a 2-D NumPy array
         >>> data = np.array([[1, 2, 3], [4, 5, 6]], 'i4')

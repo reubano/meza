@@ -38,7 +38,7 @@ Examples:
         >>> bool(f.seek(0))
         False
 
-        # Load file
+        # Load a file
         >>> records = io.read_csv(f)
 
         # Records are an iterator over the rows
@@ -112,7 +112,7 @@ Examples:
         >>> len(list(it.islice(df, 3)))
         3
 
-        # Use a single column’s values to select data (df[df.A < 0.5])
+        # Use a single column’s values to select data
         >>> rules = [{'fields': ['A'], 'pattern': partial(gt, 0.5)}]
         >>> next(pr.grep(df, rules))['A']
         0.21000869554973112
@@ -143,7 +143,7 @@ Examples:
         >>> bool(f2.seek(0))
         False
 
-        # Join multiple files together
+        # Let's join the files together
         >>> records = io.join(f1, f2, ext='csv')
         >>> next(records) == {'col_1': '1', 'col_2': 'dill', 'col_3': 'male'}
         True
@@ -151,6 +151,7 @@ Examples:
         ...     'col_1': '6', 'col_2': 'jill', 'col_3': 'female'}
         True
 
+        # Reset the first file and then do some simple manipulations
         >>> bool(f1.seek(0))
         False
         >>> records = list(io.read_csv(f1))
@@ -191,6 +192,7 @@ Examples:
         ...     records, result = pr.detect_types(records)
         ...     casted_records = pr.type_cast(records, result['types'])
         ...     geofiles.append(cv.records2geojson(casted_records))
+
         >>> loads(geofiles[0].readline()) == {
         ...     'type': 'FeatureCollection',
         ...     'bbox': [5, 15, 10, 20],
@@ -266,8 +268,6 @@ Examples:
         >>> records[0] == {'col1': 'hello', 'col2': 'world'}
         True
 
-        # Now we're ready to write the records data to file
-
         # Create a csv file like object
         >>> f_out = cv.records2csv(records)
         >>> set(f_out.readline().rstrip().split(',')) == {'col1', 'col2'}
@@ -322,7 +322,7 @@ Examples:
         b      int32
         dtype: object
 
-        # Convert a DataFrame to a records generator
+        # Convert a DataFrame to records
         >>> row = next(cv.df2records(df))
         >>> row['a'] == 'one'
         True
@@ -343,18 +343,17 @@ Examples:
         >>> clist[1]
         20.100000381469727
 
-        # First create a 2-D NumPy array
+        # Convert a 2-D array to records
         >>> data = np.array([[1, 2, 3], [4, 5, 6]], 'i4')
         >>> data
         array([[1, 2, 3],
                [4, 5, 6]], dtype=int32)
 
-        # Convert a 2-D array to a records generator
         >>> next(cv.array2records(data)) == {
         ...     'column_1': 1, 'column_2': 2, 'column_3': 3}
         True
 
-        # Now create a structured array
+        # Convert a structured array to records
         >>> types = [('A', 'i4'), ('B', 'f4'), ('C', 'S5')]
         >>> dtype = [(k.encode('ascii'), v.encode('ascii')) for k, v in types]
         >>> data = [(1, 2., 'Hello'), (2, 3., 'World')]
@@ -362,7 +361,6 @@ Examples:
         >>> ndarray.tolist() == [(1, 2.0, 'Hello'), (2, 3.0, 'World')]
         True
 
-        # Convert a structured array to a records generator
         >>> next(cv.array2records(ndarray)) == {'A': 1, 'B': 2.0, 'C': 'Hello'}
         True
 
@@ -406,7 +404,7 @@ Examples:
         >>> len(list(concated)) + 1
         7
 
-        # SQL style joins (pd.merge(left, right, on='key'))
+        # Make SQL style joins
         >>> left = [{'key': 'foo', 'lval': 1}, {'key': 'foo', 'lval': 2}]
         >>> right = [{'key': 'foo', 'rval': 4}, {'key': 'foo', 'rval': 5}]
         >>> list(pr.join(left, right)) == [
@@ -427,7 +425,7 @@ Examples:
         ...     {'A': 'bar', 'B': 1.219023}, {'A': 'foo', 'B': 0.600015}]
         True
 
-        # Create pivot data
+        # Pivot tables
         >>> rrange = random.sample(range(-10, 10), 12)
         >>> a = ['one', 'one', 'two', 'three'] * 3
         >>> b = ['ah', 'beh', 'say'] * 4
@@ -444,7 +442,6 @@ Examples:
         ...     {'A': 'one', 'B': 'beh', 'C': 'bar', 'D': 0.0}]
         True
 
-        # Now lets pivot the data
         >>> pivot = pr.pivot(records, 'D', 'C')
         >>> pivot, peek = pr.peek(pivot)
         >>> peek == [

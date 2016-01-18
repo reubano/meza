@@ -295,22 +295,42 @@ Examples:
     Interoperability
 
         >>> records = [{'a': 'one', 'b': 2}, {'a': 'five', 'b': 10, 'c': 20.1}]
+        >>> records, result = pr.detect_types(records)
+        >>> records = list(records)
 
         # Convert records to a DataFrame
         >>> df = pd.DataFrame(records)
-        >>> df
-           a   b   c
-        0  1   2 NaN
-        1  5  10  20
+        >>> df.sort_index(1)
+              a   b     c
+        0   one   2   NaN
+        1  five  10  20.1
+        >>> df.dtypes
+        a     object
+        b      int64
+        c    float64
+        dtype: object
+
+        >>> df = cv.records2df(records, result['types'])
+        >>> df.sort_index(1)
+              a   b     c
+        0   one   2   NaN
+        1  five  10  20.1
+        >>> df.dtypes
+        a     object
+        c    float32
+        b      int32
+        dtype: object
 
         # Convert a DataFrame to a records generator
-        >>> conv_records = cv.df2records(df)
-        >>> result = {k: np.isnan(v) for k, v in next(conv_records).items()}
-        >>> result == {'a': False, 'b': False, 'c': True}
+        >>> row = next(cv.df2records(df))
+        >>> row['a'] == 'one'
+        True
+        >>> row['b']
+        2
+        >>> np.isnan(row['c'])
         True
 
         # Convert records to a structured array
-        >>> records, result = pr.detect_types(records)
         >>> recarray = cv.records2array(records, result['types'])
         >>> recarray.a.tolist() == ['one', 'five']
         True

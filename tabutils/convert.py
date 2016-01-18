@@ -40,6 +40,11 @@ try:
 except ImportError:
     np = None
 
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+
 
 def ctype2ext(content_type=None):
     """Converts an http content type to a file extension.
@@ -582,14 +587,17 @@ def df2records(df):
         `tabutils.process.array2records`
 
     Examples:
-        >>> try:
-        ...    import pandas as pd
-        ... except ImportError:
-        ...    print(True)
-        ... else:
-        ...    records = [{'a': 1, 'b': 2, 'c': 3}, {'a': 4, 'b': 5, 'c': 6}]
+        >>> records = [
+        ...     {'a': 1, 'b': 2.0, 'c': 'three'},
+        ...     {'a': 4, 'b': 5.0, 'c': 'six'}]
+
+        >>> if pd:
         ...    df = pd.DataFrame(records)
-        ...    next(df2records(df)) == {'a': 1, 'b': 2, 'c': 3}
+        ...    converted = df2records(df)
+        ... else:
+        ...    converted = iter(records)
+
+        >>> next(converted) == {'a': 1, 'b': 2.0, 'c': 'three'}
         True
     """
     index = [_f for _f in df.index.names if _f]
@@ -662,6 +670,38 @@ def records2array(records, types, native=False):
         converted = [header] + values
 
     return converted
+
+
+def records2df(records, types):
+    """Converts records into either a pandas.DataFrame
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        types (Iter[dict]):
+
+        native (bool): (default: False)
+
+    Returns:
+        numpy.recarray
+
+    See also:
+        `tabutils.convert.records2array`
+
+    Examples:
+        >>> records = [
+        ...     {'col_1': 'alpha', 'col_2': 1.0},
+        ...     {'col_1': 'beta', 'col_2': 2.3}]
+        >>> types = [
+        ...     {'id': 'col_1', 'type': 'text'}, {'id': 'col_2', 'type': 'int'}]
+        >>> records2df(records, types)
+           col_1  col_2
+        0  alpha      1
+        1   beta      2
+    """
+    recarray = records2array(records, types)
+    return pd.DataFrame.from_records(recarray)
 
 
 def records2csv(records, encoding=ENCODING, bom=False, skip_header=False):

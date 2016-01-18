@@ -14,11 +14,12 @@ import nose.tools as nt
 import itertools as it
 
 from decimal import Decimal
-from operator import itemgetter
+from functools import partial
+from operator import itemgetter, truediv, eq, is_not, contains
 from collections import defaultdict
 
 from builtins import *
-from tabutils import process as pr, stats
+from tabutils import process as pr, stats, fntools as ft
 
 
 def setup_module():
@@ -116,39 +117,42 @@ class Test:
         nt.assert_equal(more_values_4, list(pr.fillempty(records, **kwargs)))
 
     def test_merge(self):
-        pr.merge([{'a': 1, 'b': 2}, {'b': 10, 'c': 11}])
-        [('a', 1), ('b', 10), ('c', 11)]
+        expected = {'a': 1, 'b': 10, 'c': 11}
+        result = pr.merge([{'a': 1, 'b': 2}, {'b': 10, 'c': 11}])
+        nt.assert_equal(expected, result)
+
+        # setup
         records = [{'a': 1, 'b': 2, 'c': 3}, {'b': 4, 'c': 5, 'd': 6}]
 
         # Combine all keys
-        pred = lambda key: True
-        pr.merge(records, pred=pred, op=sum)
-        [('a', 1), ('b', 6), ('c', 8), ('d', 6)]
-        fltrer = lambda x: x is not None
-        first = lambda pair: next(filter(fltrer, pair))
-        kwargs = {'pred': pred, 'op': first, 'default': None}
-        pr.merge(records, **kwargs)
-        [('a', 1), ('b', 2), ('c', 3), ('d', 6)]
+        expected = {u'a': 1, u'c': 8, u'b': 6, u'd': 6}
+        result = pr.merge(records, pred=bool, op=sum)
+        nt.assert_equal(expected, result)
+
+        first = lambda pair: next(filter(partial(is_not, None), pair))
+        kwargs = {'pred': bool, 'op': first, 'default': None}
+        expected = {u'a': 1, u'b': 2, u'c': 3, u'd': 6}
+        result = pr.merge(records, **kwargs)
+        nt.assert_equal(expected, result)
 
         # This will only reliably give the expected result for 2 records
-        kwargs = {'pred': pred, 'op': stats.mean, 'default': None}
-        pr.merge(records, **kwargs)
-        [('a', 1), ('b', 3.0), ('c', 4.0), ('d', 6.0)]
+        kwargs = {'pred': bool, 'op': stats.mean, 'default': None}
+        expected = {u'a': 1, u'b': 3.0, u'c': 4.0, u'd': 6.0}
+        result = pr.merge(records, **kwargs)
+        nt.assert_equal(expected, result)
 
         # Only combine key 'b'
-        pred = lambda key: key == 'b'
-        pr.merge(records, pred=pred, op=sum)
-        [('a', 1), ('b', 6), ('c', 5), ('d', 6)]
+        expected = {u'a': 1, u'b': 6, u'c': 5, u'd': 6}
+        result = pr.merge(records, pred='b', op=sum)
+        nt.assert_equal(expected, result)
 
         # Only combine keys that have the same value of 'b'
-        pred = itemgetter('b')
-        pr.merge(records, pred=pred, op=sum)
-        [('a', 1), ('b', 6), ('c', 5), ('d', 6)]
+        expected = {u'a': 1, u'b': 6, u'c': 5, u'd': 6}
+        result = pr.merge(records, pred=itemgetter('b'), op=sum)
+        nt.assert_equal(expected, result)
 
         # This will reliably work for any number of records
         counted = defaultdict(int)
-        pred = lambda key: True
-        divide = lambda x: x[0] / x[1]
 
         records = [
             {'a': 1, 'b': 4, 'c': 0},
@@ -159,14 +163,24 @@ class Test:
             for k in r.keys():
                 counted[k] += 1
 
-        counted
-        [('a', 3), ('b', 3), ('c', 2), ('d', 1)]
-        summed = pr.merge(records, pred=pred, op=sum)
-        summed
-        [('a', 6), ('b', 15), ('c', 2), ('d', 7)]
-        kwargs = {'pred': pred, 'op': divide}
-        pr.merge([summed, counted], **kwargs)
-        [('a', 2.0), ('b', 5.0), ('c', 1.0), ('d', 7.0)]
+        expected = {u'a': 3, u'b': 3, u'c': 2, u'd': 1}
+        nt.assert_equal(expected, counted)
+
+        summed = pr.merge(records, pred=bool, op=sum)
+        expected = {u'a': 6, u'b': 15, u'c': 2, u'd': 7}
+        nt.assert_equal(expected, summed)
+
+        kwargs = {'pred': bool, 'op': ft.fpartial(truediv)}
+        expected = {u'a': 2.0, u'b': 5.0, u'c': 1.0, u'd': 7.0}
+        result = pr.merge([summed, counted], **kwargs)
+        nt.assert_equal(expected, result)
+
+        # This should also reliably work for any number of records
+        op = ft.fpartial(ft.sum_and_count)
+        kwargs = {'pred': bool, 'op': op, 'default': None}
+        merged = pr.merge(records, **kwargs)
+        result = {x: truediv(*y) for x, y in merged.items()}
+        nt.assert_equal(expected, result)
 
     def test_unique(self):
         records = [
@@ -182,8 +196,8 @@ class Test:
         ]
 
         pred = lambda x: x['name'][0]
-        next(it.islice(pr.unique(records, pred=pred), 3, 4))['name']
-        'rob'
+        result = next(it.islice(pr.unique(records, pred=pred), 3, 4))['name']
+        nt.assert_equal('rob', result)
 
     def test_cut(self):
         records = [
@@ -192,11 +206,12 @@ class Test:
             {'field_1': 3, 'field_2': 'jane', 'field_3': 'female'},
         ]
 
-        next(pr.cut(records, exclude=['field_2'])) == {
-            'field_1': 1, 'field_3': 'male'}
-        True
-        next(pr.cut(records, include=['field_2'], exclude=['field_2']))
-        {'field_2': 'bill'}
+        expected = {'field_1': 1, 'field_3': 'male'}
+        result = next(pr.cut(records, ['field_2'], exclude=True))
+        nt.assert_equal(expected, result)
+
+        result = next(pr.cut(records, ['field_2']))
+        nt.assert_equal({'field_2': 'bill'}, result)
 
     def test_grep(self):
         records = [
@@ -207,15 +222,18 @@ class Test:
             {'day': 3, 'name': 'jane'},
         ]
 
-        rules = [{'fields': ['day'], 'pattern': lambda x: x == 1}]
-        next(pr.grep(records, rules))['name']
-        'bill'
-        rules = [{'pattern': lambda x: x in {1, 'rob'}}]
-        next(pr.grep(records, rules))['name']
-        'rob'
-        rules = [{'pattern': lambda x: x in {1, 'rob'}}]
-        next(pr.grep(records, rules, any_match=True))['name']
-        'bill'
+        rules = [{'fields': ['day'], 'pattern': partial(eq, 1)}]
+        result = next(pr.grep(records, rules))['name']
+        nt.assert_equal('bill', result)
+
+        rules = [{'pattern': partial(contains, {1, 'rob'})}]
+        result = next(pr.grep(records, rules))['name']
+        nt.assert_equal('rob', result)
+
+        rules = [{'pattern': partial(contains, {1, 'rob'})}]
+        result = next(pr.grep(records, rules, any_match=True))['name']
+        nt.assert_equal('bill', result)
+
         rules = [{'fields': ['name'], 'pattern': 'o'}]
-        next(pr.grep(records, rules, inverse=True))['name']
-        'bill'
+        result = next(pr.grep(records, rules, inverse=True))['name']
+        nt.assert_equal('bill', result)

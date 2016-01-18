@@ -27,18 +27,22 @@ import sys
 import hashlib
 import sqlite3
 import logging
+import yaml
+import json
 
 from os import path as p
 from io import StringIO, TextIOBase
 from datetime import time
-from json import loads
 from mmap import mmap
 from collections import deque
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 from http import client
 from csv import Error as csvError
+from functools import partial
+
 from builtins import *
 from six.moves import zip_longest
+from bs4 import BeautifulSoup, FeatureNotFound
 from ijson import items
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from chardet.universaldetector import UniversalDetector
@@ -100,7 +104,7 @@ class IterStringIO(TextIOBase):
 
     def _chain(self, iterable):
         iterable = iterable or []
-        return it.chain(*iterable)
+        return it.chain.from_iterable(iterable)
 
     def _read(self, iterable, n=None, newline=True):
         byte = ft.byte(it.islice(iterable, n) if n else iterable)
@@ -188,6 +192,18 @@ def remove_bom(row, bom):
     return row
 
 
+def get_encoding(filepath):
+    """
+    Examples:
+        >>> get_encoding(p.join(DATA_DIR, 'utf16_big.csv')) == 'UTF-16BE'
+        True
+    """
+    with open(filepath, 'rb') as f:
+        encoding = detect_encoding(f)['encoding']
+
+    return encoding
+
+
 def _read_any(f, reader, args, pos=0, **kwargs):
     recursed = pos
 
@@ -197,19 +213,29 @@ def _read_any(f, reader, args, pos=0, **kwargs):
                 yield r
                 pos += 1
     except (UnicodeDecodeError, csvError, TypeError):
-        # bytes or the wrong encoding was used so detect correct one
+        # bytes or the wrong encoding was used
         if recursed:
             logging.error('Unable to detect proper encoding for %s.', f.name)
             raise
-        else:
+
+        f.seek(0)
+
+        try:
+            # See if we have bytes to avoid reopening the file
+            encoding = detect_encoding(f)['encoding']
+        except UnicodeDecodeError:
+            # We had an incorrectly encoded file, so reopen with bytes and
+            # detect the encoding
             f.close()
 
             with open(f.name, 'rb') as new_f:
                 encoding = detect_encoding(new_f)['encoding']
+        else:
+            f.close()
 
-            with open(f.name, 'rU', encoding=encoding) as enc_f:
-                for r in _read_any(enc_f, reader, args, pos, **kwargs):
-                    yield r
+        with open(f.name, 'rU', encoding=encoding) as enc_f:
+            for r in _read_any(enc_f, reader, args, pos, **kwargs):
+                yield r
 
 
 def read_any(filepath, reader, mode='rU', *args, **kwargs):
@@ -225,12 +251,12 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
         encoding (str): File encoding.
 
     See also:
-        `io.read_csv`
-        `io.read_fixed_csv`
-        `io.read_json`
-        `io.read_geojson`
-        `io.write`
-        `io.hash_file`
+        `tabutils.io.read_csv`
+        `tabutils.io.read_fixed_fmt`
+        `tabutils.io.read_json`
+        `tabutils.io.read_geojson`
+        `tabutils.io.write`
+        `tabutils.io.hash_file`
 
     Yields:
         scalar: Result of applying the reader func to the file.
@@ -259,16 +285,17 @@ def _read_csv(f, header=None, has_header=True, **kwargs):
 
     Args:
         f (obj): The csv file like object.
-        encoding (str): File encoding.
+        header (Seq[str]): Sequence of column names.
+        has_header (bool): Whether or not file has a header.
 
     Kwargs:
-        header (Seq[str]): Sequence of column names.
+        first_col (int): The first column (default: 0).
 
     Yields:
         dict: A csv record.
 
     See also:
-        `io.read_csv`
+        `tabutils.io.read_csv`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
@@ -280,14 +307,17 @@ def _read_csv(f, header=None, has_header=True, **kwargs):
         ...         ('Unicode Test', 'Ādam')]
         True
     """
+    first_col = kwargs.pop('first_col', 0)
+
     if header and has_header:
         next(f)
     elif not (header or has_header):
         raise ValueError('Either `header` or `has_header` must be specified.')
 
+    header = (list(it.repeat(0, first_col)) + header) if first_col else header
     reader = csv.DictReader(f, header, **kwargs)
 
-    # Remove `None` keys
+    # Remove empty keys
     records = (dict(x for x in r.items() if x[0]) for r in reader)
 
     # Remove empty rows
@@ -334,7 +364,6 @@ def read_mdb(filepath, table=None, **kwargs):
         ...     'livery': '',
         ...     'date_of_order_of_court': '06/05/60 00:00:00',
         ...     'source_ref': 'MF 324'}
-        ...
         True
     """
     args = ['mdb-tables', '-1', filepath]
@@ -377,7 +406,7 @@ def read_dbf(filepath, **kwargs):
 
     Kwargs:
         load (bool): Load all records into memory (default: false).
-        encoding (bool): Character encoding (default: None, parsed from
+        encoding (str): Character encoding (default: None, parsed from
             the `language_driver`).
 
         sanitize (bool): Underscorify and lowercase field names
@@ -410,7 +439,6 @@ def read_dbf(filepath, **kwargs):
         ...      'mtfcc10': 'G5200',
         ...      'geoid10': '2708',
         ...      'intptlon10': '-092.9323194'}
-        ...
         True
     """
     kwargs['lowernames'] = kwargs.pop('sanitize', None)
@@ -431,7 +459,7 @@ def read_sqlite(filepath, table=None):
         NotFound: If unable to find the resource.
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.sqlite')
@@ -441,7 +469,6 @@ def read_sqlite(filepath, table=None):
         ...     'some_date': '05/04/82',
         ...     'some_value': 234,
         ...     'unicode_test': 'Ādam'}
-        ...
         True
     """
     con = sqlite3.connect(filepath)
@@ -468,6 +495,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
         first_row (int): First row (zero based, default: 0).
+        first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -480,8 +508,8 @@ def read_csv(filepath, mode='rU', **kwargs):
         NotFound: If unable to find the resource.
 
     See also:
-        `io.read_any`
-        `io._read_csv`
+        `tabutils.io.read_any`
+        `tabutils.io._read_csv`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
@@ -491,7 +519,6 @@ def read_csv(filepath, mode='rU', **kwargs):
         ...     'some_date': '05/04/82',
         ...     'some_value': '234',
         ...     'unicode_test': 'Ādam'}
-        ...
         True
     """
     def reader(f, **kwargs):
@@ -499,8 +526,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)
-        [next(f) for _ in range(first_row)]
-        pos = f.tell()
+        list(it.islice(f, first_row))
         first_line = StringIO(str(f.readline()))
         names = next(csv.reader(first_line, **kwargs))
 
@@ -509,7 +535,8 @@ def read_csv(filepath, mode='rU', **kwargs):
             uscored = ft.underscorify(stripped) if sanitize else stripped
             header = list(ft.dedupe(uscored) if dedupe else uscored)
         else:
-            f.seek(pos)
+            f.seek(0)
+            list(it.islice(f, first_row))
             header = ['column_%i' % (n + 1) for n in range(len(names))]
 
         return _read_csv(f, header, False, **kwargs)
@@ -529,6 +556,8 @@ def read_tsv(filepath, mode='rU', **kwargs):
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
+        first_row (int): First row (zero based, default: 0).
+        first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -541,7 +570,7 @@ def read_tsv(filepath, mode='rU', **kwargs):
         NotFound: If unable to find the resource.
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.tsv')
@@ -551,13 +580,12 @@ def read_tsv(filepath, mode='rU', **kwargs):
         ...     'some_date': '05/04/82',
         ...     'some_value': '234',
         ...     'unicode_test': 'Ādam'}
-        ...
         True
     """
     return read_csv(filepath, mode, dialect='excel-tab', **kwargs)
 
 
-def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
+def read_fixed_fmt(filepath, widths=None, mode='rU', **kwargs):
     """Reads a fixed-width csv file.
 
     Args:
@@ -569,6 +597,7 @@ def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
     Kwargs:
         has_header (bool): Has header row (default: False).
         first_row (int): First row (zero based, default: 0).
+        first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
 
@@ -581,12 +610,12 @@ def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
         NotFound: If unable to find the resource.
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'fixed.txt')
         >>> widths = [0, 18, 29, 33, 38, 50]
-        >>> records = read_fixed_csv(filepath, widths)
+        >>> records = read_fixed_fmt(filepath, widths)
         >>> next(records) == {
         ...     'column_1': 'Chicago Reader',
         ...     'column_2': '1971-01-01',
@@ -594,7 +623,6 @@ def read_fixed_csv(filepath, widths=None, mode='rU', **kwargs):
         ...     'column_4': 'True',
         ...     'column_5': '1.0',
         ...     'column_6': '04:14:001971-01-01T04:14:00'}
-        ...
         True
     """
     def reader(f, **kwargs):
@@ -652,8 +680,8 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
         True
     """
     date_format = kwargs.get('date_format', '%Y-%m-%d')
-    dt_format = kwargs.get('date_format', '%Y-%m-%d %H:%M:%S')
-    time_format = kwargs.get('date_format', '%H:%M:%S')
+    dt_format = kwargs.get('dt_format', '%Y-%m-%d %H:%M:%S')
+    time_format = kwargs.get('time_format', '%H:%M:%S')
 
     def time_func(value):
         args = xldate_as_tuple(value, mode)[3:]
@@ -727,7 +755,6 @@ def read_xls(filepath, **kwargs):
         ...     'some_date': '1982-05-04',
         ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
         ...     'unicode_test': 'Ādam'}
-        ...
         True
     """
     has_header = kwargs.get('has_header', True)
@@ -787,11 +814,14 @@ def read_json(filepath, mode='rU', path='item', newline=False):
         newline (Optional[bool]): Interpret file as newline-delimited
             (default: False).
 
+    Kwargs:
+        encoding (str): File encoding.
+
     Returns:
         Iterable: The parsed records
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.json')
@@ -804,49 +834,198 @@ def read_json(filepath, mode='rU', path='item', newline=False):
         ...     'time': '04:14:00',
         ...     'date': '1971-01-01',
         ...     'integer': 40}
-        ...
         True
     """
-    reader = lambda f, **kw: map(loads, f) if newline else items(f, path)
+    reader = lambda f, **kw: map(json.loads, f) if newline else items(f, path)
     return read_any(filepath, reader, mode)
 
 
-def read_geojson(filepath, mode='rU'):
+def read_geojson(filepath, key='id', mode='rU', **kwargs):
     """Reads a geojson file
 
     Args:
         filepath (str): The geojson file path or file like object.
+        key (str): GeoJSON Feature ID (default: 'id').
         mode (Optional[str]): The file open mode (default: 'rU').
+
+    Kwargs:
+        lat_first (bool): Latitude listed as first coordinate (default: False).
+
+        encoding (str): File encoding.
 
     Returns:
         Iterable: The parsed records
 
+    Raise:
+        TypeError if no features list or invalid geometry type.
+
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
+        `tabutils.convert.records2geojson`
 
     Examples:
+        >>> from decimal import Decimal
+
         >>> filepath = p.join(DATA_DIR, 'test.geojson')
         >>> records = read_geojson(filepath)
         >>> next(records) == {
-        ...     'id': None,
-        ...     'prop0': 'value0',
+        ...     'id': 6635402,
+        ...     'iso3': 'ABW',
+        ...     'bed_prv_pr': Decimal('0.003'),
+        ...     'ic_mhg_cr': Decimal('0.0246'),
+        ...     'bed_prv_cr': 0,
         ...     'type': 'Point',
-        ...     'coordinates': [102, 0.5]}
-        ...
+        ...     'lon': Decimal('-70.0624999987871'),
+        ...     'lat': Decimal('12.637499976568533')}
         True
     """
     def reader(f, **kwargs):
+        lat_first = kwargs.get('lat_first')
+
         try:
             features = items(f, 'features.item')
         except KeyError:
             raise TypeError('Only GeoJSON with features are supported.')
         else:
-            for feature in features:
-                _id = {'id': feature.get('id')}
-                record = feature.get('properties') or {}
-                yield pr.merge([_id, record, feature['geometry']])
+            def get_point(coords):
+                if lat_first:
+                    point = (coords[1], coords[0])
+                else:
+                    point = (coords[0], coords[1])
 
-    return read_any(filepath, reader, mode)
+                return point
+
+            for feature in features:
+                type_ = feature['geometry']['type']
+                properties = feature.get('properties') or {}
+                coords = feature['geometry']['coordinates']
+                record = {
+                    'id': feature.get(key, properties.get(key)),
+                    'type': feature['geometry']['type']}
+
+                if type_ == 'Point':
+                    record['lon'], record['lat'] = get_point(coords)
+                    yield pr.merge([record, properties])
+                elif type_ == 'LineString':
+                    for point in coords:
+                        record['lon'], record['lat'] = get_point(point)
+                        yield pr.merge([record, properties])
+                elif type_ == 'Polygon':
+                    for pos, poly in enumerate(coords):
+                        for point in poly:
+                            record['lon'], record['lat'] = get_point(point)
+                            record['pos'] = pos
+                            yield pr.merge([record, properties])
+                else:
+                    raise TypeError('Invalid geometry type {}.'.format(type_))
+
+    return read_any(filepath, reader, mode, **kwargs)
+
+
+def read_yaml(filepath, mode='rU', **kwargs):
+    """Reads a YAML file
+
+    TODO: convert to a streaming parser
+
+    Args:
+        filepath (str): The json file path or file like object.
+        mode (Optional[str]): The file open mode (default: 'rU').
+
+    Kwargs:
+        encoding (str): File encoding.
+
+    Returns:
+        Iterable: The parsed records
+
+    See also:
+        `tabutils.io.read_any`
+
+    Examples:
+        >>> from datetime import date, datetime as dt
+
+        >>> filepath = p.join(DATA_DIR, 'test.yml')
+        >>> records = read_yaml(filepath)
+        >>> next(records) == {
+        ...     'text': 'Chicago Reader',
+        ...     'float': 1.0,
+        ...     'datetime': dt(1971, 1, 1, 4, 14),
+        ...     'boolean': True,
+        ...     'time': '04:14:00',
+        ...     'date': date(1971, 1, 1),
+        ...     'integer': 40}
+        True
+    """
+    return read_any(filepath, yaml.load, mode, **kwargs)
+
+
+def read_html(filepath, table=0, mode='rU', **kwargs):
+    """Reads tables from an html file
+
+    TODO: convert to lxml.etree.iterparse
+    http://lxml.de/parsing.html#iterparse-and-iterwalk
+
+    Args:
+        filepath (str): The json file path or file like object.
+        table (int): Zero indexed table to open (default: 0)
+        mode (Optional[str]): The file open mode (default: 'rU').
+        kwargs (dict): Keyword arguments
+
+    Kwargs:
+        encoding (str): File encoding.
+
+        sanitize (bool): Underscorify and lowercase field names
+            (default: False).
+
+        dedupe (bool): Deduplicate field names (default: False).
+
+    Returns:
+        Iterable: The parsed records
+
+    See also:
+        `tabutils.io.read_any`
+
+    Examples:
+        >>> filepath = p.join(DATA_DIR, 'test.html')
+        >>> records = read_html(filepath, sanitize=True)
+        >>> next(records) == {
+        ...     '': 'Mediterranean',
+        ...     'january': '82',
+        ...     'february': '346',
+        ...     'march': '61',
+        ...     'april': '1,244',
+        ...     'may': '95',
+        ...     'june': '\xa010',
+        ...     'july': '230',
+        ...     'august': '684',
+        ...     'september': '268',
+        ...     'october': '432',
+        ...     'november': '105',
+        ...     'december': '203',
+        ...     'total_to_date': '3,760'}
+        True
+    """
+    def reader(f, **kwargs):
+        try:
+            soup = BeautifulSoup(f, 'lxml-xml')
+        except FeatureNotFound:
+            soup = BeautifulSoup(f, 'html.parser')
+
+        sanitize = kwargs.get('sanitize')
+        dedupe = kwargs.get('dedupe')
+        tbl = soup.find_all('table')[table]
+        rows = iter(tbl.find_all('tr'))
+        first_row = next(rows)
+        ths = first_row.find_all('th')
+        names = (next(th.children).string for th in ths)
+        uscored = ft.underscorify(names) if sanitize else names
+        header = list(ft.dedupe(uscored) if dedupe else uscored)
+
+        for tr in rows:
+            row = (td.string for td in tr.find_all('td'))
+            yield dict(zip(header, row))
+            # yield {'r': list(row)}
+
+    return read_any(filepath, reader, mode, **kwargs)
 
 
 def write(filepath, content, mode='wb+', **kwargs):
@@ -857,6 +1036,8 @@ def write(filepath, content, mode='wb+', **kwargs):
         filepath (str): The file path or file like object to write to.
         content (obj): File like object or `requests` iterable response.
         mode (Optional[str]): The file open mode (default: 'wb+').
+        encoding (str): The file encoding.
+        encode (bool): Encode the content.
         kwargs: Keyword arguments.
 
     Kwargs:
@@ -869,30 +1050,28 @@ def write(filepath, content, mode='wb+', **kwargs):
         int: bytes written
 
     See also:
-        `io.read_any`
+        `tabutils.io.read_any`
 
     Examples:
         >>> from tempfile import TemporaryFile
         >>> write(TemporaryFile(), StringIO('Hello World'))
+        11
+        >>> write(StringIO(), StringIO('Hello World'))
         11
     """
     def _write(f, content, **kwargs):
         chunksize = kwargs.get('chunksize')
         length = int(kwargs.get('length') or 0)
         bar_len = kwargs.get('bar_len', 50)
+        encoding = kwargs.get('encoding', ENCODING)
+        encode = kwargs.get('encode')
         progress = 0
 
         for c in ft.chunk(content, chunksize):
-            if isinstance(c, str):
-                encoded = c.encode(ENCODING)
-            elif hasattr(c, 'sort'):
-                # it's a list so convert to a string
-                encoded = ft.byte(c)
-            else:
-                encoded = c
-
+            text = ft.byte(c) if hasattr(c, 'sort') else c
+            encoded = c.encode(encoding) if encode else text
             f.write(encoded)
-            progress += chunksize or len(c)
+            progress += chunksize or len(encoded)
 
             if length:
                 bars = min(int(bar_len * progress / length), bar_len)
@@ -901,8 +1080,7 @@ def write(filepath, content, mode='wb+', **kwargs):
 
         yield progress
 
-    args = [content]
-    return next(read_any(filepath, _write, mode, *args, **kwargs))
+    return sum(read_any(filepath, _write, mode, content, **kwargs))
 
 
 def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
@@ -922,8 +1100,8 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
         str: File hash.
 
     See also:
-        `io.read_any`
-        `process.hash`
+        `tabutils.io.read_any`
+        `tabutils.process.hash`
 
     Examples:
         >>> from tempfile import TemporaryFile
@@ -968,7 +1146,6 @@ def detect_encoding(f, verbose=False):
         >>> with open(filepath, 'rb') as f:
         ...     result = detect_encoding(f)
         ...     result == {'confidence': 0.99, 'encoding': 'utf-8'}
-        ...
         True
     """
     pos = f.tell()
@@ -998,6 +1175,9 @@ def get_reader(extension):
     Returns:
         func: The file reading function
 
+    See also:
+        `tabutils.io.read`
+
     Raises:
         TypeError: If unable to find a suitable reader.
 
@@ -1016,10 +1196,78 @@ def get_reader(extension):
         'sqlite': read_sqlite,
         'dbf': read_dbf,
         'tsv': read_tsv,
-        'fixed': read_fixed_csv,
+        'yaml': read_yaml,
+        'yml': read_yaml,
+        'html': read_html,
+        'fixed': read_fixed_fmt,
     }
 
     try:
-        return switch[extension]
+        return switch[extension.lstrip('.').lower()]
     except IndexError:
         raise TypeError('Reader for extension `%s` not found!' % extension)
+
+
+def read(filepath, ext=None, **kwargs):
+    """Reads any supported file format.
+
+    Args:
+        filepath (str): The file path or file like object.
+
+        ext (str): The file extension.
+
+    Returns:
+        Iterable: The parsed records
+
+    See also:
+        `tabutils.io.get_reader`
+        `tabutils.io.join`
+
+    Examples:
+        >>> filepath = p.join(DATA_DIR, 'test.xls')
+        >>> next(read(filepath, sanitize=True)) == {
+        ...     'some_value': '234.0',
+        ...     'some_date': '1982-05-04',
+        ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
+        ...     'unicode_test': 'Ādam'}
+        True
+        >>> filepath = p.join(DATA_DIR, 'test.csv')
+        >>> next(read(filepath, sanitize=True)) == {
+        ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
+        ...     'some_date': '05/04/82',
+        ...     'some_value': '234',
+        ...     'unicode_test': 'Ādam'}
+        True
+    """
+    ext = ext or p.splitext(filepath)[1]
+    return get_reader(ext)(filepath, **kwargs)
+
+
+def join(*filepaths, **kwargs):
+    """Reads multiple filepaths and yields all the resulting records.
+
+    Args:
+        filepaths (iter[str]): Iterator of filepaths.
+
+        kwargs (dict): keyword args passed to the individual readers.
+
+    Kwargs:
+        ext (str): The file extension.
+
+    Yields:
+        dict: A parsed record
+
+    See also:
+        `tabutils.io.read`
+
+    Examples:
+        >>> fs = [p.join(DATA_DIR, 'test.xls'), p.join(DATA_DIR, 'test.csv')]
+        >>> next(join(*fs, sanitize=True)) == {
+        ...     'some_value': '234.0',
+        ...     'some_date': '1982-05-04',
+        ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
+        ...     'unicode_test': 'Ādam'}
+        True
+    """
+    reader = partial(read, **kwargs)
+    return it.chain.from_iterable(map(reader, filepaths))

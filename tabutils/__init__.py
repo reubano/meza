@@ -24,7 +24,7 @@ import sys
 from datetime import datetime as dt
 from builtins import *
 
-__version__ = '0.24.0'
+__version__ = '0.25.0'
 
 __title__ = 'tabutils'
 __package_name__ = 'tabutils'
@@ -34,14 +34,15 @@ __email__ = 'reubano@gmail.com'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 
-
 CURRENCIES = ('$', '£', '€')
 ENCODING = 'utf-8'
 DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
 
 if sys.version_info.major >= 3:
     import csv
+    import statistics as stats
 else:
-    from . import unicsv as csv
+    from . import py2stats as stats, unicsv as csv
 
 csv = csv
+stats = stats

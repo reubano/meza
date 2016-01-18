@@ -56,10 +56,10 @@ def guess_type_by_field(content):
         dict: Field type. The parsed field and its type.
 
     See also:
-        `typetools.guess_type_by_value`
-        `process.type_cast`
-        `process.gen_confidences`
-        `process.detect_types`
+        `tabutils.typetools.guess_type_by_value`
+        `tabutils.process.type_cast`
+        `tabutils.process.gen_confidences`
+        `tabutils.process.detect_types`
 
     Examples:
         >>> fields = ['date', 'raw_value', 'date_and_time', 'length', 'field']
@@ -107,10 +107,10 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         dict: Field type. The parsed field and its type.
 
     See also:
-        `typetools.guess_type_by_field`
-        `process.type_cast`
-        `process.gen_confidences`
-        `process.detect_types`
+        `tabutils.typetools.guess_type_by_field`
+        `tabutils.process.type_cast`
+        `tabutils.process.gen_confidences`
+        `tabutils.process.detect_types`
 
     Examples:
         >>> from datetime import datetime as dt, date, time

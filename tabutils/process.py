@@ -32,6 +32,7 @@ from collections import defaultdict
 from operator import itemgetter
 from math import log1p
 from json import dumps, loads
+from collections import deque
 
 from builtins import *
 from six import iteritems
@@ -54,16 +55,17 @@ def type_cast(records, types, warn=False):
         dict: Type casted record. A row of data whose keys are the field names.
 
     See also:
-        `process.json_recode`
-        `typetools.guess_type_by_field`
-        `typetools.guess_type_by_value`
-        `convert.to_int`
-        `convert.to_float`
-        `convert.to_decimal`
-        `convert.to_date`
-        `convert.to_time`
-        `convert.to_datetime`
-        `convert.to_bool`
+        `tabutils.process.detect_types`
+        `tabutils.process.json_recode`
+        `tabutils.typetools.guess_type_by_field`
+        `tabutils.typetools.guess_type_by_value`
+        `tabutils.convert.to_int`
+        `tabutils.convert.to_float`
+        `tabutils.convert.to_decimal`
+        `tabutils.convert.to_date`
+        `tabutils.convert.to_time`
+        `tabutils.convert.to_datetime`
+        `tabutils.convert.to_bool`
 
     Examples:
         >>> import datetime
@@ -121,7 +123,7 @@ def json_recode(records):
             field names.
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> import datetime
@@ -170,9 +172,9 @@ def gen_confidences(tally, types, a=1):
         Iter(decimal): Generator of confidences
 
     See also:
-        `typetools.guess_type_by_field`
-        `typetools.guess_type_by_value`
-        `process.detect_types`
+        `tabutils.typetools.guess_type_by_field`
+        `tabutils.typetools.guess_type_by_value`
+        `tabutils.process.detect_types`
 
     Examples:
         >>> from decimal import Decimal
@@ -193,7 +195,8 @@ def gen_confidences(tally, types, a=1):
 
 
 def gen_types(tally):
-    """Selects the field type with the highest count.
+    """Selects the field type with the highest count. Also intelligently
+    merges compatible types, e.g., 4 ints and 1 floats --> float.
 
     Args:
         tally (dict): Rows of data whose keys are the field names and whose
@@ -203,22 +206,51 @@ def gen_types(tally):
         dict: Field type. The parsed field and its type.
 
     See also:
-        `process.detect_types`
+        `tabutils.process.detect_types`
 
     Examples:
         >>> tally = {
         ...     'field_1': {'null': 3, 'bool': 1},
-        ...     'field_2': {'bool': 2, 'int': 4}}
+        ...     'field_2': {'bool': 2, 'int': 4},
+        ...     'field_3': {'float': 1, 'int': 5},
+        ...     'field_4': {'float': 1, 'time': 2},
+        ...     'field_5': {'date': 1, 'time': 2}}
         >>> types = sorted(gen_types(tally), key=itemgetter('id'))
-        >>> types[0] == {'id': 'field_1', 'type': 'null'}
+        >>> types[0] == {'id': 'field_1', 'type': 'bool'}
         True
         >>> types[1] == {'id': 'field_2', 'type': 'int'}
         True
+        >>> types[2] == {'id': 'field_3', 'type': 'float'}
+        True
+        >>> types[3] == {'id': 'field_4', 'type': 'text'}
+        True
+        >>> types[4] == {'id': 'field_5', 'type': 'datetime'}
+        True
     """
-    for key, value in iteritems(tally):
-        ttypes = [{'type': k, 'count': v} for k, v in iteritems(value)]
-        highest = sorted(ttypes, key=itemgetter('count'), reverse=True)[0]
-        yield {'id': key, 'type': highest['type']}
+
+    comp_types = [
+        ({'float', 'int'}, 'float'),
+        ({'date', 'time', 'datetime'}, 'datetime'),
+        ({'bool', 'int'}, 'int')]
+
+    def gct(types):
+        non_null = [t for t in types if t != 'null']
+
+        if len(non_null) == 1:
+            type_ = non_null[0]
+        else:
+            for k, v in comp_types:
+                if k.issuperset(non_null):
+                    type_ = v
+                    break
+            else:
+                type_ = 'text'
+
+        return type_
+
+    for field, tcount in iteritems(tally):
+        type_ = gct(tcount) if len(tcount) > 1 else next(iter(tcount))
+        yield {'id': field, 'type': type_}
 
 
 def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
@@ -228,11 +260,11 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        min_conf (float): minimum confidence level (default: 0.95)
-        hweight (int): weight to give header row, a higher value will
-            converge faster (default: 6). E.g.,
+        min_conf (float): minimum confidence level, a lower value will
+            converge faster (default: 0.95)
 
-        max_iter (int): maximum number of iterations to perform (default: 100)
+        hweight (int): weight to give header row, a higher value will
+            converge faster (default: 6).
 
             detect_types(records, 0.9, 3)['count'] == 23
             detect_types(records, 0.9, 4)['count'] == 10
@@ -241,14 +273,17 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
             detect_types(records, 0.95, 6)['count'] == 17
             detect_types(records, 0.95, 7)['count'] == 11
 
+        max_iter (int): maximum number of iterations to perform (default: 100)
+
     Returns:
         tuple(Iter[dict], dict): Tuple of records and the result
 
     See also:
-        `process.gen_types`
-        `process.gen_confidences`
-        `typetools.guess_type_by_field`
-        `typetools.guess_type_by_value`
+        `tabutils.process.type_cast`
+        `tabutils.process.gen_types`
+        `tabutils.process.gen_confidences`
+        `tabutils.typetools.guess_type_by_field`
+        `tabutils.typetools.guess_type_by_value`
 
     Examples:
         >>> record = {
@@ -294,7 +329,10 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
 
         # now guess using the values
         for t in tt.guess_type_by_value(record):
-            tally[t['id']][t['type']] += 1
+            try:
+                tally[t['id']][t['type']] += 1
+            except KeyError:
+                pass
 
         types = list(gen_types(tally))
         confidence = min(gen_confidences(tally, types, hweight))
@@ -344,7 +382,7 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `fntools.fill`
+        `tabutils.fntools.fill`
 
     Examples:
         >>> record = {'a': '1', 'b': '27', 'c': ''}
@@ -403,7 +441,8 @@ def merge(records, **kwargs):
         kwargs (dict): keyword arguments
 
     Kwargs:
-        pred (func): Predicate. Receives the current key and should return
+        pred (func): Predicate. Value of the `key` to combine. Can optionally
+            be a function which receives the current key and should return
             `True` if overlapping values should be combined. Can optionally be
             a keyfunc which receives a record. In this case, the entries will
             be combined if the value obtained after applying keyfunc to the
@@ -419,10 +458,10 @@ def merge(records, **kwargs):
             `max`, etc. Requires that `pred` is set. If a key is not
             present in a record, the value from `default` will be used. Note,
             since `op` applied inside of `reduce`, it may not perform as
-            expected for all functions for more than 2 records. E.g. an average
+            expected for all functions for more than 2 records. E.g. a mean
             function will be applied as follows:
 
-                ave([1, 2, 3]) --> ave([ave([1, 2]), 3])
+                mean([1, 2, 3]) --> mean([mean([1, 2]), 3])
 
             You would expect to get 2, but will instead get 2.25.
 
@@ -433,8 +472,9 @@ def merge(records, **kwargs):
         dict: merged record
 
     See also:
-        `process.aggregate`
-        `fntools.combine`
+        `tabutils.process.aggregate`
+        `tabutils.process.join`
+        `tabutils.fntools.combine`
 
     Examples:
         >>> records = [
@@ -442,8 +482,7 @@ def merge(records, **kwargs):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> pred = lambda key: key == 'amount'
-        >>> merge(records, pred=pred, op=sum)['amount'] == 900
+        >>> merge(records, pred='amount', op=sum)['amount'] == 900
         True
         >>> merge(records)['amount'] == 400
         True
@@ -482,9 +521,11 @@ def aggregate(records, key, op, default=0):
         dict: The first record with an aggregated value for `key`
 
     See also:
-        `process.merge`
+        `tabutils.process.merge`
 
     Examples:
+        >>> from . import stats
+
         >>> records = [
         ...     {'a': 'item', 'amount': 200},
         ...     {'a': 'item', 'amount': 300},
@@ -492,7 +533,7 @@ def aggregate(records, key, op, default=0):
         ...
         >>> aggregate(records, 'amount', sum)['amount'] == 900
         True
-        >>> agg = aggregate(records, 'amount', lambda x: sum(x) / len(x))
+        >>> agg = aggregate(records, 'amount', stats.mean)
         >>> agg['amount'] == 300.0
         True
     """
@@ -503,43 +544,122 @@ def aggregate(records, key, op, default=0):
     return dict(it.chain(iteritems(first), [(key, value)]))
 
 
-def group(records, keyfunc=None):
+def group(records, keyfunc, tupled=True, aggregator=list, **kwargs):
     """Groups records by keyfunc
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        keyfunc (func): Function which receives a record and selects which
-            value to sort/group by.
+        keyfunc (func): Either a fieldname or function which receives a record
+            and selects which value to sort/group by.
+
+        aggregator (func): A post processing function to call on the resulting
+            groups (default: list).
+
+        tupled (bool): Return the key, group tuples (default: True)
+
+        kwargs (dict): Keyword args passed to the aggregator.
 
     Returns:
         Iter(tuple[key, group]): Generator of tuples
 
     Examples:
         >>> records = [
-        ...     {'a': 'item', 'amount': 200},
-        ...     {'a': 'item', 'amount': 300},
-        ...     {'a': 'item', 'amount': 400}]
+        ...     {'item': 'a', 'amount': 200},
+        ...     {'item': 'b', 'amount': 200},
+        ...     {'item': 'c', 'amount': 400}]
         ...
-        >>> key, group = next(group(records, itemgetter('amount')))
+        >>> key, grp = next(group(records, 'amount'))
         >>> key
         200
-        >>> len(group)
-        1
-        >>> group[0]['a'] == 'item'
-        True
-        >>> group[0]['amount'] == 200
+        >>> len(grp)
+        2
+        >>> next(group(records, 'amount', False))[0] == {
+        ...     'item': 'a', 'amount': 200}
         True
     """
+    keyfunc = keyfunc if callable(keyfunc) else itemgetter(keyfunc)
     sorted_records = sorted(records, key=keyfunc)
     grouped = it.groupby(sorted_records, keyfunc)
-    return ((key, list(group)) for key, group in grouped)
+
+    if tupled:
+        result = ((key, aggregator(group, **kwargs)) for key, group in grouped)
+    else:
+        result = (aggregator(group, **kwargs) for key, group in grouped)
+
+    return result
+
+
+def prepend(records, row):
+    """Adds a row to the beginning of a records iterator.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        row (dict): A row of data.
+
+    Returns:
+        Iterator of rows.
+
+    See also:
+        `tabutils.process.peek`
+
+    Examples:
+        >>> records = [
+        ...     {'length': 5, 'species': 'setosa', 'color': 'red'},
+        ...     {'length': 5, 'species': 'setosa', 'color': 'blue'},
+        ...     {'length': 6, 'species': 'versi', 'color': 'red'},
+        ...     {'length': 6, 'species': 'versi', 'color': 'blue'}]
+        ...
+        >>> row = records[0]
+        >>> row == {'length': 5, 'species': 'setosa', 'color': 'red'}
+        True
+        >>> next(prepend(records, row)) == row
+        True
+    """
+    return it.chain([row], iter(records))
+
+
+def peek(records, n=5):
+    """Provides a list of the first n rows of a records generator.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        n (int): The number of rows to preview
+
+    Returns:
+        tuple: The reconstituted records iterator and a list of its first n
+            rows.
+
+    See also:
+        `tabutils.process.prepend`
+
+    Examples:
+        >>> records = [
+        ...     {'length': 5, 'species': 'setosa', 'color': 'red'},
+        ...     {'length': 5, 'species': 'setosa', 'color': 'blue'},
+        ...     {'length': 6, 'species': 'versi', 'color': 'red'},
+        ...     {'length': 6, 'species': 'versi', 'color': 'blue'}]
+        ...
+        >>> records, preview = peek(iter(records), 2)
+        >>> len(preview)
+        2
+        >>> preview[0] == {'length': 5, 'species': 'setosa', 'color': 'red'}
+        True
+        >>> records  # doctest: +ELLIPSIS
+        <itertools.chain object at 0x...>
+    """
+    records = iter(records)
+    preview = list(it.islice(records, n))
+    return (it.chain(preview, records), preview)
 
 
 def pivot(records, data, column, op=sum, **kwargs):
-    """
-    Create a spreadsheet-style pivot table.
+    """Create a spreadsheet-style pivot table.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
@@ -566,8 +686,8 @@ def pivot(records, data, column, op=sum, **kwargs):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `process.aggregate`
-        `process.normalize`
+        `tabutils.process.aggregate`
+        `tabutils.process.normalize`
 
     Examples:
         >>> records = [
@@ -585,7 +705,8 @@ def pivot(records, data, column, op=sum, **kwargs):
     """
     records = iter(records)
     first = next(records)
-    chained = it.chain([first], records)
+    chained = list(it.chain([first], records))
+
     keys = set(first.keys())
     rows = kwargs.get('rows', keys.difference([data, column]))
     filterer = lambda x: x[0] in rows
@@ -593,20 +714,19 @@ def pivot(records, data, column, op=sum, **kwargs):
     grouped = group(chained, keyfunc)
 
     def gen_raw(grouped):
-        for key, groups in grouped:
-            r = aggregate(groups, data, op)
+        for key, group_ in grouped:
+            r = aggregate(group_, data, op)
             filtered = filter(filterer, iteritems(r))
             yield dict(it.chain([(r[column], r.get(data))], filtered))
 
     raw = gen_raw(grouped)
 
-    for key, groups in group(raw, lambda r: tuple(map(r.get, rows))):
-        yield merge(groups)
+    for key, group_ in group(raw, lambda r: tuple(map(r.get, rows))):
+        yield merge(group_)
 
 
 def normalize(records, data, column, rows):
-    """
-    Yields normalized records from a spreadsheet-style pivot table.
+    """Yields normalized records from a spreadsheet-style pivot table.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
@@ -620,7 +740,7 @@ def normalize(records, data, column, rows):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `process.pivot`
+        `tabutils.process.pivot`
 
     Examples:
         >>> records = [
@@ -633,13 +753,39 @@ def normalize(records, data, column, rows):
         ...     'species': 'setosa'}
         True
     """
-    filterer = lambda x: x[0] not in rows
-
     for r in records:
-        filtered = filter(filterer, iteritems(r))
+        filtered = [x for x in iteritems(r) if x[0] not in rows]
 
         for row in rows:
             yield dict(it.chain([(column, row), (data, r.get(row))], filtered))
+
+
+def join(left, right):
+    """Performs a SQL like merge.
+
+    Args:
+        left (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        right (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+    Returns:
+        Iterator of records.
+
+    See also:
+        `tabutils.process.merge`
+
+    Examples:
+        >>> left = [
+        ...     {'length': 5, 'species': 'setosa'},
+        ...     {'length': 6, 'species': 'versi'}]
+        >>> right = [{'color': 'red'}]
+        >>> next(join(left, right)) == {
+        ...     'length': 5, 'species': 'setosa', 'color': u'red'}
+        True
+    """
+    return map(merge, it.product(left, right))
 
 
 def tfilter(records, field, pred=None):
@@ -677,7 +823,7 @@ def tfilter(records, field, pred=None):
     return filter(predicate, records)
 
 
-def unique(records, fields=None, pred=None):
+def unique(records, fields=None, pred=None, bufsize=4096):
     """ Yields unique records
 
     Args:
@@ -689,6 +835,8 @@ def unique(records, fields=None, pred=None):
 
         pred (func): Predicate. Receives a record and should return a value for
             testing uniqueness. Overrides `fields`.
+
+        bufsize (Int): Max size in bytes of the lookup table.
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
@@ -711,7 +859,7 @@ def unique(records, fields=None, pred=None):
 'Iñtërnâtiônàližætiøn'
         True
     """
-    seen = set()
+    seen = deque([], bufsize)
 
     for r in records:
         if not pred:
@@ -720,32 +868,30 @@ def unique(records, fields=None, pred=None):
 
         entry = pred(r) if pred else tuple(items)
 
-        if entry not in seen:
-            seen.add(entry)
+        if entry not in set(seen):
+            seen.append(entry)
             yield r
 
 
-def cut(records, **kwargs):
-    """
-    Edit records to only return specified columns. Like unix `cut`, but for
-    tabular data.'
+def cut(records, fields=None, exclude=False, prune=False):
+    """Edit records to only return specified columns. Like unix `cut`, but for
+    tabular data.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
-        kwargs (dict): keyword arguments
+        fields (Iter[str]): Column names to include. (default: None, i.e.,
+            all columns.').
 
-    Kwargs:
-        include (Iter[str]): Column names to include. (default: None, i.e.,
-            all columns.'). If the same field is also in `exclude`, it will
-            still be included.
+        exclude (bool): Exclude column names instead of including them
+            (default: False).
 
-        exclude (Iter[str]): Column names to exclude (default: None, i.e.,
-            no columns.'). If the same field is also in `include`, it will
-            still be included.
+        prune (bool): Remove empty rows from result (default: False).
 
-        prune (bool): Remove empty rows from result.
+
+    See also:
+        `tabutils.fntools.dfilter`
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
@@ -756,30 +902,54 @@ def cut(records, **kwargs):
         ...     {'field_1': 2, 'field_2': 'bob', 'field_3': 'male'},
         ...     {'field_1': 3, 'field_2': 'jane', 'field_3': 'female'},
         ... ]
-        >>> next(cut(records)) == {
-        ...     'field_1': 1, 'field_2': 'bill', 'field_3': 'male'}
-        ...
-        True
-        >>> next(cut(records, include=['field_2']))['field_2'] == 'bill'
+        >>> next(cut(records, ['field_2'])) == {'field_2': 'bill'}
         True
     """
-    include = kwargs.get('include')
-    exclude = kwargs.get('exclude')
-    blacklist = include or exclude
-    filtered = (ft.dfilter(r, blacklist, include) for r in records)
-    return filter(None, filtered) if kwargs.get('prune') else filtered
+    filtered = (ft.dfilter(r, fields, not exclude) for r in records)
+    return filter(None, filtered) if prune else filtered
+
+
+def split(records, key=None, count=None, chunksize=None):
+    """Split records into bite sized pieces. Like unix `split`, but for
+    tabular data.
+    """
+    chunksize = chunksize or count
+
+    for cpos, records_chunk in enumerate(ft.chunk(records, chunksize)):
+        if key:
+            for k, g in group(records_chunk, itemgetter(key)):
+                for pos, sub_records in enumerate(ft.chunk(g, count)):
+                    if count and count < (chunksize or 'inf'):
+                        args = (k, cpos + 1, pos + 1)
+                        suffix = '{0}_{1:02d}_{2:03d}'.format(*args)
+                    elif chunksize:
+                        suffix = '{0}_{1:03d}'.format(k, cpos + 1)
+                    else:
+                        suffix = k
+
+                    yield sub_records, suffix
+        else:
+            for pos, sub_records in enumerate(ft.chunk(records, count)):
+                if count and count < (chunksize or 'inf'):
+                    args = (cpos + 1, pos + 1)
+                    suffix = '{0:02d}_{1:03d}'.format(*args)
+                elif chunksize:
+                    suffix = '{0:03d}'.format(cpos + 1)
+                else:
+                    suffix = ''
+
+                yield sub_records, suffix
 
 
 def grep(records, rules, any_match=False, inverse=False):
-    """
-    Yields rows which match all the given rules.
+    """Yields rows which match all the given rules.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
         rules (Iter[dict]): Each rule dict must contain a `pattern`
-            key and the value can be either a string, function, or regular
+            key whose value can be either a string, function, or regular
             expression. A `fields` key is optional and corresponds to the
             columns you wish to pattern match. Default is to search all columns.
 
@@ -787,7 +957,7 @@ def grep(records, rules, any_match=False, inverse=False):
             (default: False)
 
         inverse (bool): Only return records which don't match the rules
-            (default: None, i.e., all columns)
+            (default: False)
 
     Returns:
         Iter[dict]: The filtered records.
@@ -842,7 +1012,7 @@ def hash(records, fields=None, algo='md5'):
                 ripemd320, sha1, sha256, sha512, sha384, whirlpool
 
     See also:
-        `io.hash_file`
+        `tabutils.io.hash_file`
 
     Yields:
         dict: Record. A row of data whose keys are the field names.

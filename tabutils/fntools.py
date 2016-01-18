@@ -19,6 +19,8 @@ Examples:
 Attributes:
     DEF_TRUES (tuple[str]): Values to be consider True
     DEF_FALSES (tuple[str]): Values to be consider False
+    ARRAY_TYPE (dict): Python to array.array type lookup table
+    NP_TYPE (dict): Python to numpy type lookup table
 """
 from __future__ import (
     absolute_import, division, print_function, with_statement,
@@ -32,6 +34,7 @@ import codecs
 from functools import partial
 from collections import defaultdict
 from json import JSONEncoder
+from os import path as p
 
 from builtins import *
 from six.moves import filterfalse
@@ -41,6 +44,23 @@ from functools import reduce
 
 DEF_TRUES = ('yes', 'y', 'true', 't')
 DEF_FALSES = ('no', 'n', 'false', 'f')
+NP_TYPE = {
+    'bool': 'bool',
+    'int': 'i',
+    'float': 'f',
+    'double': 'd',
+    'datetime': 'datetime64[us]',
+    'time': 'timedelta64[us]',
+    'date': 'datetime64[D]',
+    'text': 'U'}
+
+ARRAY_TYPE = {
+    'bool': 'B',
+    'int': 'i',
+    'float': 'f',
+    'double': 'd',
+    'text': 'u'}
+
 logging.basicConfig()
 
 
@@ -78,6 +98,32 @@ class Objectify(object):
 
     def items(self):
         return iter(self.__dict__.items())
+
+
+class Andand(object):
+    """A Ruby inspired null soaking object
+
+    Examples:
+        >>> kwargs = {'key': 'value'}
+        >>> kw = Objectify(kwargs)
+        >>> kw.key == 'value'
+        True
+        >>> Andand(kw).key.missing.undefined.item
+        >>> Andand(kw).key.missing.undefined()
+    """
+
+    def __init__(self, item=None):
+        self.item = item
+
+    def __getattr__(self, name):
+        try:
+            item = getattr(self.item, name)
+            return item if name is 'item' else Andand(item)
+        except AttributeError:
+            return Andand()
+
+    def __call__(self):
+        return self.item
 
 
 class CustomEncoder(JSONEncoder):
@@ -120,7 +166,7 @@ def decode(content, encoding=ENCODING):
     return decoded
 
 
-def encode(content, encoding=ENCODING):
+def encode(content, encoding=ENCODING, parse_ints=False):
     """Encode unicode or ints into bytes (py2-str)
     """
     if hasattr(content, 'encode'):
@@ -128,7 +174,7 @@ def encode(content, encoding=ENCODING):
             encoded = encoder(encoding).encode(content)
         except UnicodeDecodeError:
             encoded = content
-    else:
+    elif parse_ints:
         try:
             length = (content.bit_length() // 8) + 1
         except AttributeError:
@@ -141,6 +187,8 @@ def encode(content, encoding=ENCODING):
                 h = '%x' % content
                 zeros = '0' * (len(h) % 2) + h
                 encoded = zeros.zfill(length * 2).decode('hex')
+    else:
+        encoded = content
 
     return encoded
 
@@ -159,7 +207,39 @@ def underscorify(content):
         >>> list(_) == ['all_caps', 'illegal', 'lots_of_space']
         True
     """
-    return (slugify(item, separator='_') for item in content)
+    for item in content:
+        try:
+            yield slugify(item, separator='_')
+        except TypeError:
+            yield slugify(item.encode(ENCODING), separator='_')
+
+
+def get_ext(path):
+    """ Gets a file (local )
+
+    Args:
+        content (Iter[str]): the content to dedupe
+
+    Returns:
+        (generator): the deduped content
+
+    Examples:
+        >>> get_ext('file.csv') == 'csv'
+        True
+    """
+    if 'format=' in path:
+        file_format = path.lower().split('format=')[1]
+
+        if '&' in file_format:
+            file_format = file_format.split('&')[0]
+    else:
+        file_format = p.splitext(path)[1].lstrip('.')
+
+    return file_format
+
+
+def get_dtype(type_, numpy=False):
+    return NP_TYPE.get(type_, object) if numpy else ARRAY_TYPE.get(type_, 'u')
 
 
 def dedupe(content):
@@ -311,14 +391,19 @@ def is_bool(content, trues=None, falses=None):
         True
         >>> is_bool('true')
         True
+        >>> is_bool(0)
+        True
+        >>> is_bool(1)
+        True
     """
     trues = set(map(str.lower, trues) if trues else DEF_TRUES)
     falses = set(map(str.lower, falses) if falses else DEF_FALSES)
+    bools = trues.union(falses).union([True, False])
 
     try:
-        passed = content.lower() in trues.union(falses)
+        passed = content.lower() in bools
     except AttributeError:
-        passed = content in {True, False}
+        passed = content in bools
 
     return passed
 
@@ -362,6 +447,9 @@ def dfilter(content, blacklist=None, inverse=False):
         blacklist (Seq[str]): The fields to remove (default: None)
         inverse (bool): Keep fields instead of removing them (default: False)
 
+    See also:
+        `tabutils.process.cut`
+
     Returns:
         dict: The filtered content
 
@@ -401,7 +489,13 @@ def byte(content):
         # it's a unicode or encoded iterable like ['H', 'e', 'l', 'l', 'o'],
         # ['I', 'ñ', 't', 'ë', 'r', 'n', 'â', 't', 'i', 'ô', 'n'],
         # or [b'I', b'\xc3\xb1', b't', b'\xc3\xab', b'r']
-        bytes_ = reduce(lambda x, y: x + y, map(encode, content), b'')
+        bytes_ = b''
+
+        for c in content:
+            try:
+                bytes_ += encode(c)
+            except TypeError:
+                bytes_ += encode(c, parse_ints=True)
 
     return bytearray(bytes_)
 
@@ -656,7 +750,7 @@ def fill(previous, current, **kwargs):
         dict: The updated count.
 
     See also:
-        `process.fillempty`
+        `tabutils.process.fillempty`
 
     Examples:
         >>> previous = {}
@@ -724,7 +818,8 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
         key (str): Current key.
         value (Optional[scalar]): The 2nd record's value of the given `key`.
 
-        pred (func): Receives `key` and should return `True`
+        pred (func): Value of the `key` to combine. Can optionally
+            be a function which receives `key` and should return `True`
             if the values from both records should be combined. Can optionally
             be a keyfunc which receives the 2nd record and should return the
             value that `value` needs to equal in order to be combined.
@@ -744,7 +839,7 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
         (scalar): the combined value
 
     See also:
-        `process.merge`
+        `tabutils.process.merge`
 
     Examples:
         >>> records = [
@@ -752,14 +847,14 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
         ...     {'a': 'item', 'amount': 300},
         ...     {'a': 'item', 'amount': 400}]
         ...
-        >>> pred = lambda key: key == 'amount'
         >>> x, y = records[0], records[1]
-        >>> combine(x, y, 'a', pred=pred, op=sum) == 'item'
+        >>> combine(x, y, 'a', pred='amount', op=sum) == 'item'
         True
-        >>> combine(x, y, 'amount', pred=pred, op=sum)
+        >>> combine(x, y, 'amount', pred='amount', op=sum)
         500
     """
     value = y.get(key, default) if value is None else value
+    pred = pred if callable(pred) else partial(operator.eq, pred)
 
     try:
         passed = pred(key)
@@ -872,13 +967,34 @@ def array_substitute(content, needle, replace):
             yield list(array_substitute(item, needle, replace))
 
 
+def def_itemgetter(attr, default=None):
+    """like operator.itemgetter but fills in missing keys with a default value
+
+    Args:
+        attr (str):
+        default (scalar):
+
+    Examples:
+        >>> records = [{'key': 1}, {'key': 3}, {'value': 3}]
+        >>> sorted(records, key=operator.itemgetter('key'))[0]
+        ... # doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        KeyError:...
+        >>> keyfunc = def_itemgetter('key')
+        >>> sorted(records, key=keyfunc, reverse=True)[0] == {'key': 3}
+        True
+    """
+    return lambda obj: obj.get(attr, default)
+
+
 def op_everseen(iterable, key=None, pad=False, op='lt'):
     """List min/max/equal... elements, preserving order. Remember all
     elements ever seen.
-    >>> from operator import itemgetter
+
     >>> list(op_everseen([4, 6, 3, 8, 2, 1]))
     [4, 3, 2, 1]
-    >>> seen = op_everseen([('a', 6), ('b', 4), ('c', 8)], itemgetter(1))
+    >>> op = operator.itemgetter(1)
+    >>> seen = op_everseen([('a', 6), ('b', 4), ('c', 8)], op)
     >>> list(seen) == [('a', 6), ('b', 4)]
     True
     """
@@ -900,3 +1016,31 @@ def op_everseen(iterable, key=None, pad=False, op='lt'):
 
         if valid or pad:
             yield current
+
+
+def fpartial(op):
+    """Takes a function that accepts 2 arguments, and returns an equivalent
+    function that accepts one iterable argument.
+
+    >>> div = fpartial(operator.truediv)
+    >>> div([4, 3, 2])
+    0.6666666666666666
+    """
+    return partial(reduce, op)
+
+
+def sum_and_count(x, y):
+    """A function used for calculating the mean of a list from a reduce.
+
+    >>> from operator import truediv
+
+    >>> l = [15, 18, 2, 36, 12, 78, 5, 6, 9]
+    >>> truediv(*reduce(sum_and_count, l)) == 20.11111111111111
+    True
+    >>> truediv(*fpartial(sum_and_count)(l)) == 20.11111111111111
+    True
+    """
+    try:
+        return (x[0] + y, x[1] + 1)
+    except TypeError:
+        return ((x or 0) + (y or 0), len([i for i in [x, y] if i is not None]))

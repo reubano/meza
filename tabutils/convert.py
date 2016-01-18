@@ -28,11 +28,17 @@ from json import dumps
 from collections import OrderedDict
 from operator import itemgetter
 from functools import partial
+from array import array
 
 from builtins import *
 from six.moves import filterfalse
 from dateutil.parser import parse
 from . import fntools as ft, csv, ENCODING, DEFAULT_DATETIME
+
+try:
+    import numpy as np
+except ImportError:
+    np = None
 
 
 def ctype2ext(content_type=None):
@@ -101,7 +107,7 @@ def to_bool(content, trues=None, falses=None, warn=False):
             (default: False)
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Returns:
         bool: The parsed content.
@@ -160,7 +166,7 @@ def to_int(content, thousand_sep=',', decimal_sep='.', warn=False):
             (default: False)
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Returns:
         flt: The parsed number.
@@ -214,7 +220,7 @@ def to_float(content, thousand_sep=',', decimal_sep='.', warn=False):
         flt: The parsed number.
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> to_float('$123.45')
@@ -263,7 +269,7 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
         places (int): Number of decimal places to display (default: 2).
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> to_decimal('$123.45')
@@ -350,7 +356,7 @@ def to_datetime(content, dt_format=None, warn=False):
         obj: The datetime object or formatted datetime string.
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> fmt = '%Y-%m-%d %H:%M:%S'
@@ -407,7 +413,7 @@ def to_date(content, date_format=None, warn=False):
         obj: The date object or formatted date string.
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> to_date('5/4/82')
@@ -442,7 +448,7 @@ def to_time(content, time_format=None, warn=False):
         obj: The time object or formatted time string.
 
     See also:
-        `process.type_cast`
+        `tabutils.process.type_cast`
 
     Examples:
         >>> to_time('2:00 pm')
@@ -511,9 +517,60 @@ def to_filepath(filepath, **kwargs):
     return p.join(filepath, filename) if isdir else filepath
 
 
-def df2records(df):
+def array2records(data, native=False):
+    """Converts either a numpy.recarray or a nested array.array into records
+
+    Args:
+        data (Iter[array]): The 2-D array.
+
+        native (bool): (default: False)
+
+    Returns:
+        Iterable of dicts
+
+    See also:
+        `tabutils.convert.df2records`
+
+    Examples:
+        >>> next(array2records(np.array([[1, 2, 3], [4, 5, 6]], 'i4'))) == {
+        ...     u'column_1': 1, u'column_2': 2, u'column_3': 3}
+        True
+        >>> data = [
+        ...     array('i', [1, 2, 3]),
+        ...     array('f', [1.0, 2.0, 3.0]),
+        ...     [array('u', 'one'), array('u', 'two'), array('u', 'three')]]
+        >>> next(array2records(data, True)) == {
+        ...     u'column_1': 1, u'column_2': 1.0, u'column_3': 'one'}
+        True
     """
-    Converts a pandas DataFrame into records.
+    textify = lambda x: x.tounicode() if x.typecode == 'u' else x.tostring()
+    datify = lambda x: x.tolist() if hasattr(x, 'tolist') else map(textify, x)
+
+    if native and hasattr(data[0], 'typecode'):
+        header = None
+        data = zip(*map(datify, data))
+    elif native:
+        header = [stringify(h) for h in data[0]]
+        data = zip(*map(datify, data[1:]))
+    else:
+        header = data.dtype.names
+
+    if not header:
+        try:
+            size = data.shape[1]
+        except (IndexError, AttributeError):
+            data = iter(data)
+            first_row = next(data)
+            size = len(first_row)
+            data = it.chain([first_row], data)
+
+        header = ['column_%i' % (n + 1) for n in range(size)]
+
+    return (dict(zip(header, row)) for row in data)
+
+
+def df2records(df):
+    """Converts a pandas DataFrame into records.
 
     Args:
         df (obj): pandas.DataFrame object
@@ -522,7 +579,7 @@ def df2records(df):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `process.pivot`
+        `tabutils.process.array2records`
 
     Examples:
         >>> try:
@@ -533,7 +590,6 @@ def df2records(df):
         ...    records = [{'a': 1, 'b': 2, 'c': 3}, {'a': 4, 'b': 5, 'c': 6}]
         ...    df = pd.DataFrame.from_records(records)
         ...    next(df2records(df)) == {'a': 1, 'b': 2, 'c': 3}
-        ...
         True
     """
     index = [_f for _f in df.index.names if _f]
@@ -554,9 +610,60 @@ def df2records(df):
             yield dict(zip(keys, values[1:]))
 
 
-def records2csv(records, encoding=ENCODING, bom=False):
+def records2array(records, types, native=False):
+    """Converts records into either a numpy.recarray or a nested array.array
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        types (Iter[dict]):
+
+        native (bool): (default: False)
+
+    Returns:
+        numpy.recarray
+
+    See also:
+        `tabutils.convert.records2df`
+
+    Examples:
+        >>> records = [{'alpha': 'a', 'beta': 2}, {'alpha': 'b', 'beta': 3}]
+        >>> types = [
+        ...     {'id': 'alpha', 'type': 'text'}, {'id': 'beta', 'type': 'int'}]
+        >>> records2array(records, types).beta
+        array([2, 3], dtype=int32)
+        >>> records2array(records, types, True) == [
+        ...     [array('u', u'alpha'), array('u', u'beta')],
+        ...     [array('u', u'a'), array('u', u'b')],
+        ...     array('i', [2, 3])]
+        True
     """
-    Converts records into a csv file like object.
+    numpy = np and not native
+    dtype = [ft.get_dtype(t['type'], numpy) for t in types]
+    ids = [t['id'] for t in types]
+
+    if numpy:
+        data = [tuple(r[id_] for id_ in ids) for r in records]
+
+        # dtype bug https://github.com/numpy/numpy/issues/2407
+        ndtype = [tuple(s.encode('ascii') for s in d) for d in zip(ids, dtype)]
+        ndarray = np.array(data, dtype=ndtype)
+        converted = ndarray.view(np.recarray)
+    else:
+        header = [array('u', t['id']) for t in types]
+        data = zip(*(r.values() for r in records))
+        values = [
+            [array(t, x) for x in v] if t in {'c', 'u'} else array(t, v)
+            for t, v in zip(dtype, data)]
+
+        converted = [header] + values
+
+    return converted
+
+
+def records2csv(records, encoding=ENCODING, bom=False, skip_header=False):
+    """Converts records into a csv file like object.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
@@ -564,6 +671,7 @@ def records2csv(records, encoding=ENCODING, bom=False):
 
         encoding (str): File encoding (default: ENCODING constant)
         bom (bool): Add Byte order marker (default: False)
+        skip_header (bool): Don't write the header (default: False)
 
     Returns:
         obj: io.StringIO instance
@@ -592,7 +700,7 @@ def records2csv(records, encoding=ENCODING, bom=False):
 
     row = next(irecords)
     w = csv.DictWriter(f, list(row.keys()))
-    w.writeheader()
+    None if skip_header else w.writeheader()
     w.writerow(row)
     w.writerows(irecords)
     f.seek(0)
@@ -600,8 +708,7 @@ def records2csv(records, encoding=ENCODING, bom=False):
 
 
 def records2json(records, **kwargs):
-    """
-    Converts records into a json file like object.
+    """Converts records into a json file like object.
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
@@ -612,6 +719,9 @@ def records2json(records, **kwargs):
         newline (bool): Output newline delimited json (default: False)
         sort_keys (bool): Sort rows by keys (default: True).
         ensure_ascii (bool): Sort response dict by keys (default: False).
+
+    See also:
+        `tabutils.convert.records2geojson`
 
     Returns:
         obj: io.StringIO instance
@@ -637,59 +747,45 @@ def records2json(records, **kwargs):
     return StringIO(str(json))
 
 
-def _records2geojson(records, kw):
-    """Helper function for converting records into a GeoJSON file like object.
+def gen_features(subresults, kw):
+    """Generates a geojson feature.
 
      Args:
-        records (Iter[dict]): Rows of data whose keys are the field names.
+        subresults (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `tabutils.io` read function.
 
         kw (obj): `fntools.Objectify` instance with the following Attributes:
             key (str): GeoJSON Feature ID
-            lat (str): latitude field name
             lon (str): longitude field name
+            lat (str): latitude field name
             sort_keys (bool): Sort rows by keys
 
+    See also:
+        `tabutils.convert.records2geojson`
+
     Yields:
-        tuple(dict, float, float): tuple of feature, lon, and lat
+        dict: a geojson feature
 
     Examples:
         >>> record = {
         ...     'id': 'gid', 'p1': 'prop', 'type': 'Point',
-        ...     'coordinates': [12.2, 22.0]}
-        ...
-        >>> kw = ft.Objectify({'key': 'id', 'lon': 0, 'lat': 1})
-        >>> next(_records2geojson([record], kw)) == {
-        ...     'feature': {
-        ...         'type': 'Feature',
-        ...         'id': 'gid',
-        ...         'geometry': {
-        ...             'type': 'Point', 'coordinates': [12.2, 22.0]},
-        ...         'properties': {'p1': 'prop'}},
-        ...     'lons': [12.2],
-        ...     'lats': [22.0]}
+        ...     'lon': Decimal('12.2'), 'lat': Decimal('22.0')}
+        >>> subresults = [((record['lon'], record['lat']), record)]
+        >>> kw = ft.Objectify({'key': 'id', 'lon': 'lon', 'lat': 'lat'})
+        >>> next(gen_features(subresults, kw)) == {
+        ...     'type': 'Feature',
+        ...     'id': 'gid',
+        ...     'geometry': {
+        ...         'type': 'Point',
+        ...         'coordinates': (Decimal('12.2'), Decimal('22.0'))},
+        ...     'properties': {'id': 'gid', 'p1': 'prop'}}
         True
     """
-    black_list = {kw.key, 'type', 'coordinates'}
+    black_list = {'type', kw.lon, kw.lat}
 
-    for row in records:
-        coordinates = row['coordinates']
-
-        if row['type'] == 'Point':
-            lons = [coordinates[kw.lon]]
-            lats = [coordinates[kw.lat]]
-        elif row['type'] == 'LineString':
-            lons = [itemgetter(kw.lon)(r) for r in coordinates]
-            lats = [itemgetter(kw.lat)(r) for r in coordinates]
-        elif row['type'] == 'Polygon':
-            get = lambda keyfunc: [[keyfunc(x) for x in c] for c in coordinates]
-            lons = list(it.chain.from_iterable(get(itemgetter(kw.lon))))
-            lats = list(it.chain.from_iterable(get(itemgetter(kw.lat))))
-        else:
-            raise TypeError('Invalid type: %s' % row['type'])
-
-        geometry = {'type': row['type'], 'coordinates': coordinates}
+    for coordinates, row in subresults:
         properties = dict(x for x in row.items() if x[0] not in black_list)
+        geometry = {'type': row['type'], 'coordinates': coordinates}
 
         if kw.sort_keys:
             geometry = order_dict(geometry, ['type', 'coordinates'])
@@ -704,7 +800,53 @@ def _records2geojson(records, kw):
             feature_order = ['type', 'id', 'geometry', 'properties']
             feature = order_dict(feature, feature_order)
 
-        yield {'feature': feature, 'lons': lons, 'lats': lats}
+        yield feature
+
+
+def gen_subresults(records, kw):
+    """Helper function for converting record groups into a GeoJSON file like object.
+
+     Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        kw (obj): `fntools.Objectify` instance with the following Attributes:
+            key (str): GeoJSON Feature ID
+            lon (str): longitude field name
+            lat (str): latitude field name
+
+    See also:
+        `tabutils.convert.records2geojson`
+
+    Yields:
+        tuple(iter, dict): tuple of coordinates and row
+
+    Examples:
+        >>> kw = ft.Objectify({'key': 'id', 'lon': 'lon', 'lat': 'lat'})
+        >>> record = {
+        ...     'lon': Decimal('1.2'), 'lat': Decimal('22.0'), 'type': 'Point'}
+        >>> next(gen_subresults([record], kw))[0]
+        (Decimal('1.2'), Decimal('22.0'))
+        >>> record = {'lon': 1.2, 'lat': 22.0, 'type': 'LineString'}
+        >>> next(gen_subresults([record], kw))[0]
+        [(1.2, 22.0)]
+    """
+    for id_, group in it.groupby(records, ft.def_itemgetter(kw.key)):
+        first_row = next(group)
+        type_ = first_row['type']
+        sub_records = it.chain([first_row], group)
+
+        if type_ == 'Point':
+            for row in sub_records:
+                yield ((row[kw.lon], row[kw.lat]), row)
+        elif type_ == 'LineString':
+            yield ([(r[kw.lon], r[kw.lat]) for r in sub_records], first_row)
+        elif type_ == 'Polygon':
+            groups = it.groupby(sub_records, itemgetter('pos'))
+            polygon = [[(r[kw.lon], r[kw.lat]) for r in g[1]] for g in groups]
+            yield (polygon, first_row)
+        else:
+            raise TypeError('Invalid type: %s' % type_)
 
 
 def records2geojson(records, **kwargs):
@@ -712,18 +854,23 @@ def records2geojson(records, **kwargs):
 
      Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `tabutils.io.read_geojson`.
 
         kwargs (dict): Keyword arguments.
 
     Kwargs:
-        key (str): GeoJSON Feature ID (default: 'geoid').
-        lat (str): latitude field name (default: 'lat').
-        lon (str): longitude field name (default: 'lon').
-        crs (str): coordinate reference system field name (default: 'crs').
+        key (str): GeoJSON Feature ID (default: 'id').
+        lon (int): longitude field name (default: 'lon').
+        lat (int): latitude field name (default: 'lat').
+        crs (str): coordinate reference system field name (default:
+            'urn:ogc:def:crs:OGC:1.3:CRS84').
         indent (int): Number of spaces to indent (default: 2).
         sort_keys (bool): Sort rows by keys (default: True).
         ensure_ascii (bool): Sort response dict by keys (default: False).
+
+    See also:
+        `tabutils.convert.records2json`
+        `tabutils.io.read_geojson`
 
     Returns:
         obj: io.StringIO instance
@@ -733,15 +880,15 @@ def records2geojson(records, **kwargs):
 
         >>> record = {
         ...     'id': 'gid', 'p1': 'prop', 'type': 'Point',
-        ...     'coordinates': [12.2, 22.0]}
+        ...     'lon': Decimal('12.2'), 'lat': Decimal('22.0')}
         ...
         >>> result = loads(next(records2geojson([record])))
         >>> result['type'] == 'FeatureCollection'
         True
         >>> result['bbox']
         [12.2, 22.0, 12.2, 22.0]
-        >>> result['crs'] == {
-        ...     'type': 'name', 'properties': {'name': None}}
+        >>> crs = 'urn:ogc:def:crs:OGC:1.3:CRS84'
+        >>> result['crs'] == {'type': 'name', 'properties': {'name': crs}}
         True
         >>> features = result['features']
         >>> sorted(features[0].keys()) == [
@@ -751,12 +898,36 @@ def records2geojson(records, **kwargs):
         ...     'type': 'Point', 'coordinates': [12.2, 22.0]}
         True
     """
-    defaults = {'key': 'id', 'lon': 0, 'lat': 1, 'indent': 2, 'sort_keys': True}
+    defaults = {
+        'key': 'id', 'lon': 'lon', 'lat': 'lat', 'indent': 2, 'sort_keys': True,
+        'crs': 'urn:ogc:def:crs:OGC:1.3:CRS84'}
+
     kw = ft.Objectify(kwargs, **defaults)
-    results = list(_records2geojson(records, kw))
-    lons = list(it.chain.from_iterable(map(itemgetter('lons'), results)))
-    lats = list(it.chain.from_iterable(map(itemgetter('lats'), results)))
     crs = {'type': 'name', 'properties': {'name': kw.crs}}
+
+    subresults = gen_subresults(records, kw)
+    features = list(gen_features(subresults, kw))
+    coords = [f['geometry']['coordinates'] for f in features]
+    get_lon = lambda x: map(itemgetter(0), x)
+    get_lat = lambda x: map(itemgetter(1), x)
+
+    try:
+        chained = (it.chain.from_iterable(map(get_lon, c)) for c in coords)
+        lons = set(it.chain.from_iterable(chained))
+    except TypeError:
+        try:
+            lons = set(it.chain.from_iterable(map(get_lon, coords)))
+        except TypeError:
+            # it's a point
+            lons = set(get_lon(coords))
+            lats = set(get_lat(coords))
+        else:
+            # it's a line
+            lats = set(it.chain.from_iterable(map(get_lat, coords)))
+    else:
+        # it's a polygon
+        chained = (it.chain.from_iterable(map(get_lat, c)) for c in coords)
+        lats = set(it.chain.from_iterable(chained))
 
     if kw.sort_keys:
         crs = order_dict(crs, ['type', 'properties'])
@@ -764,7 +935,7 @@ def records2geojson(records, **kwargs):
     output = {
         'type': 'FeatureCollection',
         'bbox': [min(lons), min(lats), max(lons), max(lats)],
-        'features': [itemgetter('feature')(r) for r in results],
+        'features': features,
         'crs': crs}
 
     if kw.sort_keys:

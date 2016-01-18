@@ -158,8 +158,9 @@ Reading data
         records = io.read_xls(f, encoding='utf-8', sheet=1)
         [print(row) for row in records]
 
-    """Read any recognized file type (only filepaths are supported)"""
+    """Read any recognized file type"""
     records = io.read('path/to/file.geojson')
+    records = io.read(f, ext='csv')
 
 Please see `Readers`_ for a complete list of available readers and recognized
 file types.
@@ -588,9 +589,11 @@ table.
 
     from tabutils import io
 
+    f = io.open('path/to/file.json')
+
     records1 = io.read('path/to/file.csv')
     records2 = io.read('path/to/file.xls')
-    records3 = io.read('path/to/file.json')
+    records3 = io.read(f, ext='json')
 
 Args
 ^^^^

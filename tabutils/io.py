@@ -1207,11 +1207,13 @@ def get_reader(extension):
         raise TypeError('Reader for extension `%s` not found!' % extension)
 
 
-def read(filepath, **kwargs):
-    """Reads the filepath for any supported file format.
+def read(filepath, ext=None, **kwargs):
+    """Reads any supported file format.
 
     Args:
-        filepath (str): The filepath to read.
+        filepath (str): The file path or file like object.
+
+        ext (str): The file extension.
 
     Returns:
         Iterable: The parsed records
@@ -1236,7 +1238,8 @@ def read(filepath, **kwargs):
         ...     'unicode_test': 'Ādam'}
         True
     """
-    return get_reader(p.splitext(filepath)[1])(filepath, **kwargs)
+    ext = ext or p.splitext(filepath)[1]
+    return get_reader(ext)(filepath, **kwargs)
 
 
 def join(*filepaths, **kwargs):
@@ -1246,6 +1249,9 @@ def join(*filepaths, **kwargs):
         filepaths (iter[str]): Iterator of filepaths.
 
         kwargs (dict): keyword args passed to the individual readers.
+
+    Kwargs:
+        ext (str): The file extension.
 
     Yields:
         dict: A parsed record

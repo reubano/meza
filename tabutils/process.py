@@ -902,11 +902,7 @@ def cut(records, fields=None, exclude=False, prune=False):
         ...     {'field_1': 2, 'field_2': 'bob', 'field_3': 'male'},
         ...     {'field_1': 3, 'field_2': 'jane', 'field_3': 'female'},
         ... ]
-        >>> next(cut(records)) == {
-        ...     'field_1': 1, 'field_2': 'bill', 'field_3': 'male'}
-        ...
-        True
-        >>> next(cut(records, ['field_2']))['field_2'] == 'bill'
+        >>> next(cut(records, ['field_2'])) == {'field_2': 'bill'}
         True
     """
     filtered = (ft.dfilter(r, fields, not exclude) for r in records)

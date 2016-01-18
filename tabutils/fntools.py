@@ -391,6 +391,10 @@ def is_bool(content, trues=None, falses=None):
         True
         >>> is_bool('true')
         True
+        >>> is_bool(0)
+        True
+        >>> is_bool(1)
+        True
     """
     trues = set(map(str.lower, trues) if trues else DEF_TRUES)
     falses = set(map(str.lower, falses) if falses else DEF_FALSES)

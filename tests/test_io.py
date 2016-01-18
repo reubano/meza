@@ -324,7 +324,9 @@ class TestOutput:
         url = 'http://google.com'
         body = '<!doctype html><html itemtype="http://schema.org/page">'
         content = StringIO('Iñtërnâtiônàližætiøn')
-        nt.assert_equal(20, io.write(TemporaryFile(), content))
+        nt.assert_equal(20, io.write(StringIO(), content))
+        content.seek(0)
+        nt.assert_equal(28, io.write(TemporaryFile(), content, encode=True))
 
         content = io.IterStringIO(iter('Hello World'))
         nt.assert_equal(12, io.write(TemporaryFile(), content, chunksize=2))

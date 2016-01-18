@@ -1035,6 +1035,8 @@ def write(filepath, content, mode='wb+', **kwargs):
         filepath (str): The file path or file like object to write to.
         content (obj): File like object or `requests` iterable response.
         mode (Optional[str]): The file open mode (default: 'wb+').
+        encoding (str): The file encoding.
+        encode (bool): Encode the content.
         kwargs: Keyword arguments.
 
     Kwargs:
@@ -1054,24 +1056,21 @@ def write(filepath, content, mode='wb+', **kwargs):
         >>> write(TemporaryFile(), StringIO('Hello World'))
         11
         >>> write(StringIO(), StringIO('Hello World'))
+        11
     """
     def _write(f, content, **kwargs):
         chunksize = kwargs.get('chunksize')
         length = int(kwargs.get('length') or 0)
         bar_len = kwargs.get('bar_len', 50)
+        encoding = kwargs.get('encoding', ENCODING)
+        encode = kwargs.get('encode')
         progress = 0
 
         for c in ft.chunk(content, chunksize):
-            if isinstance(c, str):
-                encoded = c.encode(ENCODING)
-            elif hasattr(c, 'sort'):
-                # it's a list so convert to a string
-                encoded = ft.byte(c)
-            else:
-                encoded = c
-
+            text = ft.byte(c) if hasattr(c, 'sort') else c
+            encoded = c.encode(encoding) if encode else text
             f.write(encoded)
-            progress += chunksize or len(c)
+            progress += chunksize or len(encoded)
 
             if length:
                 bars = min(int(bar_len * progress / length), bar_len)
@@ -1080,7 +1079,7 @@ def write(filepath, content, mode='wb+', **kwargs):
 
         yield progress
 
-    return next(read_any(filepath, _write, mode, content, **kwargs))
+    return sum(read_any(filepath, _write, mode, content, **kwargs))
 
 
 def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):

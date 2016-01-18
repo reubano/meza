@@ -398,11 +398,12 @@ def is_bool(content, trues=None, falses=None):
     """
     trues = set(map(str.lower, trues) if trues else DEF_TRUES)
     falses = set(map(str.lower, falses) if falses else DEF_FALSES)
+    bools = trues.union(falses).union([True, False])
 
     try:
-        passed = content.lower() in trues.union(falses)
+        passed = content.lower() in bools
     except AttributeError:
-        passed = content in {True, False}
+        passed = content in bools
 
     return passed
 

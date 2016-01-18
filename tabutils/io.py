@@ -38,6 +38,7 @@ from collections import deque
 from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 from http import client
 from csv import Error as csvError
+from functools import partial
 
 from builtins import *
 from six.moves import zip_longest
@@ -525,8 +526,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)
-        [next(f) for _ in range(first_row)]
-        pos = f.tell()
+        list(it.islice(f, first_row))
         first_line = StringIO(str(f.readline()))
         names = next(csv.reader(first_line, **kwargs))
 
@@ -535,7 +535,8 @@ def read_csv(filepath, mode='rU', **kwargs):
             uscored = ft.underscorify(stripped) if sanitize else stripped
             header = list(ft.dedupe(uscored) if dedupe else uscored)
         else:
-            f.seek(pos)
+            f.seek(0)
+            list(it.islice(f, first_row))
             header = ['column_%i' % (n + 1) for n in range(len(names))]
 
         return _read_csv(f, header, False, **kwargs)
@@ -1268,6 +1269,5 @@ def join(*filepaths, **kwargs):
         ...     'unicode_test': 'Ādam'}
         True
     """
-    for path in filepaths:
-        for record in read(path, **kwargs):
-            yield record
+    reader = partial(read, **kwargs)
+    return it.chain.from_iterable(map(reader, filepaths))

@@ -329,7 +329,10 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
 
         # now guess using the values
         for t in tt.guess_type_by_value(record):
-            tally[t['id']][t['type']] += 1
+            try:
+                tally[t['id']][t['type']] += 1
+            except KeyError:
+                pass
 
         types = list(gen_types(tally))
         confidence = min(gen_confidences(tally, types, hweight))
@@ -650,6 +653,7 @@ def peek(records, n=5):
         >>> records  # doctest: +ELLIPSIS
         <itertools.chain object at 0x...>
     """
+    records = iter(records)
     preview = list(it.islice(records, n))
     return (it.chain(preview, records), preview)
 
@@ -701,7 +705,8 @@ def pivot(records, data, column, op=sum, **kwargs):
     """
     records = iter(records)
     first = next(records)
-    chained = it.chain([first], records)
+    chained = list(it.chain([first], records))
+
     keys = set(first.keys())
     rows = kwargs.get('rows', keys.difference([data, column]))
     filterer = lambda x: x[0] in rows
@@ -709,15 +714,15 @@ def pivot(records, data, column, op=sum, **kwargs):
     grouped = group(chained, keyfunc)
 
     def gen_raw(grouped):
-        for key, groups in grouped:
-            r = aggregate(groups, data, op)
+        for key, group_ in grouped:
+            r = aggregate(group_, data, op)
             filtered = filter(filterer, iteritems(r))
             yield dict(it.chain([(r[column], r.get(data))], filtered))
 
     raw = gen_raw(grouped)
 
-    for key, groups in group(raw, lambda r: tuple(map(r.get, rows))):
-        yield merge(groups)
+    for key, group_ in group(raw, lambda r: tuple(map(r.get, rows))):
+        yield merge(group_)
 
 
 def normalize(records, data, column, rows):
@@ -748,10 +753,8 @@ def normalize(records, data, column, rows):
         ...     'species': 'setosa'}
         True
     """
-    filterer = lambda x: x[0] not in rows
-
     for r in records:
-        filtered = filter(filterer, iteritems(r))
+        filtered = [x for x in iteritems(r) if x[0] not in rows]
 
         for row in rows:
             yield dict(it.chain([(column, row), (data, r.get(row))], filtered))
@@ -919,17 +922,23 @@ def split(records, key=None, count=None, chunksize=None):
                     if count and count < (chunksize or 'inf'):
                         args = (k, cpos + 1, pos + 1)
                         suffix = '{0}_{1:02d}_{2:03d}'.format(*args)
-                    else:
+                    elif chunksize:
                         suffix = '{0}_{1:03d}'.format(k, cpos + 1)
+                    else:
+                        suffix = k
 
                     yield sub_records, suffix
         else:
             for pos, sub_records in enumerate(ft.chunk(records, count)):
                 if count and count < (chunksize or 'inf'):
                     args = (cpos + 1, pos + 1)
-                    yield sub_records, '{0:02d}_{1:03d}'.format(*args)
+                    suffix = '{0:02d}_{1:03d}'.format(*args)
+                elif chunksize:
+                    suffix = '{0:03d}'.format(cpos + 1)
                 else:
-                    yield sub_records, '{0:03d}'.format(cpos + 1)
+                    suffix = ''
+
+                yield sub_records, suffix
 
 
 def grep(records, rules, any_match=False, inverse=False):

@@ -19,10 +19,8 @@ Examples:
         >>> from io import StringIO
         >>> from array import array
         >>> from json import loads
-        >>> from functools import partial
-        >>> from operator import itemgetter, eq, lt, gt
-        >>> from tabutils import io, process as pr, convert as cv, stats
         >>> from datetime import date
+        >>> from tabutils import io, process as pr, convert as cv, stats
         >>> random.seed(30)
 
 
@@ -38,7 +36,7 @@ Examples:
         >>> bool(f.seek(0))
         False
 
-        # Load a file
+        # Load file
         >>> records = io.read_csv(f)
 
         # Records are an iterator over the rows
@@ -62,7 +60,10 @@ Examples:
         True
 
         # apply these types to the records
-        >>> casted = pr.type_cast(records, types)
+        >>> casted = list(pr.type_cast(records, types))
+        >>> casted[0] == {
+        ...     'col1': 'hello', 'col2': date(1982, 5, 4), 'col3': 1}
+        True
 
         # now run some operation on the type casted data
         >>> cut_recs = pr.cut(casted, ['col1'], exclude=True)
@@ -113,9 +114,13 @@ Examples:
         3
 
         # Use a single column’s values to select data
-        >>> rules = [{'fields': ['A'], 'pattern': partial(gt, 0.5)}]
-        >>> next(pr.grep(df, rules))['A']
-        0.21000869554973112
+        >>> rules = [{'fields': ['A'], 'pattern': lambda x: x < 0.5}]
+        >>> next(pr.grep(df, rules)) == {
+        ...     'A': 0.21000869554973112,
+        ...     'B': 0.2572769749796092,
+        ...     'C': 0.39719826263322744,
+        ...     'D': 0.6415781537746728}
+        True
 
         # Aggregation
         >>> pr.aggregate(df, 'A', stats.mean)['A']

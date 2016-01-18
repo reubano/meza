@@ -588,7 +588,7 @@ def df2records(df):
         ...    print(True)
         ... else:
         ...    records = [{'a': 1, 'b': 2, 'c': 3}, {'a': 4, 'b': 5, 'c': 6}]
-        ...    df = pd.DataFrame.from_records(records)
+        ...    df = pd.DataFrame(records)
         ...    next(df2records(df)) == {'a': 1, 'b': 2, 'c': 3}
         True
     """

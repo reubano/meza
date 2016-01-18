@@ -853,7 +853,7 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
         500
     """
     value = y.get(key, default) if value is None else value
-    pred = pred if callable(pred) else partial(eq, pred)
+    pred = pred if callable(pred) else partial(operator.eq, pred)
 
     try:
         passed = pred(key)

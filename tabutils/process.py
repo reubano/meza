@@ -218,7 +218,7 @@ def gen_types(tally):
         >>> types = sorted(gen_types(tally), key=itemgetter('id'))
         >>> types[0] == {'id': 'field_1', 'type': 'bool'}
         True
-        >>> types[1] == {'id': 'field_2', 'type': 'bool'}
+        >>> types[1] == {'id': 'field_2', 'type': 'int'}
         True
         >>> types[2] == {'id': 'field_3', 'type': 'float'}
         True
@@ -231,7 +231,7 @@ def gen_types(tally):
     comp_types = [
         ({'float', 'int'}, 'float'),
         ({'date', 'time', 'datetime'}, 'datetime'),
-        ({'bool', 'int'}, 'bool')]
+        ({'bool', 'int'}, 'int')]
 
     def gct(types):
         non_null = [t for t in types if t != 'null']

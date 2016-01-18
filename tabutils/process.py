@@ -587,6 +587,37 @@ def group(records, keyfunc, tupled=True, aggregator=list, **kwargs):
     return result
 
 
+def prepend(records, row):
+    """Adds a row to the beginning of a records iterator.
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        row (dict): A row of data.
+
+    Returns:
+        Iterator of rows.
+
+    See also:
+        `tabutils.process.peek`
+
+    Examples:
+        >>> records = [
+        ...     {'length': 5, 'species': 'setosa', 'color': 'red'},
+        ...     {'length': 5, 'species': 'setosa', 'color': 'blue'},
+        ...     {'length': 6, 'species': 'versi', 'color': 'red'},
+        ...     {'length': 6, 'species': 'versi', 'color': 'blue'}]
+        ...
+        >>> row = records[0]
+        >>> row == {'length': 5, 'species': 'setosa', 'color': 'red'}
+        True
+        >>> next(prepend(records, row)) == row
+        True
+    """
+    return it.chain([row], iter(records))
+
+
 def peek(records, n=5):
     """
     Provides a list of the first n rows of a records generator.
@@ -726,6 +757,34 @@ def normalize(records, data, column, rows):
 
         for row in rows:
             yield dict(it.chain([(column, row), (data, r.get(row))], filtered))
+
+
+def join(left, right):
+    """Performs a SQL like merge.
+
+    Args:
+        left (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        right (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+    Returns:
+        Iterator of records.
+
+    See also:
+        `tabutils.process.merge`
+
+    Examples:
+        >>> left = [
+        ...     {'length': 5, 'species': 'setosa'},
+        ...     {'length': 6, 'species': 'versi'}]
+        >>> right = [{'color': 'red'}]
+        >>> next(join(left, right)) == {
+        ...     'length': 5, 'species': 'setosa', 'color': u'red'}
+        True
+    """
+    return map(merge, it.product(left, right))
 
 
 def tfilter(records, field, pred=None):

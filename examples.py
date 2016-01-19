@@ -370,17 +370,17 @@ Examples:
         True
 
         # Convert records to a native array
-        >>> cv.records2array(records, result['types'], True) == [
+        >>> narray = cv.records2array(records, result['types'], True)
+        >>> narray == [
         ...     [array('u', 'a'), array('u', 'c'), array('u', 'b')],
         ...     [array('u', 'one'), array('u', 'five')],
         ...     array('f', [0.0, 20.100000381469727]),
         ...     array('i', [2, 10])]
         True
 
-        # Convert a native array to records
-        >>> arr = [array('i', [1, 2, 3, 4, 5]), array('f', [1, 2, 3, 4, 5])]
-        >>> next(cv.array2records(arr, True)) == {
-        ...     'column_1': 1, 'column_2': 1.0}
+        # Convert native array to records
+        >>> next(cv.array2records(narray, True)) == {
+        ...     'a': 'one', 'b': 2, 'c': 0.0}
         True
 
     Cookbook

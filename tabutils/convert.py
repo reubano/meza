@@ -555,7 +555,7 @@ def array2records(data, native=False):
         header = None
         data = zip(*map(datify, data))
     elif native:
-        header = [stringify(h) for h in data[0]]
+        header = [textify(h) for h in data[0]]
         data = zip(*map(datify, data[1:]))
     else:
         header = data.dtype.names

@@ -205,7 +205,7 @@ def get_encoding(filepath):
 
 
 def _read_any(f, reader, args, pos=0, **kwargs):
-    recursed = pos
+    recursed = kwargs.pop('recursed', False)
 
     try:
         for num, r in enumerate(reader(f, *args, **kwargs)):
@@ -234,6 +234,7 @@ def _read_any(f, reader, args, pos=0, **kwargs):
             f.close()
 
         with open(f.name, 'rU', encoding=encoding) as enc_f:
+            kwargs['recursed'] = True
             for r in _read_any(enc_f, reader, args, pos, **kwargs):
                 yield r
 

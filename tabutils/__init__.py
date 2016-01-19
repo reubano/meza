@@ -24,7 +24,7 @@ import sys
 from datetime import datetime as dt
 from builtins import *
 
-__version__ = '0.25.0'
+__version__ = '0.26.0'
 
 __title__ = 'tabutils'
 __package_name__ = 'tabutils'

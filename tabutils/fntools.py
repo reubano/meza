@@ -52,7 +52,7 @@ NP_TYPE = {
     'datetime': 'datetime64[us]',
     'time': 'timedelta64[us]',
     'date': 'datetime64[D]',
-    'text': 'U'}
+    'text': 'object_'}
 
 ARRAY_TYPE = {
     'bool': 'B',
@@ -60,6 +60,13 @@ ARRAY_TYPE = {
     'float': 'f',
     'double': 'd',
     'text': 'u'}
+
+ARRAY_NULL_TYPE = {
+    'B': False,
+    'i': 0,
+    'f': 0.0,
+    'd': 0.0,
+    'u': ''}
 
 logging.basicConfig()
 
@@ -239,7 +246,12 @@ def get_ext(path):
 
 
 def get_dtype(type_, numpy=False):
-    return NP_TYPE.get(type_, object) if numpy else ARRAY_TYPE.get(type_, 'u')
+    if numpy:
+        dtype = NP_TYPE.get(type_, 'object_')
+    else:
+        dtype = ARRAY_TYPE.get(type_, 'u')
+
+    return dtype
 
 
 def dedupe(content):

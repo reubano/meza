@@ -31,7 +31,7 @@ from functools import partial
 from array import array
 
 from builtins import *
-from six.moves import filterfalse
+from six.moves import filterfalse, zip_longest
 from dateutil.parser import parse
 from . import fntools as ft, csv, ENCODING, DEFAULT_DATETIME
 
@@ -39,6 +39,11 @@ try:
     import numpy as np
 except ImportError:
     np = None
+
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 
 
 def ctype2ext(content_type=None):
@@ -550,7 +555,7 @@ def array2records(data, native=False):
         header = None
         data = zip(*map(datify, data))
     elif native:
-        header = [stringify(h) for h in data[0]]
+        header = [textify(h) for h in data[0]]
         data = zip(*map(datify, data[1:]))
     else:
         header = data.dtype.names
@@ -582,14 +587,17 @@ def df2records(df):
         `tabutils.process.array2records`
 
     Examples:
-        >>> try:
-        ...    import pandas as pd
-        ... except ImportError:
-        ...    print(True)
+        >>> records = [
+        ...     {'a': 1, 'b': 2.0, 'c': 'three'},
+        ...     {'a': 4, 'b': 5.0, 'c': 'six'}]
+
+        >>> if pd:
+        ...    df = pd.DataFrame(records)
+        ...    converted = df2records(df)
         ... else:
-        ...    records = [{'a': 1, 'b': 2, 'c': 3}, {'a': 4, 'b': 5, 'c': 6}]
-        ...    df = pd.DataFrame.from_records(records)
-        ...    next(df2records(df)) == {'a': 1, 'b': 2, 'c': 3}
+        ...    converted = iter(records)
+
+        >>> next(converted) == {'a': 1, 'b': 2.0, 'c': 'three'}
         True
     """
     index = [_f for _f in df.index.names if _f]
@@ -628,14 +636,16 @@ def records2array(records, types, native=False):
         `tabutils.convert.records2df`
 
     Examples:
-        >>> records = [{'alpha': 'a', 'beta': 2}, {'alpha': 'b', 'beta': 3}]
+        >>> records = [{'alpha': 'aa', 'beta': 2}, {'alpha': 'bee', 'beta': 3}]
         >>> types = [
         ...     {'id': 'alpha', 'type': 'text'}, {'id': 'beta', 'type': 'int'}]
+        >>> records2array(records, types).alpha.tolist() == ['aa', 'bee']
+        True
         >>> records2array(records, types).beta
         array([2, 3], dtype=int32)
         >>> records2array(records, types, True) == [
         ...     [array('u', u'alpha'), array('u', u'beta')],
-        ...     [array('u', u'a'), array('u', u'b')],
+        ...     [array('u', u'aa'), array('u', u'bee')],
         ...     array('i', [2, 3])]
         True
     """
@@ -644,7 +654,7 @@ def records2array(records, types, native=False):
     ids = [t['id'] for t in types]
 
     if numpy:
-        data = [tuple(r[id_] for id_ in ids) for r in records]
+        data = [tuple(r.get(id_) for id_ in ids) for r in records]
 
         # dtype bug https://github.com/numpy/numpy/issues/2407
         ndtype = [tuple(s.encode('ascii') for s in d) for d in zip(ids, dtype)]
@@ -652,14 +662,50 @@ def records2array(records, types, native=False):
         converted = ndarray.view(np.recarray)
     else:
         header = [array('u', t['id']) for t in types]
-        data = zip(*(r.values() for r in records))
+        data = (zip_longest(*([r.get(i) for i in ids] for r in records)))
+
+        # array.array can't have nulls, so convert to an appropriate equivalent
+        clean = lambda t, d: (x if x else ft.ARRAY_NULL_TYPE[t] for x in d)
+        cleaned = (it.starmap(clean, zip(dtype, data)))
         values = [
-            [array(t, x) for x in v] if t in {'c', 'u'} else array(t, v)
-            for t, v in zip(dtype, data)]
+            [array(t, x) for x in d] if t in {'c', 'u'} else array(t, d)
+            for t, d in zip(dtype, cleaned)]
 
         converted = [header] + values
 
     return converted
+
+
+def records2df(records, types):
+    """Converts records into either a pandas.DataFrame
+
+    Args:
+        records (Iter[dict]): Rows of data whose keys are the field names.
+            E.g., output from any `tabutils.io` read function.
+
+        types (Iter[dict]):
+
+        native (bool): (default: False)
+
+    Returns:
+        numpy.recarray
+
+    See also:
+        `tabutils.convert.records2array`
+
+    Examples:
+        >>> records = [
+        ...     {'col_1': 'alpha', 'col_2': 1.0},
+        ...     {'col_1': 'beta', 'col_2': 2.3}]
+        >>> types = [
+        ...     {'id': 'col_1', 'type': 'text'}, {'id': 'col_2', 'type': 'int'}]
+        >>> records2df(records, types)
+           col_1  col_2
+        0  alpha      1
+        1   beta      2
+    """
+    recarray = records2array(records, types)
+    return pd.DataFrame.from_records(recarray)
 
 
 def records2csv(records, encoding=ENCODING, bom=False, skip_header=False):

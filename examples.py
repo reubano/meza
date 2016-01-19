@@ -17,11 +17,10 @@ Examples:
         >>> import pandas as pd
 
         >>> from io import StringIO
+        >>> from array import array
         >>> from json import loads
-        >>> from functools import partial
-        >>> from operator import itemgetter, eq, lt, gt
-        >>> from tabutils import io, process as pr, convert as cv, stats
         >>> from datetime import date
+        >>> from tabutils import io, process as pr, convert as cv, stats
         >>> random.seed(30)
 
 
@@ -61,7 +60,10 @@ Examples:
         True
 
         # apply these types to the records
-        >>> casted = pr.type_cast(records, types)
+        >>> casted = list(pr.type_cast(records, types))
+        >>> casted[0] == {
+        ...     'col1': 'hello', 'col2': date(1982, 5, 4), 'col3': 1}
+        True
 
         # now run some operation on the type casted data
         >>> cut_recs = pr.cut(casted, ['col1'], exclude=True)
@@ -100,7 +102,7 @@ Examples:
         ...     'D': 0.6536357538927619}
         True
 
-        >>> sorted(df, key=itemgetter('B'))[0] == {
+        >>> next(pr.sort(df, 'B')) == {
         ...     'A': 0.535204782203361,
         ...     'B': 0.06763103158333483,
         ...     'C': 0.023510063056781383,
@@ -111,10 +113,14 @@ Examples:
         >>> len(list(it.islice(df, 3)))
         3
 
-        # Use a single column’s values to select data (df[df.A < 0.5])
-        >>> rules = [{'fields': ['A'], 'pattern': partial(gt, 0.5)}]
-        >>> next(pr.grep(df, rules))['A']
-        0.21000869554973112
+        # Use a single column’s values to select data
+        >>> rules = [{'fields': ['A'], 'pattern': lambda x: x < 0.5}]
+        >>> next(pr.grep(df, rules)) == {
+        ...     'A': 0.21000869554973112,
+        ...     'B': 0.2572769749796092,
+        ...     'C': 0.39719826263322744,
+        ...     'D': 0.6415781537746728}
+        True
 
         # Aggregation
         >>> pr.aggregate(df, 'A', stats.mean)['A']
@@ -142,7 +148,7 @@ Examples:
         >>> bool(f2.seek(0))
         False
 
-        # Join multiple files together
+        # Let's join the files together
         >>> records = io.join(f1, f2, ext='csv')
         >>> next(records) == {'col_1': '1', 'col_2': 'dill', 'col_3': 'male'}
         True
@@ -150,11 +156,12 @@ Examples:
         ...     'col_1': '6', 'col_2': 'jill', 'col_3': 'female'}
         True
 
+        # Reset the first file and then do some simple manipulations
         >>> bool(f1.seek(0))
         False
         >>> records = list(io.read_csv(f1))
 
-        >>> sorted(records, key=itemgetter('col_2'))[0] == {
+        >>> next(pr.sort(records, 'col_2')) == {
         ...     'col_1': '2', 'col_2': 'bob', 'col_3': 'male'}
         True
 
@@ -190,66 +197,24 @@ Examples:
         ...     records, result = pr.detect_types(records)
         ...     casted_records = pr.type_cast(records, result['types'])
         ...     geofiles.append(cv.records2geojson(casted_records))
-        >>> loads(geofiles[0].readline()) == {
-        ...     'type': 'FeatureCollection',
-        ...     'bbox': [5, 15, 10, 20],
-        ...     'features': [
-        ...         {
-        ...             'type': 'Feature',
-        ...             'id': 11,
-        ...             'geometry': {'type': 'Point', 'coordinates': [10, 20]},
-        ...             'properties': {'id': 11}},
-        ...         {
-        ...             'type': 'Feature',
-        ...             'id': 12,
-        ...             'geometry': {'type': 'Point', 'coordinates': [5, 15]},
-        ...             'properties': {'id': 12}}],
-        ...     'crs': {
-        ...         'type': 'name',
-        ...         'properties': {'name': 'urn:ogc:def:crs:OGC:1.3:CRS84'}}}
-        True
 
         # Merge multiple GeoJSON files into one
-        >>> bool(geofiles[0].seek(0))
-        False
         >>> records = io.join(*geofiles, ext='geojson')
         >>> next(records) == {'lat': 20, 'type': 'Point', 'lon': 10, 'id': 11}
         True
 
-        # Split a GeoJSON file by feature
-        >>> bool(geofiles[0].seek(0))
-        False
-        >>> records = io.read_geojson(geofiles[0])
-        >>> records, result = pr.detect_types(records)
-        >>> casted_records = pr.type_cast(records, result['types'])
-        >>> splits = pr.split(casted_records, 'id')
-        >>> sub_records = [s[0] for s in splits]
-        >>> geojson = map(cv.records2geojson, sub_records)
-        >>> loads(next(geojson).readline()) == {
-        ...     'type': 'FeatureCollection',
-        ...     'bbox': [10, 20, 10, 20],
-        ...     'features': [
-        ...         {
-        ...             'type': 'Feature',
-        ...             'id': 11,
-        ...             'geometry': {'type': 'Point', 'coordinates': [10, 20]},
-        ...             'properties': {'id': 11}}],
-        ...     'crs': {
-        ...         'type': 'name',
-        ...         'properties': {'name': 'urn:ogc:def:crs:OGC:1.3:CRS84'}}}
-        True
-        >>> loads(next(geojson).readline()) == {
-        ...     'type': 'FeatureCollection',
-        ...     'bbox': [5, 15, 5, 15],
-        ...     'features': [
-        ...         {
-        ...             'type': 'Feature',
-        ...             'id': 12,
-        ...             'geometry': {'type': 'Point', 'coordinates': [5, 15]},
-        ...             'properties': {'id': 12}}],
-        ...     'crs': {
-        ...         'type': 'name',
-        ...         'properties': {'name': 'urn:ogc:def:crs:OGC:1.3:CRS84'}}}
+        # Split records by geojson feature
+        >>> splits = pr.split(records, 'id')
+        >>> sub_records, name = next(splits)
+        >>> name
+        12
+        >>> geojson = cv.records2geojson(sub_records)
+        >>> geojson.readline() == (
+        ...     '{"type": "FeatureCollection", "bbox": [5, 15, 5, 15], '
+        ...     '"features": [{"type": "Feature", "id": 12, "geometry": '
+        ...     '{"type": "Point", "coordinates": [5, 15]}, "properties": '
+        ...     '{"id": 12}}], "crs": {"type": "name", "properties": {"name": '
+        ...     '"urn:ogc:def:crs:OGC:1.3:CRS84"}}}')
         True
 
 
@@ -264,8 +229,6 @@ Examples:
         >>> records = list(io.read_tsv(f))
         >>> records[0] == {'col1': 'hello', 'col2': 'world'}
         True
-
-        # Now we're ready to write the records data to file
 
         # Create a csv file like object
         >>> f_out = cv.records2csv(records)
@@ -294,50 +257,89 @@ Examples:
 
     Interoperability
 
-        >>> records = [{'a': 1, 'b': 2}, {'a': 5, 'b': 10, 'c': 20}]
+        >>> records = [{'a': 'one', 'b': 2}, {'a': 'five', 'b': 10, 'c': 20.1}]
+        >>> records, result = pr.detect_types(records)
+        >>> records, types = list(records), result['types']
+        >>> {(t['id'], t['type']) for t in types} == set(
+        ...     [('a', 'text'), ('b', 'int'), ('c', 'float')])
+        True
 
         # Convert records to a DataFrame
         >>> df = pd.DataFrame(records)
-        >>> df
-           a   b   c
-        0  1   2 NaN
-        1  5  10  20
+        >>> df.sort_index(1)
+              a   b     c
+        0   one   2   NaN
+        1  five  10  20.1
+        >>> df.dtypes
+        a     object
+        b      int64
+        c    float64
+        dtype: object
 
-        # Convert a DataFrame to a records generator
-        >>> conv_records = cv.df2records(df)
-        >>> result = {k: np.isnan(v) for k, v in next(conv_records).items()}
-        >>> result == {'a': False, 'b': False, 'c': True}
+        >>> df = cv.records2df(records, types)
+        >>> df.sort_index(1)
+              a   b     c
+        0   one   2   NaN
+        1  five  10  20.1
+        >>> df.dtypes
+        a     object
+        c    float32
+        b      int32
+        dtype: object
+
+        # Convert a DataFrame to records
+        >>> row = next(cv.df2records(df))
+        >>> row['a'] == 'one'
+        True
+        >>> row['b']
+        2
+        >>> np.isnan(row['c'])
         True
 
         # Convert records to a structured array
-        >>> records, result = pr.detect_types(records)
-        >>> recarray = cv.records2array(records, result['types'])
-        >>> recarray.a
-        array([1, 5], dtype=int32)
+        >>> recarray = cv.records2array(records, types)
+        >>> recarray.a.tolist() == ['one', 'five']
+        True
+        >>> recarray.b
+        array([ 2, 10], dtype=int32)
+        >>> clist = recarray.c.tolist()
+        >>> np.isnan(clist[0])
+        True
+        >>> clist[1]
+        20.100000381469727
 
-        # First create a 2-D NumPy array
+        # Convert a 2-D array to records
         >>> data = np.array([[1, 2, 3], [4, 5, 6]], 'i4')
         >>> data
         array([[1, 2, 3],
                [4, 5, 6]], dtype=int32)
 
-        # Convert a 2-D array to a records generator
         >>> next(cv.array2records(data)) == {
         ...     'column_1': 1, 'column_2': 2, 'column_3': 3}
         True
 
-        # Now create a structured array
-        >>> types = [('A', 'i4'), ('B', 'f4'), ('C', 'S5')]
-        >>> dtype = [(k.encode('ascii'), v.encode('ascii')) for k, v in types]
-        >>> data = [(1, 2., 'Hello'), (2, 3., 'World')]
-        >>> ndarray = np.array(data, dtype=dtype)
-        >>> ndarray.tolist() == [(1, 2.0, 'Hello'), (2, 3.0, 'World')]
+        # Convert a structured array to records
+        >>> row = next(cv.array2records(recarray))
+        >>> row['a'] == 'one'
+        True
+        >>> row['b']
+        2
+        >>> np.isnan(row['c'])
         True
 
-        # Convert a structured array to a records generator
-        >>> next(cv.array2records(ndarray)) == {'A': 1, 'B': 2.0, 'C': 'Hello'}
+        # Convert records to a native array
+        >>> narray = cv.records2array(records, result['types'], True)
+        >>> narray == [
+        ...     [array('u', 'a'), array('u', 'c'), array('u', 'b')],
+        ...     [array('u', 'one'), array('u', 'five')],
+        ...     array('f', [0.0, 20.100000381469727]),
+        ...     array('i', [2, 10])]
         True
 
+        # Convert native array to records
+        >>> next(cv.array2records(narray, True)) == {
+        ...     'a': 'one', 'b': 2, 'c': 0.0}
+        True
 
     Cookbook
 
@@ -365,7 +367,7 @@ Examples:
         >>> len(list(concated)) + 1
         7
 
-        # SQL style joins (pd.merge(left, right, on='key'))
+        # Make SQL style joins
         >>> left = [{'key': 'foo', 'lval': 1}, {'key': 'foo', 'lval': 2}]
         >>> right = [{'key': 'foo', 'rval': 4}, {'key': 'foo', 'rval': 5}]
         >>> list(pr.join(left, right)) == [
@@ -386,7 +388,7 @@ Examples:
         ...     {'A': 'bar', 'B': 1.219023}, {'A': 'foo', 'B': 0.600015}]
         True
 
-        # Create pivot data
+        # Pivot tables
         >>> rrange = random.sample(range(-10, 10), 12)
         >>> a = ['one', 'one', 'two', 'three'] * 3
         >>> b = ['ah', 'beh', 'say'] * 4
@@ -403,7 +405,6 @@ Examples:
         ...     {'A': 'one', 'B': 'beh', 'C': 'bar', 'D': 0.0}]
         True
 
-        # Now lets pivot the data
         >>> pivot = pr.pivot(records, 'D', 'C')
         >>> pivot, peek = pr.peek(pivot)
         >>> peek == [
@@ -420,7 +421,8 @@ Examples:
 
         # Data normalization
         >>> normal = pr.normalize(pivot, 'D', 'C', ['foo', 'bar'])
-        >>> pr.peek(normal)[1] == [
+        >>> normal, peek = pr.peek(normal)
+        >>> peek == [
         ...     {'A': 'one', 'B': 'ah', 'C': 'foo', 'D': -3.6982230400621234},
         ...     {'A': 'one', 'B': 'ah', 'C': 'bar', 'D': 2.2393327345103637},
         ...     {'A': 'one', 'B': 'beh', 'C': 'foo', 'D': -3.720184399162731},

@@ -29,7 +29,7 @@ import hashlib
 
 from functools import partial, reduce
 from collections import defaultdict
-from operator import itemgetter
+from operator import itemgetter, iadd
 from math import log1p
 from json import dumps, loads
 from collections import deque
@@ -37,6 +37,8 @@ from collections import deque
 from builtins import *
 from six import iteritems
 from . import convert as cv, fntools as ft, typetools as tt, ENCODING
+
+sort = lambda records, key: iter(sorted(records, key=itemgetter(key)))
 
 
 def type_cast(records, types, warn=False):
@@ -320,19 +322,15 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
             # take a first guess using the header
             ftypes = tt.guess_type_by_field(record.keys())
             tally = {t['id']: defaultdict(int) for t in ftypes}
-
-            for t in ftypes:
-                # TODO: figure out using the below in place of above alters the
-                # result
-                # tally[t['id']] = defaultdict(int)
-                tally[t['id']][t['type']] += hweight
+            [iadd(tally[t['id']][t['type']], hweight) for t in ftypes]
 
         # now guess using the values
         for t in tt.guess_type_by_value(record):
             try:
                 tally[t['id']][t['type']] += 1
             except KeyError:
-                pass
+                tally[t['id']] = defaultdict(int)
+                tally[t['id']][t['type']] = 1
 
         types = list(gen_types(tally))
         confidence = min(gen_confidences(tally, types, hweight))

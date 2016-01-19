@@ -373,8 +373,8 @@ Examples:
         >>> cv.records2array(records, result['types'], True) == [
         ...     [array('u', 'a'), array('u', 'c'), array('u', 'b')],
         ...     [array('u', 'one'), array('u', 'five')],
-        ...     array('f', [2.0, 20.100000381469727]),
-        ...     array('i', [0, 10])]
+        ...     array('f', [0.0, 20.100000381469727]),
+        ...     array('i', [2, 10])]
         True
 
         # Convert a native array to records

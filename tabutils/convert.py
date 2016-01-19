@@ -662,11 +662,11 @@ def records2array(records, types, native=False):
         converted = ndarray.view(np.recarray)
     else:
         header = [array('u', t['id']) for t in types]
-        data = zip_longest(*(r.values() for r in records))
+        data = (zip_longest(*([r.get(i) for i in ids] for r in records)))
 
         # array.array can't have nulls, so convert to an appropriate equivalent
         clean = lambda t, d: (x if x else ft.ARRAY_NULL_TYPE[t] for x in d)
-        cleaned = list(it.starmap(clean, zip(dtype, data)))
+        cleaned = (it.starmap(clean, zip(dtype, data)))
         values = [
             [array(t, x) for x in d] if t in {'c', 'u'} else array(t, d)
             for t, d in zip(dtype, cleaned)]

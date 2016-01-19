@@ -198,66 +198,23 @@ Examples:
         ...     casted_records = pr.type_cast(records, result['types'])
         ...     geofiles.append(cv.records2geojson(casted_records))
 
-        >>> loads(geofiles[0].readline()) == {
-        ...     'type': 'FeatureCollection',
-        ...     'bbox': [5, 15, 10, 20],
-        ...     'features': [
-        ...         {
-        ...             'type': 'Feature',
-        ...             'id': 11,
-        ...             'geometry': {'type': 'Point', 'coordinates': [10, 20]},
-        ...             'properties': {'id': 11}},
-        ...         {
-        ...             'type': 'Feature',
-        ...             'id': 12,
-        ...             'geometry': {'type': 'Point', 'coordinates': [5, 15]},
-        ...             'properties': {'id': 12}}],
-        ...     'crs': {
-        ...         'type': 'name',
-        ...         'properties': {'name': 'urn:ogc:def:crs:OGC:1.3:CRS84'}}}
-        True
-
         # Merge multiple GeoJSON files into one
-        >>> bool(geofiles[0].seek(0))
-        False
         >>> records = io.join(*geofiles, ext='geojson')
         >>> next(records) == {'lat': 20, 'type': 'Point', 'lon': 10, 'id': 11}
         True
 
-        # Split a GeoJSON file by feature
-        >>> bool(geofiles[0].seek(0))
-        False
-        >>> records = io.read_geojson(geofiles[0])
-        >>> records, result = pr.detect_types(records)
-        >>> casted_records = pr.type_cast(records, result['types'])
-        >>> splits = pr.split(casted_records, 'id')
-        >>> sub_records = [s[0] for s in splits]
-        >>> geojson = map(cv.records2geojson, sub_records)
-        >>> loads(next(geojson).readline()) == {
-        ...     'type': 'FeatureCollection',
-        ...     'bbox': [10, 20, 10, 20],
-        ...     'features': [
-        ...         {
-        ...             'type': 'Feature',
-        ...             'id': 11,
-        ...             'geometry': {'type': 'Point', 'coordinates': [10, 20]},
-        ...             'properties': {'id': 11}}],
-        ...     'crs': {
-        ...         'type': 'name',
-        ...         'properties': {'name': 'urn:ogc:def:crs:OGC:1.3:CRS84'}}}
-        True
-        >>> loads(next(geojson).readline()) == {
-        ...     'type': 'FeatureCollection',
-        ...     'bbox': [5, 15, 5, 15],
-        ...     'features': [
-        ...         {
-        ...             'type': 'Feature',
-        ...             'id': 12,
-        ...             'geometry': {'type': 'Point', 'coordinates': [5, 15]},
-        ...             'properties': {'id': 12}}],
-        ...     'crs': {
-        ...         'type': 'name',
-        ...         'properties': {'name': 'urn:ogc:def:crs:OGC:1.3:CRS84'}}}
+        # Split records by geojson feature
+        >>> splits = pr.split(records, 'id')
+        >>> sub_records, name = next(splits)
+        >>> name
+        12
+        >>> geojson = cv.records2geojson(sub_records)
+        >>> geojson.readline() == (
+        ...     '{"type": "FeatureCollection", "bbox": [5, 15, 5, 15], '
+        ...     '"features": [{"type": "Feature", "id": 12, "geometry": '
+        ...     '{"type": "Point", "coordinates": [5, 15]}, "properties": '
+        ...     '{"id": 12}}], "crs": {"type": "name", "properties": {"name": '
+        ...     '"urn:ogc:def:crs:OGC:1.3:CRS84"}}}')
         True
 
 
@@ -302,7 +259,10 @@ Examples:
 
         >>> records = [{'a': 'one', 'b': 2}, {'a': 'five', 'b': 10, 'c': 20.1}]
         >>> records, result = pr.detect_types(records)
-        >>> records = list(records)
+        >>> records, types = list(records), result['types']
+        >>> {(t['id'], t['type']) for t in types} == set(
+        ...     [('a', 'text'), ('b', 'int'), ('c', 'float')])
+        True
 
         # Convert records to a DataFrame
         >>> df = pd.DataFrame(records)
@@ -316,7 +276,7 @@ Examples:
         c    float64
         dtype: object
 
-        >>> df = cv.records2df(records, result['types'])
+        >>> df = cv.records2df(records, types)
         >>> df.sort_index(1)
               a   b     c
         0   one   2   NaN
@@ -337,7 +297,7 @@ Examples:
         True
 
         # Convert records to a structured array
-        >>> recarray = cv.records2array(records, result['types'])
+        >>> recarray = cv.records2array(records, types)
         >>> recarray.a.tolist() == ['one', 'five']
         True
         >>> recarray.b
@@ -359,14 +319,12 @@ Examples:
         True
 
         # Convert a structured array to records
-        >>> types = [('A', 'i4'), ('B', 'f4'), ('C', 'S5')]
-        >>> dtype = [(k.encode('ascii'), v.encode('ascii')) for k, v in types]
-        >>> data = [(1, 2., 'Hello'), (2, 3., 'World')]
-        >>> ndarray = np.array(data, dtype=dtype)
-        >>> ndarray.tolist() == [(1, 2.0, 'Hello'), (2, 3.0, 'World')]
+        >>> row = next(cv.array2records(recarray))
+        >>> row['a'] == 'one'
         True
-
-        >>> next(cv.array2records(ndarray)) == {'A': 1, 'B': 2.0, 'C': 'Hello'}
+        >>> row['b']
+        2
+        >>> np.isnan(row['c'])
         True
 
         # Convert records to a native array
@@ -463,7 +421,8 @@ Examples:
 
         # Data normalization
         >>> normal = pr.normalize(pivot, 'D', 'C', ['foo', 'bar'])
-        >>> pr.peek(normal)[1] == [
+        >>> normal, peek = pr.peek(normal)
+        >>> peek == [
         ...     {'A': 'one', 'B': 'ah', 'C': 'foo', 'D': -3.6982230400621234},
         ...     {'A': 'one', 'B': 'ah', 'C': 'bar', 'D': 2.2393327345103637},
         ...     {'A': 'one', 'B': 'beh', 'C': 'foo', 'D': -3.720184399162731},

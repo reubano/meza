@@ -86,22 +86,23 @@ A simple data processing example is shown below:
 
     # Now type cast the records. Note: most `tabutils.process` functions return
     # generators, so lets wrap the result in a list to view the data
-    casted = list(pr.type_cast(records, types))
+    casted = list(pr.type_cast(records, result['types']))
     casted[0]
-    >>> {'col1': 'hello', 'col2': datetime.date(), 'col3': 1}
+    >>> {'col1': 'hello', 'col2': datetime.date(1982, 5, 4), 'col3': 1}
 
-    # Cut out the first column of data and merge the rows to get max value of
-    # the remaining columns. Note: since `merge` (by definition) will always
+    # Cut out the first column of data and merge the rows to get the max value
+    # of the remaining columns. Note: since `merge` (by definition) will always
     # contain just one row, it is returned as is (not wrapped in a generator)
     cut_recs = pr.cut(casted, ['col1'], exclude=True)
     merged = pr.merge(cut_recs, pred=bool, op=max)
     merged
-    >>> {'col2': datetime.date(), 'col3': 3}
+    >>> {'col2': datetime.date(2015, 1, 1), 'col3': 3}
 
     # Now write data back to a new csv file.
     io.write('out.csv', cv.records2csv(merged))
-    open('out.csv', 'utf-8').read()
-    >>> 'col2,col3\ndatetime.date(),3\n'
+    with open('out.csv', 'utf-8') as f:
+        f.read()
+    >>> 'col2,col3\n2015-01-01,3\n'
 
 .. _library:
 
@@ -121,15 +122,15 @@ Usage Index
   + `Geo processing (à la mapbox)`_
 
 - `Writing data`_
+- `Cookbook`_
 
 Reading data
 ^^^^^^^^^^^^
 
 .. code-block:: python
 
-    from __future__ import print_function
-    from tabutils import io
     from io import open, StringIO
+    from tabutils import io
 
     # Note: all readers return equivalent `records` iterators, i.e., a generator
     # of dicts with keys corresponding to the header.
@@ -143,24 +144,27 @@ Reading data
 
     """View the first row"""
     next(records)
-    >>> {'col_1': 'hello', 'col_2': 'world'}
+    >>> {'col': 'hello', 'col_2': 'world'}
 
     """Read the 1st sheet of an xls file object opened in text mode."""
     # Also, santize the header names by converting them to lowercase and
     # replacing whitespace and invalid characters with `_`.
     with open('path/to/file.xls', 'utf-8') as f:
         for row in io.read_xls(f, sanitize=True):
-            print(row)
+            # do something with the `row`
+            pass
 
     """Read the 2nd sheet of an xlsx file object opened in binary mode"""
     # Note: sheets are zero indexed
     with open('path/to/file.xlsx') as f:
         records = io.read_xls(f, encoding='utf-8', sheet=1)
-        [print(row) for row in records]
+        first_row = next(records)
+        # do something with the `first_row`
 
-    """Read any recognized file type"""
+    """Read any recognized file"""
     records = io.read('path/to/file.geojson')
-    records = io.read(f, ext='csv')
+    f.seek(0)
+    records = io.read(f, ext='csv', dedupe=True)
 
 Please see `Readers`_ for a complete list of available readers and recognized
 file types.
@@ -169,60 +173,58 @@ Processing data
 ^^^^^^^^^^^^^^^
 
 Numerical analysis (à la pandas) [#]_
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Note that the ``pandas`` equivalent methods are preceded by ``-->`` and assumes
-``import pandas as pd``. Command output is preceded by ``>>>``.
+Note that the ``pandas`` equivalent methods are preceded by ``-->``. Command
+output is preceded by ``>>>``.
 
 .. code-block:: python
 
     import itertools as it
+    import random
+    import numpy as np
+    import pandas as pd
 
-    from random import random
-    from tabutils import io, process as pr, convert as cv
     from io import StringIO
+    from tabutils import io, process as pr, convert as cv, stats
 
     # Create some data in the same structure as what the various `read...`
     # functions output
     header = ['A', 'B', 'C', 'D']
-    records = (dict(zip(header, (random() for _ in range(4)))) for x in range(7))
-
-    # Since this is an interactive example, we need to view the intermediate
-    # results. Lets convert the generator to a list to make things easy.
-    df = list(records)
+    data = [(random.random() for _ in range(4)) for x in range(7)]
+    df = [dict(zip(header, d)) for d in data]
     df[0]
-    >>> [{'A': 0.4555..., 'B': 0.4166..., 'C': 0.2770..., 'D': 0.9439...}]
+    >>> {'A': 0.53908..., 'B': 0.28919..., 'C': 0.03003..., 'D': 0.65363...}
 
     """Sort records by values --> df.sort_values(by='B')"""
     next(pr.sort(df, 'B'))
-    >>> [{'A': 0.9563..., 'B': 0.1251..., 'C': 0.6772..., 'D': 0.5208...}]
+    >>> {'A': 0.53520..., 'B': 0.06763..., 'C': 0.02351..., 'D': 0.80529...}
 
     """Select a single column of data --> df['A']"""
     next(pr.cut(df, ['A']))
-    >>> [{'A': 0.4555170489952006}]
+    >>> {'A': 0.53908170489952006}
 
     """Select a slice of rows --> df[0:3]"""
     len(list(it.islice(df, 3)))
     >>> 3
 
-    """Use a single column’s values to select data --> df[df.A > 0.5]"""
-    rules = [{'fields': ['A'], 'pattern': lambda x: x > 0.5}]
+    """Use a single column’s values to select data --> df[df.A < 0.5]"""
+    rules = [{'fields': ['A'], 'pattern': lambda x: x < 0.5}]
     next(pr.grep(df, rules))
-    >>> [{'A': 0.7388..., 'B': 0.7404..., 'C': 0.4560..., 'D': 0.9671...}]
+    >>> {'A': 0.21000..., 'B': 0.25727..., 'C': 0.39719..., 'D': 0.64157...}
 
     # Note: since `aggregate` and `merge` (by definition) return just one row,
     # they return them as is (not wrapped in a generator).
     """Calculate a descriptive statistic (on one field) --> df.mean()['A']"""
-    mean = lambda l: sum(l) / len(l)
-    pr.aggregate(df, 'A', mean)['A']
-    >>> 0.34225751867139953
+    pr.aggregate(df, 'A', stats.mean)['A']
+    >>> 0.5410437473067938
 
     """Calculate a descriptive (binary function safe) statistic --> df.sum()"""
     pr.merge(df, pred=bool, op=sum)
-    >>> {'A': 2.3958..., 'C': 4.1317..., 'B': 1.1860..., 'D': 3.4386...}
+    >>> {'A': 3.78730..., 'C': 2.82875..., 'B': 3.14195..., 'D': 5.26330...}
 
 Text processing (à la csvkit) [#]_
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Note that the ``csvkit`` equivalent commands are preceded by ``-->``.
 Command output is preceded by ``>>>``.
@@ -230,8 +232,8 @@ Command output is preceded by ``>>>``.
 .. code-block:: bash
 
     # First create a few simple csv files (in bash)
-    echo 'col_1,col_2,col_3\n1,bill,male\n2,bob,male\n3,jane,female\n' > file1.csv
-    echo 'col_1,col_2,col_3\n4,tom,male\n5,dick,male\n6,jill,female\n' > file2.csv
+    echo 'col_1,col_2,col_3\n1,dill,male\n2,bob,male\n3,jane,female' > file1.csv
+    echo 'col_1,col_2,col_3\n4,tom,male\n5,dick,male\n6,jill,female' > file2.csv
 
 .. code-block:: python
 
@@ -247,42 +249,55 @@ Command output is preceded by ``>>>``.
     """
     records = io.join('file1.csv', 'file2.csv')
     next(records)
-    >>> {'col_1': 1, 'col_2': 'bill', 'col_3': 'male'}
-    next(it.islice(records, 5, None))
-    >>> {'col_1': 6, 'col_2': 'jill', 'col_3': 'female'}
+    >>> {'col_1': '1', 'col_2': 'dill', 'col_3': 'male'}
+    next(it.islice(records, 4, None))
+    >>> {'col_1': '6', 'col_2': 'jill', 'col_3': 'female'}
 
-    """Sort records of a file --> csvsort -c col_2 file1.csv"""
-    records = io.read_csv('file1.csv')
+    # Now let's create a persistant records list
+    records = list(io.read_csv('file1.csv'))
+
+    """Sort records --> csvsort -c col_2 file1.csv"""
     next(pr.sort(records, 'col_2'))
-    >>> {'col_1': 6, 'col_2': 'jill', 'col_3': 'female'}
+    >>> {'col_1': '2', 'col_2': 'bob', 'col_3': 'male'
 
     """Select individual columns --> csvcut -c col_2 file1.csv"""
-    records = io.read_csv('file1.csv')
     next(pr.cut(records, ['col_2']))
-    >>> {'col_1': 6, 'col_2': 'jill', 'col_3': 'female'}
+    >>> {'col_2': 'dill'}
 
     """Search for individual rows --> csvgrep -c col_1 -m jane file1.csv"""
     rules = [{'fields': ['col_1'], 'pattern': 'jane'}]
     next(pr.grep(records, rules))
-    >>> {'col_1': 6, 'col_2': 'jill', 'col_3': 'female'}
+    >>> {'col_1': '3', 'col_2': 'jane', 'col_3': 'female'}
 
-    """Convert a csv file to json --> csvjson -i 4 file.csv"""
-    records = io.read_csv('file.csv')
+    """Convert a csv file to json --> csvjson -i 4 file1.csv"""
     io.write('file.json', cv.records2json(records))
-    open('file.json', 'utf-8').read()
-    >>>
+    with open('file.json', 'utf-8') as f:
+        f.read()
+    >>> '[{"col_1": "1", "col_2": "dill", "col_3": "male"}, {"col_1": "2",
+    ... "col_2": "bob", "col_3": "male"}, {"col_1": "3", "col_2": "jane",
+    ... "col_3": "female"}]'
 
 Geo processing (à la mapbox) [#]_
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Note that the ``mapbox`` equivalent commands are preceded by ``-->``.
 Command output is preceded by ``>>>``.
 
+.. code-block:: bash
+
+    # First create a few simple csv files (in bash)
+    echo 'id,lon,lat,type\\n11,10,20,Point\\n12,5,15,Point\\n' > file1.csv
+    echo 'id,lon,lat,type\\n13,15,20,Point\\n14,5,25,Point\\n' > file2.csv
+
 .. code-block:: python
 
+    from io import open
     from tabutils import io, process as pr, convert as cv
 
-    """Convert a csv file to GeoJSON
+    # Now lets open the files
+    f1, f2 = [open(fp, encoding='utf-8') for fp in ['file1.csv', 'file2.csv']]
+
+    """Convert the csv files into GeoJSON files
     --> fs = require('fs')
     --> concat = require('concat-stream')
 
@@ -292,12 +307,18 @@ Command output is preceded by ``>>>``.
     ...   })
     ... }
 
-    --> fs.createReadStream('file.csv').pipe(concat(convert))
+    --> fs.createReadStream('file1.csv').pipe(concat(convert))
     """
-    f = cv.records2geojson(io.read_csv('file.csv'))
-    f.readline()
+    geofiles = []
 
-    """Merge multiple GeoJSON files into one
+    for f in [f1, f2]:
+        records = io.read_csv(f)
+        records, result = pr.detect_types(records)
+        casted_records = pr.type_cast(records, result['types'])
+        geo_f = cv.records2geojson(casted_records)
+        geofiles.append(geo_f)
+
+    """Merge the GeoJSON files into one records iterator
     --> merge = require('geojson-merge')
     --> fs = require('fs')
 
@@ -305,18 +326,26 @@ Command output is preceded by ``>>>``.
     ...   return JSON.parse(fs.readFileSync(n));
     ... }))
     """
-    files = ['file1.geojson', 'file2.geojson']
-    records = io.join(*files)
+    records = io.join(*geofiles, ext='geojson')
     next(records)
+    >>> {'lat': 20, 'type': 'Point', 'lon': 10, 'id': 11}
 
-    """Split a GeoJSON file by feature --> geojsplit -k id file.geojson"""
-    records = io.read_geojson(file.geojson)
-    records, result = pr.detect_types(records)
-    casted_records = pr.type_cast(records, result['types'])
+    """Split the remaining records by a geojson feature and convert the first
+    feature to a geojson file --> geojsplit -k id file.geojson
+    """
+    splits = pr.split(records, 'id')
+    records, name = next(splits)
+    name
+    >>> 12
+    cv.records2geojson(records).readline()
+    >>> '{"type": "FeatureCollection", "bbox": [5, 15, 5, 15], "features": '
+    ... '[{"type": "Feature", "id": 12, "geometry": {"type": "Point", '
+    ... '"coordinates": [5, 15]}, "properties": {"id": 12}}], "crs": {"type": '
+    ... '"name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}}}'
 
-    for sub_records, name in pr.split(casted_records, 'id'):
-        f = cv.records2geojson(sub_records, key=id_)
-        io.write('{}.geojson'.format(name), f)
+    # Finally, clean up by closing the open csv files
+    f1.close()
+    f2.close()
 
 Writing data
 ^^^^^^^^^^^^
@@ -333,31 +362,35 @@ Writing data
     # Next create a records list so we can reuse it
     records = list(io.read_tsv(f))
     records[0]
-    >>>
+    >>> {'col1': 'hello', 'col2': 'world'}
 
     # Now we're ready to write the records data to file
 
     """Create a csv file like object"""
-    f_out = cv.records2csv(records)
-    f_out.readline()
+    cv.records2csv(records).readline()
     >>> 'col1,col2\n'
 
     """Create a json file like object"""
-    f_out = cv.records2json(records)
-    f_out.readline()
-    >>>
+    cv.records2json(records).readline()
+    >>> '[{"col1": "hello", "col2": "world"}]'
 
     """Write back csv to a filepath"""
     io.write('file.csv', cv.records2csv(records))
     with open('file.csv', 'utf-8') as f_in:
-        f_in.readline()
-    >>>
+        f_in.read()
+    >>> 'col1,col2\nhello,world\n'
 
     """Write back json to a filepath"""
     io.write('file.json', cv.records2json(records))
     with open('file.json', 'utf-8') as f_in:
         f_in.readline()
-    >>>
+    >>> '[{"col1": "hello", "col2": "world"}]'
+
+
+Cookbook
+^^^^^^^^
+
+Please see the `cookbook guide`_ for more examples.
 
 Notes
 ^^^^^
@@ -371,76 +404,92 @@ Interoperability
 
 tabutils plays nicely with NumPy and friends out of the box
 
-from tabutils records to pandas.DataFrame to pandas.DataFrame
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+setup
+^^^^^
+
+.. code-block:: python
+
+    # First create some records and types. Also, convert the records to a list
+    # so we can reuse them.
+    records = [{'a': 'one', 'b': 2}, {'a': 'five', 'b': 10, 'c': 20.1}]
+    records, result = pr.detect_types(records)
+    records, types = list(records), result['types']
+    types
+    >>> [
+    ...     {u'type': u'text', u'id': u'a'},
+    ...     {u'type': u'int', u'id': u'b'},
+    ...     {u'type': u'float', u'id': u'c'}]
+
+
+from records to pandas.DataFrame to records
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
     import pandas as pd
     from tabutils import convert as cv
 
-    # First create a records iterator
-    records = iter([{'a': 1, 'b': 2}, {'a': 5, 'b': 10, 'c': 20}])
-
-    """Convert records to a DataFrame"""
-    df = pd.DataFrame(records)
+    """Convert the records to a DataFrame"""
+    df = cv.records2df(records, types)
     df
-    >>>     a   b   c
-    ...  0  1   2 NaN
-    ...  1  5  10  20
+    >>>         a   b   c
+    ... 0   one   2   NaN
+    ... 1  five  10  20.1
+    # Alternatively, you can do `pd.DataFrame(records)`
 
-    """Convert a DataFrame to a records generator"""
-    records = cv.df2records(df)
-    next(records)
-    >>> {'a': 1, 'b': 2, 'c': None}
+    """Convert the DataFrame back to records"""
+    next(cv.df2records(df))
+    >>> {'a': 'one', 'b': 2, 'c': nan}
 
-from tabutils records to numpy.recarray
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+from records to arrays
+^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
-    from tabutils import process as pr, convert as cv
-
-    # First create a records iterator
-    records = iter([{'a': 1, 'b': 2}, {'a': 5, 'b': 10, 'c': 20}])
+    from tabutils import convert as cv
 
     """Convert records to a structured array"""
-    records, types = pr.detect_types(records)
-    recordarr = cv.records2recarray(records, types)
-    recordarr
-    >>>
+    recarray = cv.records2array(records, types)
+    recarray
+    >>> rec.array([(u'one', 2, nan), (u'five', 10, 20.100000381469727)],
+    ...           dtype=[('a', 'O'), ('b', '<i4'), ('c', '<f4')])
+    recarray.b
+    >>> array([ 2, 10], dtype=int32)
 
-from NumPy arrays to tabutils records
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    """Convert records to a native array"""
+    narray = cv.records2array(records, types, native=True)
+    narray
+    >>> [[array('u', 'a'), array('u', 'b'), array('u', 'c')],
+    ... [array('u', 'one'), array('u', 'five')],
+    ... array('i', [2, 10]),
+    ... array('f', [0.0, 20.100000381469727])]
+
+
+from arrays to records
+^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
     import numpy as np
+
+    from array import array
     from tabutils import convert as cv
 
-    # First create a 2-D NumPy array
+    """Convert a 2-D numpy array to a records generator"""
     data = np.array([[1, 2, 3], [4, 5, 6]], np.int32)
     data
     >>> array([[1, 2, 3],
     ...        [4, 5, 6]], dtype=int32)
-
-    """Convert a 2-D array to a records generator"""
-    records = cv.array2records(data)
-    next(records)
+    next(cv.array2records(data))
     >>> {'column_1': 1, 'column_2': 2, 'column_3': 3}
 
-    # Now create a structured array
-    data = np.zeros((2,), dtype=[('A', 'i4'),('B', 'f4'),('C', 'a10')])
-    data[:] = [(1, 2., 'Hello'), (2, 3., 'World')]
-    data
-    >>> array([(1, 2.0, 'Hello'), (2, 3.0, 'World')],
-    ...       dtype=[('A', '<i4'), ('B', '<f4'), ('C', 'S10')])
+    """Convert the structured array back to a records generator"""
+    next(cv.array2records(recarray))
+    >>> {'a': 'one', 'b': 2, 'c': nan}
 
-    """Convert a structured array to a records generator"""
-    records = cv.array2records(data)
-    next(records)
-    >>> {'A': 1, 'B': 2.0, 'C': 'Hello'}
-
+    """Convert the native array back to records"""
+    next(cv.array2records(narray, native=True))
+    {'a': 'one', 'b': 2, 'c': 0.0}
 
 Installation
 ------------
@@ -541,14 +590,12 @@ Project Structure
 Design Principles
 -----------------
 
-- the built-in ``logging`` module isn't broken so don't reinvent the wheel
 - prefer functions over objects
-.. - stream all the things! [#]_
+- provide enough functionality out of the box to easily perform the most common data analysis tasks
+- make conversion between ``records``, ``arrays``, and ``DataFrames`` dead simple
+- whenever possible, lazily read objects and stream the result [#]_
 
-Whenever possible, tabutils lazily reads objects and
-streams the result. Notable exceptions are ``tabutils.process.group``,
-``tabutils.io.read_dbf``, ``tabutils.io.read_yaml``, and ``tabutils.io.read_html``
-which read the entire contents into memory up front.
+.. [#] Notable exceptions are ``tabutils.process.group``, ``tabutils.process.sort``, ``tabutils.io.read_dbf``, ``tabutils.io.read_yaml``, and ``tabutils.io.read_html`` which read the entire contents into memory up front.
 
 Readers
 -------
@@ -587,13 +634,14 @@ table.
 
 .. code-block:: python
 
+    from io import open
     from tabutils import io
-
-    f = io.open('path/to/file.json')
 
     records1 = io.read('path/to/file.csv')
     records2 = io.read('path/to/file.xls')
-    records3 = io.read(f, ext='json')
+
+    with open('path/to/file.json', encoding='utf-8') as f:
+        records3 = io.read(f, ext='json')
 
 Args
 ^^^^
@@ -692,3 +740,4 @@ tabutils is distributed under the `MIT License`_.
 .. _virtualenv: http://www.virtualenv.org/en/latest/index.html
 .. _contributing doc: https://github.com/reubano/tabutils/blob/master/CONTRIBUTING.rst
 .. _installation doc: https://github.com/reubano/tabutils/blob/master/INSTALLATION.rst
+.. _cookbook guide: https://github.com/reubano/tabutils/blob/master/COOKBOOK.rst

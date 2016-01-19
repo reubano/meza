@@ -650,7 +650,8 @@ def records2array(records, types, native=False):
         True
     """
     numpy = np and not native
-    dtype = [ft.get_dtype(t['type'], numpy) for t in types]
+    dialect = 'numpy' if numpy else 'array'
+    dtype = [ft.get_dtype(t['type'], dialect) for t in types]
     ids = [t['id'] for t in types]
 
     if numpy:

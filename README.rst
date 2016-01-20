@@ -57,10 +57,14 @@ Pandas and csvkit, while using functional programming methods.
 
 A simple data processing example is shown below:
 
+First create a simple csv file (in bash)
+
 .. code-block:: bash
 
-    # First create a simple csv file (in bash)
     echo 'col1,col2,col3\nhello,5/4/82,1\none,1/1/15,2\nhappy,7/1/92,3\n' > data.csv
+
+Now we can read the file, manipulate the data a bit, and write it back to a new
+file.
 
 .. code-block:: python
 
@@ -125,13 +129,14 @@ Usage Index
 Reading data
 ^^^^^^^^^^^^
 
+tabutils can read both filepaths and file-like objects. Additionally, all readers
+return equivalent `records` iterators, i.e., a generator of dictionaries with
+keys corresponding to the column names.
+
 .. code-block:: python
 
     from io import open, StringIO
     from tabutils import io
-
-    # Note: all readers return equivalent `records` iterators, i.e., a generator
-    # of dicts with keys corresponding to the header.
 
     """Read a filepath"""
     records = io.read_json('path/to/file.json')
@@ -173,8 +178,8 @@ Processing data
 Numerical analysis (à la pandas) [#]_
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Note that the ``pandas`` equivalent methods are preceded by ``-->``. Command
-output is preceded by ``>>>``.
+In the following example, ``pandas`` equivalent methods are preceded by ``-->``,
+and command output is preceded by ``>>>``.
 
 .. code-block:: python
 
@@ -194,49 +199,54 @@ output is preceded by ``>>>``.
     df[0]
     >>> {'A': 0.53908..., 'B': 0.28919..., 'C': 0.03003..., 'D': 0.65363...}
 
-    """Sort records by values --> df.sort_values(by='B')"""
+    """Sort records by the value of column `B` --> df.sort_values(by='B')"""
     next(pr.sort(df, 'B'))
     >>> {'A': 0.53520..., 'B': 0.06763..., 'C': 0.02351..., 'D': 0.80529...}
 
-    """Select a single column of data --> df['A']"""
+    """Select column `A` --> df['A']"""
     next(pr.cut(df, ['A']))
     >>> {'A': 0.53908170489952006}
 
-    """Select a slice of rows --> df[0:3]"""
+    """Select the first the rows of data --> df[0:3]"""
     len(list(it.islice(df, 3)))
     >>> 3
 
-    """Use a single column’s values to select data --> df[df.A < 0.5]"""
+    """Select all data whose value for column `A` is less than 0.5
+    --> df[df.A < 0.5]
+    """
     rules = [{'fields': ['A'], 'pattern': lambda x: x < 0.5}]
     next(pr.grep(df, rules))
     >>> {'A': 0.21000..., 'B': 0.25727..., 'C': 0.39719..., 'D': 0.64157...}
 
     # Note: since `aggregate` and `merge` (by definition) return just one row,
     # they return them as is (not wrapped in a generator).
-    """Calculate a descriptive statistic (on one field) --> df.mean()['A']"""
+    """Calculate the mean of column `A` across all data --> df.mean()['A']"""
     pr.aggregate(df, 'A', stats.mean)['A']
     >>> 0.5410437473067938
 
-    """Calculate a descriptive (binary function safe) statistic --> df.sum()"""
+    """Calculate the sum of each column across all data --> df.sum()"""
     pr.merge(df, pred=bool, op=sum)
     >>> {'A': 3.78730..., 'C': 2.82875..., 'B': 3.14195..., 'D': 5.26330...}
 
 Text processing (à la csvkit) [#]_
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Note that the ``csvkit`` equivalent commands are preceded by ``-->``.
-Command output is preceded by ``>>>``.
+In the following example, ``csvkit`` equivalent commands are preceded by ``-->``,
+and command output is preceded by ``>>>``.
+
+First create a few simple csv files (in bash)
 
 .. code-block:: bash
 
-    # First create a few simple csv files (in bash)
     echo 'col_1,col_2,col_3\n1,dill,male\n2,bob,male\n3,jane,female' > file1.csv
     echo 'col_1,col_2,col_3\n4,tom,male\n5,dick,male\n6,jill,female' > file2.csv
 
-.. code-block:: python
+Now we can read the files, manipulate the data, convert it to json, and write
+it back to a new file. Also, note that since all readers return equivalent `records`
+iterators, you can use them interchangeably (in place of ``read_csv``) to open
+any supported file. E.g., ``read_xls``, ``read_sqlite``, etc.
 
-    # Note: since all readers return equivalent `records` iterators, you can
-    # use any one in place of `read_csv`. E.g., `read_xls`, `read_sqlite`, etc.
+.. code-block:: python
 
     import itertools as it
 
@@ -254,15 +264,17 @@ Command output is preceded by ``>>>``.
     # Now let's create a persistant records list
     records = list(io.read_csv('file1.csv'))
 
-    """Sort records --> csvsort -c col_2 file1.csv"""
+    """Sort records by the value of column `col_2` --> csvsort -c col_2 file1.csv"""
     next(pr.sort(records, 'col_2'))
     >>> {'col_1': '2', 'col_2': 'bob', 'col_3': 'male'
 
-    """Select individual columns --> csvcut -c col_2 file1.csv"""
+    """Select column `col_2` --> csvcut -c col_2 file1.csv"""
     next(pr.cut(records, ['col_2']))
     >>> {'col_2': 'dill'}
 
-    """Search for individual rows --> csvgrep -c col_1 -m jane file1.csv"""
+    """Select all data whose value for column `col_1` contains `jane`
+    --> csvgrep -c col_1 -m jane file1.csv
+    """
     rules = [{'fields': ['col_1'], 'pattern': 'jane'}]
     next(pr.grep(records, rules))
     >>> {'col_1': '3', 'col_2': 'jane', 'col_3': 'female'}
@@ -278,14 +290,18 @@ Command output is preceded by ``>>>``.
 Geo processing (à la mapbox) [#]_
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Note that the ``mapbox`` equivalent commands are preceded by ``-->``.
-Command output is preceded by ``>>>``.
+In the following example, ``mapbox`` equivalent commands are preceded by ``-->``,
+and command output is preceded by ``>>>``.
+
+First create a few simple csv files (in bash)
 
 .. code-block:: bash
 
-    # First create a few simple csv files (in bash)
     echo 'id,lon,lat,type\\n11,10,20,Point\\n12,5,15,Point\\n' > file1.csv
     echo 'id,lon,lat,type\\n13,15,20,Point\\n14,5,25,Point\\n' > file2.csv
+
+Now we can read the files, manipulate the data, convert it to geojson, and write
+it back to a new file.
 
 .. code-block:: python
 
@@ -316,7 +332,7 @@ Command output is preceded by ``>>>``.
         geo_f = cv.records2geojson(casted_records)
         geofiles.append(geo_f)
 
-    """Merge the GeoJSON files into one records iterator
+    """Merge the GeoJSON files into one iterator
     --> merge = require('geojson-merge')
     --> fs = require('fs')
 
@@ -350,7 +366,7 @@ Writing data
 
 .. code-block:: python
 
-    from tabutils import io
+    from tabutils import io, convert as cv
     from io import StringIO, open
 
     # First let's create a simple tsv file like object
@@ -383,7 +399,6 @@ Writing data
     with open('file.json', 'utf-8') as f_in:
         f_in.readline()
     >>> '[{"col1": "hello", "col2": "world"}]'
-
 
 Cookbook
 ^^^^^^^^
@@ -589,7 +604,7 @@ Design Principles
 -----------------
 
 - prefer functions over objects
-- provide enough functionality out of the box to easily perform the most common data analysis tasks
+- provide enough functionality out of the box to easily implement the most common data analysis use cases
 - make conversion between ``records``, ``arrays``, and ``DataFrames`` dead simple
 - whenever possible, lazily read objects and stream the result [#]_
 

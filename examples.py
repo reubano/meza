@@ -12,14 +12,19 @@ Examples:
     Setup
 
         >>> import itertools as it
-        >>> import numpy as np
-        >>> import pandas as pd
+        >>> try:
+        ...     import pandas as pd
+        ... except ImportError:
+        ...     np = pd = None
+        ... else:
+        ...     import numpy as np
 
         >>> from io import StringIO
         >>> from array import array
         >>> from json import loads
         >>> from datetime import date
-        >>> from tabutils import io, process as pr, convert as cv, stats
+        >>> from tabutils import (
+        ...     io, process as pr, convert as cv, fntools as ft, stats)
 
 
     Loading, type casting, and writing to a CSV file
@@ -265,86 +270,63 @@ Examples:
         True
 
         # Convert records to a DataFrame
-        >>> df = pd.DataFrame(records)
-        >>> df.sort_index(1)
-              a   b     c
-        0   one   2   NaN
-        1  five  10  20.1
-        >>> df.dtypes
-        a     object
-        b      int64
-        c    float64
-        dtype: object
-
         >>> df = cv.records2df(records, types)
-        >>> df.sort_index(1)
-              a   b     c
-        0   one   2   NaN
-        1  five  10  20.1
-        >>> df.sort_index(1).dtypes
-        a     object
-        b      int32
-        c    float32
-        dtype: object
+        >>> columns = df.columns if pd else ft.get_values(df[0])
+        >>> set(columns) == {'a', 'b', 'c'}
+        True
+        >>> col_a = df.a.tolist() if pd else list(ft.get_values(df[1]))
+        >>> col_a == ['one', 'five']
+        True
+        >>> cols = df[['b', 'c']] if pd else df[2:]
+        >>> rest = cols.values.flatten() if pd else ft.get_values(cols)
+        >>> sorted(map(np.isfinite if pd else bool, rest))
+        [False, True, True, True]
 
         # Convert a DataFrame to records
-        >>> row = next(cv.df2records(df))
+        >>> converted = cv.df2records(df) if pd else cv.array2records(df, True)
+        >>> row = next(converted)
         >>> row['a'] == 'one'
         True
         >>> row['b']
         2
-        >>> np.isnan(row['c'])
+        >>> np.isnan(row['c']) if np else row['c'] == 0
         True
 
         # Convert records to a structured array
         >>> recarray = cv.records2array(records, types)
-        >>> recarray.a.tolist() == ['one', 'five']
+        >>> if pd:
+        ...     values = set(it.chain(*zip(*recarray)))
+        ... else:
+        ...     values = set(ft.get_values(recarray[1:]))
+        >>> values.issuperset({'one', 'five'})
         True
-        >>> recarray.b
-        array([ 2, 10], dtype=int32)
-        >>> clist = recarray.c.tolist()
-        >>> np.isnan(clist[0])
-        True
-        >>> clist[1]
-        20.100000381469727
+        >>> rest = (v for v in values if v not in {'one', 'five'})
+        >>> sorted(map(np.isfinite if pd else bool, rest))
+        [False, True, True, True]
+
+        # let's set the native array flag
+        >>> native = not np
 
         # Convert a 2-D array to records
-        >>> data = np.array([[1, 2, 3], [4, 5, 6]], 'i4')
-        >>> data
-        array([[1, 2, 3],
-               [4, 5, 6]], dtype=int32)
-
-        >>> next(cv.array2records(data)) == {
+        >>> arr = [[1, 2, 3], [4, 5, 6]] if np else [(1, 4), (2, 5), (3, 6)]
+        >>> data = np.array(arr, 'i4') if np else [array('i', a) for a in arr]
+        >>> next(cv.array2records(data, native)) == {
         ...     'column_1': 1, 'column_2': 2, 'column_3': 3}
         True
 
         # Convert a structured array to records
-        >>> row = next(cv.array2records(recarray))
+        >>> row = next(cv.array2records(recarray, native))
         >>> row['a'] == 'one'
         True
         >>> row['b']
         2
-        >>> np.isnan(row['c'])
+        >>> np.isnan(row['c']) if np else row['c'] == 0
         True
 
         # Convert records to a native array
         >>> narray = cv.records2array(records, result['types'], True)
-        >>> def get_values(narray):
-        ...     try:
-        ...         yield narray.tounicode()
-        ...     except ValueError:
-        ...         yield narray.tolist()
-        ...     except AttributeError:
-        ...         for n in narray:
-        ...             for x in get_values(n):
-        ...                 yield x
-        >>> values = list(get_values(narray))
-        >>> nested = ([x for x in v] for v in values if isinstance(v, list))
-        >>> set(it.chain.from_iterable(nested)) == {
-        ...     0.0, 20.100000381469727, 2, 10}
-        True
-        >>> set(v for v in values if not isinstance(v, list)) ==  {
-        ...     'a', 'b', 'c', 'one', 'five'}
+        >>> set(ft.get_values(narray)) == {
+        ...     'a', 'b', 'c', 'one', 'five', 0.0, 20.100000381469727, 2, 10}
         True
 
         # Convert native array to records

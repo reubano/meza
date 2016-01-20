@@ -20,6 +20,7 @@ from __future__ import (
     unicode_literals)
 
 import itertools as it
+import logging
 import sys
 
 from os import path as p
@@ -538,15 +539,18 @@ def array2records(data, native=False):
         `tabutils.convert.df2records`
 
     Examples:
-        >>> next(array2records(np.array([[1, 2, 3], [4, 5, 6]], 'i4'))) == {
-        ...     u'column_1': 1, u'column_2': 2, u'column_3': 3}
+        >>> arr = [[1, 2, 3], [4, 5, 6]] if np else [(1, 4), (2, 5), (3, 6)]
+        >>> data = np.array(arr, 'i4') if np else [array('i', a) for a in arr]
+        >>> native = not np
+        >>> next(array2records(data, native)) == {
+        ...     'column_1': 1, 'column_2': 2, 'column_3': 3}
         True
         >>> data = [
         ...     array('i', [1, 2, 3]),
         ...     array('f', [1.0, 2.0, 3.0]),
         ...     [array('u', 'one'), array('u', 'two'), array('u', 'three')]]
         >>> next(array2records(data, True)) == {
-        ...     u'column_1': 1, u'column_2': 1.0, u'column_3': 'one'}
+        ...     'column_1': 1, 'column_2': 1.0, 'column_3': 'one'}
         True
     """
     textify = lambda x: x.tounicode() if x.typecode == 'u' else x.tostring()
@@ -619,7 +623,7 @@ def df2records(df):
             yield dict(zip(keys, values[1:]))
 
 
-def records2array(records, types, native=False):
+def records2array(records, types, native=False, silent=False):
     """Converts records into either a numpy.recarray or a nested array.array
 
     Args:
@@ -628,7 +632,9 @@ def records2array(records, types, native=False):
 
         types (Iter[dict]):
 
-        native (bool): (default: False)
+        native (bool): Return a native array (default: False).
+
+        silent (bool): Supress the warning message (default: False).
 
     Returns:
         numpy.recarray
@@ -640,13 +646,15 @@ def records2array(records, types, native=False):
         >>> records = [{'alpha': 'aa', 'beta': 2}, {'alpha': 'bee', 'beta': 3}]
         >>> types = [
         ...     {'id': 'alpha', 'type': 'text'}, {'id': 'beta', 'type': 'int'}]
-        >>> records2array(records, types).alpha.tolist() == ['aa', 'bee']
+        >>> arr = records2array(records, types)
+        >>> columns = arr.alpha.tolist() if np else list(ft.get_values(arr[1]))
+        >>> columns == ['aa', 'bee']
         True
-        >>> records2array(records, types).beta
-        array([2, 3], dtype=int32)
+        >>> arr.beta.tolist() if np else list(ft.get_values(arr[2]))
+        [2, 3]
         >>> records2array(records, types, True) == [
-        ...     [array('u', u'alpha'), array('u', u'beta')],
-        ...     [array('u', u'aa'), array('u', u'bee')],
+        ...     [array('u', 'alpha'), array('u', 'beta')],
+        ...     [array('u', 'aa'), array('u', 'bee')],
         ...     array('i', [2, 3])]
         True
     """
@@ -668,6 +676,13 @@ def records2array(records, types, native=False):
         ndarray = np.array(data, dtype=ndtype)
         converted = ndarray.view(np.recarray)
     else:
+        if not (native or silent):
+            msg = (
+                "It looks like you don't have numpy installed. This function"
+                " will return a native array instead.")
+
+            logging.warning(msg)
+
         header = [array('u', t['id']) for t in types]
         data = (zip_longest(*([r.get(i) for i in ids] for r in records)))
 
@@ -705,14 +720,32 @@ def records2df(records, types):
         ...     {'col_1': 'alpha', 'col_2': 1.0},
         ...     {'col_1': 'beta', 'col_2': 2.3}]
         >>> types = [
-        ...     {'id': 'col_1', 'type': 'text'}, {'id': 'col_2', 'type': 'int'}]
-        >>> records2df(records, types)
-           col_1  col_2
-        0  alpha      1
-        1   beta      2
+        ...     {'id': 'col_1', 'type': 'text'},
+        ...     {'id': 'col_2', 'type': 'float'}]
+        >>> df = records2df(records, types)
+        >>> columns = df.columns.tolist() if pd else list(ft.get_values(df[0]))
+        >>> columns == ['col_1', 'col_2']
+        True
+        >>> col_1 = df.col_1.tolist() if pd else list(ft.get_values(df[1]))
+        >>> col_1 == ['alpha', 'beta']
+        True
+        >>> col_2 = df.col_2 if pd else ft.get_values(df[2])
+        >>> [np.round(v, 1) if pd else round(v, 1) for v in col_2]
+        [1.0, 2.3]
     """
-    recarray = records2array(records, types)
-    return pd.DataFrame.from_records(recarray)
+    recarray = records2array(records, types, silent=True)
+
+    if pd:
+        df = pd.DataFrame.from_records(recarray)
+    else:
+        msg = (
+            "It looks like you don't have pandas installed. This function"
+            " will return a native array instead.")
+
+        logging.warning(msg)
+        df = recarray
+
+    return df
 
 
 def records2csv(records, encoding=ENCODING, bom=False, skip_header=False):

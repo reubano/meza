@@ -20,6 +20,7 @@ from __future__ import (
     unicode_literals)
 
 import sys
+import logging
 
 from datetime import datetime as dt
 from builtins import *
@@ -43,4 +44,5 @@ if sys.version_info.major >= 3:
 else:
     from . import unicsv as csv
 
+logging.basicConfig()
 csv = csv

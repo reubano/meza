@@ -607,6 +607,21 @@ def chunk(content, chunksize=None, start=0, stop=None):
     return it.takewhile(bool, generator)
 
 
+def get_values(narray):
+    """
+    Returns the raw values from a nested list of arrays
+    """
+    try:
+        yield narray.tounicode()
+    except ValueError:
+        for l in narray.tolist():
+            yield l
+    except AttributeError:
+        for n in narray:
+            for x in get_values(n):
+                yield x
+
+
 def xmlize(content):
     """ Recursively makes elements of an array xml compliant
 

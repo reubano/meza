@@ -907,6 +907,27 @@ def cut(records, fields=None, exclude=False, prune=False):
     return filter(None, filtered) if prune else filtered
 
 
+def get_suffix(cpos, pos, k=None, count=None, chunksize=None):
+    """Determines the suffix based on a subchunk's position
+    """
+    subchunks = count and count < (chunksize or 'inf')
+
+    if subchunks and k is None:
+        args = (cpos + 1, pos + 1)
+        suffix = '{0:02d}_{1:03d}'.format(*args)
+    elif subchunks:
+        args = (k, cpos + 1, pos + 1)
+        suffix = '{0}_{1:02d}_{2:03d}'.format(*args)
+    elif chunksize and k is None:
+        suffix = '{0:03d}'.format(cpos + 1)
+    elif chunksize:
+        suffix = '{0}_{1:03d}'.format(k, cpos + 1)
+    else:
+        suffix = '' if k is None else k
+
+    return suffix
+
+
 def split(records, key=None, count=None, chunksize=None):
     """Split records into bite sized pieces. Like unix `split`, but for
     tabular data.
@@ -915,28 +936,13 @@ def split(records, key=None, count=None, chunksize=None):
 
     for cpos, records_chunk in enumerate(ft.chunk(records, chunksize)):
         if key:
-            for k, g in group(records_chunk, itemgetter(key)):
-                for pos, sub_records in enumerate(ft.chunk(g, count)):
-                    if count and count < (chunksize or 'inf'):
-                        args = (k, cpos + 1, pos + 1)
-                        suffix = '{0}_{1:02d}_{2:03d}'.format(*args)
-                    elif chunksize:
-                        suffix = '{0}_{1:03d}'.format(k, cpos + 1)
-                    else:
-                        suffix = k
-
-                    yield sub_records, suffix
+            groups = group(records_chunk, itemgetter(key))
         else:
-            for pos, sub_records in enumerate(ft.chunk(records, count)):
-                if count and count < (chunksize or 'inf'):
-                    args = (cpos + 1, pos + 1)
-                    suffix = '{0:02d}_{1:03d}'.format(*args)
-                elif chunksize:
-                    suffix = '{0:03d}'.format(cpos + 1)
-                else:
-                    suffix = ''
+            groups = [(None, records_chunk)]
 
-                yield sub_records, suffix
+        for k, g in groups:
+            for pos, sub_records in enumerate(ft.chunk(g, count)):
+                yield sub_records, get_suffix(cpos, pos, k, count, chunksize)
 
 
 def grep(records, rules, any_match=False, inverse=False):

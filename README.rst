@@ -13,7 +13,7 @@ Index
 Introduction
 ------------
 
-tabutils is a Python `library`_ for reading and processing tabular data.
+**tabutils** is a Python `library`_ for reading and processing tabular data.
 It has a functional programming style API, excels at reading, large files,
 and can process 10+ file types.
 
@@ -34,35 +34,35 @@ PyPy 4.0; and PyPy3 2.4
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^
 
-+------------------+-------------------------+-----------+--------------+--------------------------------+
-| File type        | Recognized extension(s) | Reader    | Dependency   | Installation                   |
-+==================+=========================+===========+==============+================================+
-| Microsoft Access | mdb                     | read_mdb  | `mdbtools`_  | ``sudo port install mdbtools`` |
-+------------------+-------------------------+-----------+--------------+--------------------------------+
-| HTML table       | html                    | read_html | `lxml`_ [#]_ | ``pip install lxml``           |
-+------------------+-------------------------+-----------+--------------+--------------------------------+
++------------------+-------------------------+---------------+--------------+--------------------------------+
+| File type        | Recognized extension(s) | Reader        | Dependency   | Installation                   |
++==================+=========================+===============+==============+================================+
+| Microsoft Access | mdb                     | ``read_mdb``  | `mdbtools`_  | ``sudo port install mdbtools`` |
++------------------+-------------------------+---------------+--------------+--------------------------------+
+| HTML table       | html                    | ``read_html`` | `lxml`_ [#]_ | ``pip install lxml``           |
++------------------+-------------------------+---------------+--------------+--------------------------------+
 
-==================================  ==========  ======================
-function                            Dependency  Installation
-==================================  ==========  ======================
-tabuils.convert.records2array [#]_  `numpy`_    ``pip install numpy``
-tabuils.convert.records2df          `pandas`_   ``pip install pandas``
-==================================  ==========  ======================
+=================================  =============  ======================
+function                           Dependency     Installation
+=================================  =============  ======================
+``tabutils.convert.records2array``  `NumPy`_ [#]_  ``pip install numpy``
+``tabutils.convert.records2df``     `pandas`_      ``pip install pandas``
+=================================  =============  ======================
 
 Notes
 ^^^^^
 .. [#] If ``lxml`` isn't present, ``read_html`` will default to the builtin Python html reader
 
-.. [#] ``records2array`` can be used without ``numpy`` by passing ``native=True`` in the function call. This will convert `records` into a list of native ``array.array`` objects.
+.. [#] ``records2array`` can be used without ``numpy`` by passing ``native=True`` in the function call. This will convert ``records`` into a list of native ``array.array`` objects.
 
 Motivation
 ----------
 
-Pandas is great, but installing it isn't exactly a `walk in the park`_. It also
+pandas is great, but installing it isn't exactly a `walk in the park`_. It also
 doesn't play nice with `PyPy`_. `csvkit`_ is an equally useful project, but it
 doesn't expose the same API when used as `a library`_ as it does via the command
-line. I designed tabutils to provide much of same functionality as
-Pandas and csvkit, while using functional programming methods.
+line. I designed **tabutils** to provide much of same functionality as
+pandas and csvkit, while using functional programming methods.
 
 A simple data processing example is shown below:
 
@@ -489,7 +489,7 @@ from records to arrays to records
     ... array('i', [2, 10]),
     ... array('f', [0.0, 20.100000381469727])]
 
-    """Convert a 2-D numpy array to a records generator"""
+    """Convert a 2-D NumPy array to a records generator"""
     data = np.array([[1, 2, 3], [4, 5, 6]], np.int32)
     data
     >>> array([[1, 2, 3],
@@ -609,7 +609,7 @@ Design Principles
 - make conversion between ``records``, ``arrays``, and ``DataFrames`` dead simple
 - whenever possible, lazily read objects and stream the result [#]_
 
-.. [#] Notable exceptions are ``tabutils.process.group``, ``tabutils.process.sort``, ``tabutils.io.read_dbf``, ``tabutils.io.read_yaml``, and ``tabutils.io.read_html`` which read the entire contents into memory up front.
+.. [#] Notable exceptions are ``tabutils.process.group``, ``tabutils.process.sort``, ``tabutils.io.read_dbf``, ``tabutils.io.read_yaml``, and ``tabutils.io.read_html``. These functions read the entire contents into memory up front.
 
 Readers
 -------
@@ -669,7 +669,7 @@ encoding if it is anything other than ``utf-8``, e.g.,
 
     from io import open
 
-    with open('path/to/file.csv') as f:
+    with open('path/to/file.xlsx') as f:
         records = io.read_xls(f, encoding='latin-1')
 
 Kwargs

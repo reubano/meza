@@ -125,8 +125,7 @@ Examples:
         3
 
         # Use a single column’s values to select data
-        >>> rules = [{'fields': ['A'], 'pattern': lambda x: x < 0.5}]
-        >>> next(pr.grep(df, rules)) == {
+        >>> next(pr.grep(df, [{'pattern': lambda x: x < 0.5}], ['A'])) == {
         ...     'A': 0.4627, 'B': 0.8633, 'C': 0.3283, 'D': 0.1909}
         True
 
@@ -173,8 +172,7 @@ Examples:
         >>> next(pr.cut(records, ['col_2'])) == {'col_2': 'dill'}
         True
 
-        >>> rules = [{'fields': ['col_2'], 'pattern': 'jane'}]
-        >>> next(pr.grep(records, rules)) == {
+        >>> next(pr.grep(records, [{'pattern': 'jane'}], ['col_2'])) == {
         ...     'col_1': '3', 'col_2': 'jane', 'col_3': 'female'}
         True
 

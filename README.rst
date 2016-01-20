@@ -214,8 +214,7 @@ and command output is preceded by ``>>>``.
     """Select all data whose value for column `A` is less than 0.5
     --> df[df.A < 0.5]
     """
-    rules = [{'fields': ['A'], 'pattern': lambda x: x < 0.5}]
-    next(pr.grep(df, rules))
+    next(pr.grep(df, [{'pattern': lambda x: x < 0.5}], ['A']))
     >>> {'A': 0.21000..., 'B': 0.25727..., 'C': 0.39719..., 'D': 0.64157...}
 
     # Note: since `aggregate` and `merge` (by definition) return just one row,
@@ -275,8 +274,7 @@ any supported file. E.g., ``read_xls``, ``read_sqlite``, etc.
     """Select all data whose value for column `col_1` contains `jane`
     --> csvgrep -c col_1 -m jane file1.csv
     """
-    rules = [{'fields': ['col_1'], 'pattern': 'jane'}]
-    next(pr.grep(records, rules))
+    next(pr.grep(records, [{'pattern': 'jane'}], ['col_1']))
     >>> {'col_1': '3', 'col_2': 'jane', 'col_3': 'female'}
 
     """Convert a csv file to json --> csvjson -i 4 file1.csv"""

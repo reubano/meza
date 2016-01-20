@@ -945,7 +945,7 @@ def split(records, key=None, count=None, chunksize=None):
                 yield sub_records, get_suffix(cpos, pos, k, count, chunksize)
 
 
-def grep(records, rules, any_match=False, inverse=False):
+def grep(records, rules, fields=None, any_match=False, inverse=False):
     """Yields rows which match all the given rules.
 
     Args:
@@ -956,6 +956,8 @@ def grep(records, rules, any_match=False, inverse=False):
             key whose value can be either a string, function, or regular
             expression. A `fields` key is optional and corresponds to the
             columns you wish to pattern match. Default is to search all columns.
+
+        fields (Iter[str]): Default fields if one isn't found in a rule.
 
         any_match (bool): Return records which match any of the rules
             (default: False)
@@ -978,13 +980,15 @@ def grep(records, rules, any_match=False, inverse=False):
         >>> rules = [{'fields': ['name'], 'pattern': 'o'}]
         >>> next(grep(records, rules))['name'] == 'rob'
         True
-        >>> rules = [{'fields': ['name'], 'pattern': re.compile(r'j.*e$')}]
-        >>> next(grep(records, rules))['name'] == 'jane'
+        >>> rules = [{'pattern': re.compile(r'j.*e$')}]
+        >>> next(grep(records, rules, ['name']))['name'] == 'jane'
         True
     """
     def predicate(record):
+        def_fields = fields or record.keys()
+
         for rule in rules:
-            for field in rule.get('fields', record.keys()):
+            for field in rule.get('fields', def_fields):
                 value = record[field]
                 p = rule['pattern']
 

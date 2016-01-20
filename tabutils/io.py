@@ -1037,11 +1037,10 @@ def write(filepath, content, mode='wb+', **kwargs):
         filepath (str): The file path or file like object to write to.
         content (obj): File like object or `requests` iterable response.
         mode (Optional[str]): The file open mode (default: 'wb+').
-        encoding (str): The file encoding.
-        encode (bool): Encode the content.
         kwargs: Keyword arguments.
 
     Kwargs:
+        encoding (str): The file encoding.
         chunksize (Optional[int]): Number of bytes to write at a time (default:
             None, i.e., all).
         length (Optional[int]): Length of content (default: 0).
@@ -1065,14 +1064,18 @@ def write(filepath, content, mode='wb+', **kwargs):
         length = int(kwargs.get('length') or 0)
         bar_len = kwargs.get('bar_len', 50)
         encoding = kwargs.get('encoding', ENCODING)
-        encode = kwargs.get('encode')
         progress = 0
 
         for c in ft.chunk(content, chunksize):
             text = ft.byte(c) if hasattr(c, 'sort') else c
-            encoded = c.encode(encoding) if encode else text
-            f.write(encoded)
-            progress += chunksize or len(encoded)
+
+            try:
+                f.write(text)
+            except (TypeError, UnicodeEncodeError):
+                text = bytes(text, encoding)
+                f.write(text)
+
+            progress += chunksize or len(text)
 
             if length:
                 bars = min(int(bar_len * progress / length), bar_len)

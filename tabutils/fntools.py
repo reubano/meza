@@ -1039,7 +1039,7 @@ def def_itemgetter(attr, default=None):
         ... # doctest: +ELLIPSIS
         Traceback (most recent call last):
         KeyError:...
-        >>> keyfunc = def_itemgetter('key')
+        >>> keyfunc = def_itemgetter('key', 0)
         >>> sorted(records, key=keyfunc, reverse=True)[0] == {'key': 3}
         True
     """

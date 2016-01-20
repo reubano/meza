@@ -20,6 +20,7 @@ from __future__ import (
     unicode_literals)
 
 import itertools as it
+import sys
 
 from os import path as p
 from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_DOWN
@@ -656,9 +657,14 @@ def records2array(records, types, native=False):
 
     if numpy:
         data = [tuple(r.get(id_) for id_ in ids) for r in records]
+        zipped = zip(ids, dtype)
 
         # dtype bug https://github.com/numpy/numpy/issues/2407
-        ndtype = [tuple(s.encode('ascii') for s in d) for d in zip(ids, dtype)]
+        if sys.version_info.major < 3:
+            ndtype = [tuple(s.encode('ascii') for s in d) for d in zipped]
+        else:
+            ndtype = list(zipped)
+
         ndarray = np.array(data, dtype=ndtype)
         converted = ndarray.view(np.recarray)
     else:

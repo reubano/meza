@@ -13,7 +13,7 @@ Index
 Introduction
 ------------
 
-tabutils is a Python library_ for reading and processing tabular data.
+tabutils is a Python `library`_ for reading and processing tabular data.
 It has a functional programming style API, excels at reading, large files,
 and can process 10+ file types.
 

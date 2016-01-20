@@ -21,6 +21,9 @@ Attributes:
     DEF_FALSES (tuple[str]): Values to be consider False
     ARRAY_TYPE (dict): Python to array.array type lookup table
     NP_TYPE (dict): Python to numpy type lookup table
+    DB_TYPE (dict): Python to postgres type lookup table
+    SQLITE_TYPE (dict): Python to sqlite type lookup table
+    ARRAY_NULL_TYPE (dict): None to array.array type lookup table
 """
 from __future__ import (
     absolute_import, division, print_function, with_statement,
@@ -30,6 +33,7 @@ import itertools as it
 import operator
 import logging
 import codecs
+import sys
 
 from functools import partial
 from collections import defaultdict
@@ -44,22 +48,63 @@ from functools import reduce
 
 DEF_TRUES = ('yes', 'y', 'true', 't')
 DEF_FALSES = ('no', 'n', 'false', 'f')
+
 NP_TYPE = {
+    'null': 'bool',
     'bool': 'bool',
     'int': 'i',
     'float': 'f',
     'double': 'd',
+    'decimal': 'd',
     'datetime': 'datetime64[us]',
     'time': 'timedelta64[us]',
     'date': 'datetime64[D]',
     'text': 'object_'}
 
 ARRAY_TYPE = {
+    'null': 'B',
     'bool': 'B',
     'int': 'i',
     'float': 'f',
     'double': 'd',
+    'decimal': 'd',
     'text': 'u'}
+
+POSTGRES_TYPE = {
+    'null': 'boolean',
+    'bool': 'boolean',
+    'int': 'integer',
+    'float': 'real',
+    'double': 'double precision',
+    'decimal': 'decimal',
+    'datetime': 'timestamp',
+    'time': 'time',
+    'date': 'date',
+    'text': 'text'}
+
+MYSQL_TYPE = {
+    'null': 'CHAR(0)',
+    'bool': 'BOOL',
+    'int': 'INT',
+    'float': 'FLOAT',
+    'double': 'DOUBLE',
+    'decimal': 'DECIMAL',
+    'datetime': 'DATETIME',
+    'time': 'TIME',
+    'date': 'DATE',
+    'text': 'TEXT'}
+
+SQLITE_TYPE = {
+    'null': 'INT',
+    'bool': 'INT',
+    'int': 'INT',
+    'float': 'REAL',
+    'double': 'REAL',
+    'decimal': 'REAL',
+    'datetime': 'TEXT',
+    'time': 'TEXT',
+    'date': 'TEXT',
+    'text': 'TEXT'}
 
 ARRAY_NULL_TYPE = {
     'B': False,
@@ -245,13 +290,16 @@ def get_ext(path):
     return file_format
 
 
-def get_dtype(type_, numpy=False):
-    if numpy:
-        dtype = NP_TYPE.get(type_, 'object_')
-    else:
-        dtype = ARRAY_TYPE.get(type_, 'u')
+def get_dtype(type_, dialect='array'):
+    switch = {
+        'numpy': NP_TYPE,
+        'array': ARRAY_TYPE,
+        'postgres': POSTGRES_TYPE,
+        'mysql': MYSQL_TYPE,
+        'sqlite': SQLITE_TYPE}
 
-    return dtype
+    converter = switch[dialect]
+    return converter.get(type_, converter['text'])
 
 
 def dedupe(content):
@@ -558,6 +606,34 @@ def chunk(content, chunksize=None, start=0, stop=None):
             generator = iter([list(i)])
 
     return it.takewhile(bool, generator)
+
+
+def get_values(narray):
+    """
+    Returns the raw values from a nested list of arrays
+    """
+    try:
+        yield narray.tounicode()
+    except ValueError:
+        for l in narray.tolist():
+            yield l
+    except AttributeError:
+        for n in narray:
+            for x in get_values(n):
+                yield x
+
+
+def get_native_str(text):
+    # dtype bug https://github.com/numpy/numpy/issues/2407
+    if sys.version_info.major < 3:
+        try:
+            encoded = text.encode('ascii')
+        except AttributeError:
+            encoded = text
+    else:
+        encoded = text
+
+    return encoded
 
 
 def xmlize(content):
@@ -992,7 +1068,7 @@ def def_itemgetter(attr, default=None):
         ... # doctest: +ELLIPSIS
         Traceback (most recent call last):
         KeyError:...
-        >>> keyfunc = def_itemgetter('key')
+        >>> keyfunc = def_itemgetter('key', 0)
         >>> sorted(records, key=keyfunc, reverse=True)[0] == {'key': 3}
         True
     """

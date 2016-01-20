@@ -12,16 +12,19 @@ Examples:
     Setup
 
         >>> import itertools as it
-        >>> import random
-        >>> import numpy as np
-        >>> import pandas as pd
+        >>> try:
+        ...     import pandas as pd
+        ... except ImportError:
+        ...     np = pd = None
+        ... else:
+        ...     import numpy as np
 
         >>> from io import StringIO
         >>> from array import array
         >>> from json import loads
         >>> from datetime import date
-        >>> from tabutils import io, process as pr, convert as cv, stats
-        >>> random.seed(30)
+        >>> from tabutils import (
+        ...     io, process as pr, convert as cv, fntools as ft, stats)
 
 
     Loading, type casting, and writing to a CSV file
@@ -75,7 +78,11 @@ Examples:
         >>> f = StringIO()
         >>> bool(io.write(f, cv.records2csv([merged])))
         True
-        >>> f.getvalue() == 'col2,col3\\r\\n2015-01-01,3\\r\\n'
+        >>> bool(f.seek(0))
+        False
+        >>> set(f.readline().rstrip().split(',')) == {'col2', 'col3'}
+        True
+        >>> set(f.readline().rstrip().split(',')) == {'2015-01-01', '3'}
         True
 
 
@@ -92,45 +99,42 @@ Examples:
 
         # Create a `records` compatible df
         >>> header = ['A', 'B', 'C', 'D']
-        >>> data = [(random.random() for _ in range(4)) for x in range(7)]
+        >>> data = [
+        ...     [0.5607, 0.9338, 0.4769, 0.7804],
+        ...     [0.8227, 0.2844, 0.8166, 0.7323],
+        ...     [0.4627, 0.8633, 0.3283, 0.1909],
+        ...     [0.3932, 0.5454, 0.9604, 0.6376],
+        ...     [0.3685, 0.9166, 0.9457, 0.8066],
+        ...     [0.7584, 0.6981, 0.5625, 0.3578],
+        ...     [0.8959, 0.6932, 0.2565, 0.3378]]
         >>> df = [dict(zip(header, d)) for d in data]
 
         >>> df[0] ==  {
-        ...     'A': 0.5390815646058106,
-        ...     'B': 0.2891964436397205,
-        ...     'C': 0.03003690855112706,
-        ...     'D': 0.6536357538927619}
+        ...     'A': 0.5607,
+        ...     'B': 0.9338,
+        ...     'C': 0.4769,
+        ...     'D': 0.7804}
         True
 
         >>> next(pr.sort(df, 'B')) == {
-        ...     'A': 0.535204782203361,
-        ...     'B': 0.06763103158333483,
-        ...     'C': 0.023510063056781383,
-        ...     'D': 0.8052942869277137}
+        ...     'A': 0.8227, 'B': 0.2844, 'C': 0.8166, 'D': 0.7323}
         True
-        >>> next(pr.cut(df, ['A'])) == {'A': 0.5390815646058106}
+        >>> next(pr.cut(df, ['A'])) == {'A': 0.5607}
         True
         >>> len(list(it.islice(df, 3)))
         3
 
         # Use a single column’s values to select data
-        >>> rules = [{'fields': ['A'], 'pattern': lambda x: x < 0.5}]
-        >>> next(pr.grep(df, rules)) == {
-        ...     'A': 0.21000869554973112,
-        ...     'B': 0.2572769749796092,
-        ...     'C': 0.39719826263322744,
-        ...     'D': 0.6415781537746728}
+        >>> next(pr.grep(df, [{'pattern': lambda x: x < 0.5}], ['A'])) == {
+        ...     'A': 0.4627, 'B': 0.8633, 'C': 0.3283, 'D': 0.1909}
         True
 
         # Aggregation
-        >>> pr.aggregate(df, 'A', stats.mean)['A']
-        0.5410437473067938
+        >>> round(pr.aggregate(df, 'A', stats.mean)['A'], 4)
+        0.6089
 
         >>> pr.merge(df, pred=bool, op=sum) == {
-        ...     'A': 3.787306231147557,
-        ...     'B': 2.828756979845426,
-        ...     'C': 3.141952839530555,
-        ...     'D': 5.263300500059669}
+        ...     'A': 4.2621, 'B': 4.9348, 'C': 4.3469, 'D': 3.8434}
         True
 
 
@@ -168,8 +172,7 @@ Examples:
         >>> next(pr.cut(records, ['col_2'])) == {'col_2': 'dill'}
         True
 
-        >>> rules = [{'fields': ['col_2'], 'pattern': 'jane'}]
-        >>> next(pr.grep(records, rules)) == {
+        >>> next(pr.grep(records, [{'pattern': 'jane'}], ['col_2'])) == {
         ...     'col_1': '3', 'col_2': 'jane', 'col_3': 'female'}
         True
 
@@ -265,75 +268,63 @@ Examples:
         True
 
         # Convert records to a DataFrame
-        >>> df = pd.DataFrame(records)
-        >>> df.sort_index(1)
-              a   b     c
-        0   one   2   NaN
-        1  five  10  20.1
-        >>> df.dtypes
-        a     object
-        b      int64
-        c    float64
-        dtype: object
-
         >>> df = cv.records2df(records, types)
-        >>> df.sort_index(1)
-              a   b     c
-        0   one   2   NaN
-        1  five  10  20.1
-        >>> df.dtypes
-        a     object
-        c    float32
-        b      int32
-        dtype: object
+        >>> columns = df.columns if pd else ft.get_values(df[0])
+        >>> set(columns) == {'a', 'b', 'c'}
+        True
+        >>> col_a = df.a.tolist() if pd else list(ft.get_values(df[1]))
+        >>> col_a == ['one', 'five']
+        True
+        >>> cols = df[['b', 'c']] if pd else df[2:]
+        >>> rest = cols.values.flatten() if pd else ft.get_values(cols)
+        >>> sorted(map(np.isfinite if pd else bool, rest))
+        [False, True, True, True]
 
         # Convert a DataFrame to records
-        >>> row = next(cv.df2records(df))
+        >>> converted = cv.df2records(df) if pd else cv.array2records(df, True)
+        >>> row = next(converted)
         >>> row['a'] == 'one'
         True
         >>> row['b']
         2
-        >>> np.isnan(row['c'])
+        >>> np.isnan(row['c']) if np else row['c'] == 0
         True
 
         # Convert records to a structured array
         >>> recarray = cv.records2array(records, types)
-        >>> recarray.a.tolist() == ['one', 'five']
+        >>> if pd:
+        ...     values = set(it.chain(*zip(*recarray)))
+        ... else:
+        ...     values = set(ft.get_values(recarray[1:]))
+        >>> values.issuperset({'one', 'five'})
         True
-        >>> recarray.b
-        array([ 2, 10], dtype=int32)
-        >>> clist = recarray.c.tolist()
-        >>> np.isnan(clist[0])
-        True
-        >>> clist[1]
-        20.100000381469727
+        >>> rest = (v for v in values if v not in {'one', 'five'})
+        >>> sorted(map(np.isfinite if pd else bool, rest))
+        [False, True, True, True]
+
+        # let's set the native array flag
+        >>> native = not np
 
         # Convert a 2-D array to records
-        >>> data = np.array([[1, 2, 3], [4, 5, 6]], 'i4')
-        >>> data
-        array([[1, 2, 3],
-               [4, 5, 6]], dtype=int32)
-
-        >>> next(cv.array2records(data)) == {
+        >>> arr = [[1, 2, 3], [4, 5, 6]] if np else [(1, 4), (2, 5), (3, 6)]
+        >>> data = np.array(arr, 'i4') if np else [array('i', a) for a in arr]
+        >>> next(cv.array2records(data, native)) == {
         ...     'column_1': 1, 'column_2': 2, 'column_3': 3}
         True
 
         # Convert a structured array to records
-        >>> row = next(cv.array2records(recarray))
+        >>> row = next(cv.array2records(recarray, native))
         >>> row['a'] == 'one'
         True
         >>> row['b']
         2
-        >>> np.isnan(row['c'])
+        >>> np.isnan(row['c']) if np else row['c'] == 0
         True
 
         # Convert records to a native array
         >>> narray = cv.records2array(records, result['types'], True)
-        >>> narray == [
-        ...     [array('u', 'a'), array('u', 'c'), array('u', 'b')],
-        ...     [array('u', 'one'), array('u', 'five')],
-        ...     array('f', [0.0, 20.100000381469727]),
-        ...     array('i', [2, 10])]
+        >>> set(ft.get_values(narray)) == {
+        ...     'a', 'b', 'c', 'one', 'five', 0.0, 20.100000381469727, 2, 10}
         True
 
         # Convert native array to records
@@ -347,22 +338,29 @@ Examples:
 
         # Create some data in the same structure as what the various `read...`
         # functions output
-        >>> data = [(random.random() for _ in range(4)) for x in range(7)]
+        >>> data = [
+        ...     [0.5607, 0.9338, 0.4769, 0.7804],
+        ...     [0.8227, 0.2844, 0.8166, 0.7323],
+        ...     [0.4627, 0.8633, 0.3283, 0.1909],
+        ...     [0.3932, 0.5454, 0.9604, 0.6376],
+        ...     [0.3685, 0.9166, 0.9457, 0.8066],
+        ...     [0.7584, 0.6981, 0.5625, 0.3578],
+        ...     [0.8959, 0.6932, 0.2565, 0.3378]]
         >>> records = [dict(zip(header, d)) for d in data]
 
         # Select multiple columns
         >>> next(pr.cut(records, ['A', 'B'], exclude=True)) == {
-        ...     'C': 0.11175001869696033, 'D': 0.4944504196475903}
+        ...     'C': 0.4769, 'D': 0.7804}
         True
 
         # Concatenate records together
         >>> pieces = [it.islice(records, 3), it.islice(records, 3, None)]
         >>> concated = it.chain(*pieces)
         >>> next(concated) == {
-        ...     'A': 0.6387228188088844,
-        ...     'B': 0.8951756504920998,
-        ...     'C': 0.11175001869696033,
-        ...     'D': 0.4944504196475903}
+        ...     'A': 0.5607,
+        ...     'B': 0.9338,
+        ...     'C': 0.4769,
+        ...     'D': 0.7804}
         True
         >>> len(list(concated)) + 1
         7
@@ -389,45 +387,36 @@ Examples:
         True
 
         # Pivot tables
-        >>> rrange = random.sample(range(-10, 10), 12)
         >>> a = ['one', 'one', 'two', 'three'] * 3
         >>> b = ['ah', 'beh', 'say'] * 4
         >>> c = ['foo', 'foo', 'foo', 'bar', 'bar', 'bar'] * 2
-        >>> d = (random.random() * x for x in rrange)
+        >>> d = [
+        ...     -0.5616, 2.2791, -3.9950, -0.6289, 4.6962, 0.9220,
+        ...     -3.8169, -6.0872, -1.8378, 3.3339, 0.7682, 1.3109]
         >>> values = zip(a, b, c, d)
         >>> records = (dict(zip(header, v)) for v in values)
         >>> records, peek = pr.peek(records)
+        >>> set(int(p['D'] or 0) for p in peek).issubset({0, 2, 4, -3})
+        True
         >>> peek == [
-        ...     {'A': 'one', 'B': 'ah', 'C': 'foo', 'D': -3.6982230400621234},
-        ...     {'A': 'one', 'B': 'beh', 'C': 'foo', 'D': -3.720184399162731},
-        ...     {'A': 'two', 'B': 'say', 'C': 'foo', 'D': 1.0214689218724586},
-        ...     {'A': 'three', 'B': 'ah', 'C': 'bar', 'D': 0.38015862302086945},
-        ...     {'A': 'one', 'B': 'beh', 'C': 'bar', 'D': 0.0}]
+        ...     {'A': 'one', 'B': 'ah', 'C': 'foo', 'D': -0.5616},
+        ...     {'A': 'one', 'B': 'beh', 'C': 'foo', 'D': 2.2791},
+        ...     {'A': 'two', 'B': 'say', 'C': 'foo', 'D': -3.995},
+        ...     {'A': 'three', 'B': 'ah', 'C': 'bar', 'D': -0.6289},
+        ...     {'A': 'one', 'B': 'beh', 'C': 'bar', 'D': 4.6962}]
         True
 
         >>> pivot = pr.pivot(records, 'D', 'C')
         >>> pivot, peek = pr.peek(pivot)
-        >>> peek == [
-        ... {
-        ...     'A': 'one', 'B': 'ah', 'bar': 2.2393327345103637,
-        ...     'foo': -3.6982230400621234},
-        ... {'A': 'one', 'B': 'beh', 'bar': 0.0, 'foo': -3.720184399162731},
-        ... {
-        ...     'A': 'one', 'B': 'say', 'bar': 2.6759543278059583,
-        ...     'foo': -5.557746676883692},
-        ... {'A': 'three', 'B': 'ah', 'bar': 0.38015862302086945},
-        ... {'A': 'three', 'B': 'beh', 'foo': 5.794308531883553}]
+        >>> set(int(p.get('bar', 0)) for p in peek).issubset({0, 3, 4})
+        True
+        >>> set(int(p.get('foo', 0)) for p in peek).issubset({0, 2, -6, -3, -1})
         True
 
         # Data normalization
         >>> normal = pr.normalize(pivot, 'D', 'C', ['foo', 'bar'])
         >>> normal, peek = pr.peek(normal)
-        >>> peek == [
-        ...     {'A': 'one', 'B': 'ah', 'C': 'foo', 'D': -3.6982230400621234},
-        ...     {'A': 'one', 'B': 'ah', 'C': 'bar', 'D': 2.2393327345103637},
-        ...     {'A': 'one', 'B': 'beh', 'C': 'foo', 'D': -3.720184399162731},
-        ...     {'A': 'one', 'B': 'beh', 'C': 'bar', 'D': 0.0},
-        ...     {'A': 'one', 'B': 'say', 'C': 'foo', 'D': -5.557746676883692}]
+        >>> set(int(p['D'] or 0) for p in peek).issubset({0, 2, 3, 4, -3, -1})
         True
 
 """

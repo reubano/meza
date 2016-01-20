@@ -20,11 +20,12 @@ from __future__ import (
     unicode_literals)
 
 import sys
+import logging
 
 from datetime import datetime as dt
 from builtins import *
 
-__version__ = '0.26.0'
+__version__ = '0.27.0'
 
 __title__ = 'tabutils'
 __package_name__ = 'tabutils'
@@ -40,9 +41,8 @@ DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
 
 if sys.version_info.major >= 3:
     import csv
-    import statistics as stats
 else:
-    from . import py2stats as stats, unicsv as csv
+    from . import unicsv as csv
 
+logging.basicConfig()
 csv = csv
-stats = stats

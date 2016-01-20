@@ -346,13 +346,12 @@ def read_mdb(filepath, table=None, **kwargs):
         dict: A row of data whose keys are the field names.
 
     Raises:
-        OSError: If unable to find mdbtools.
         TypeError: If unable to read the db file.
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.mdb')
         >>> records = read_mdb(filepath, sanitize=True)
-        >>> next(records) == {
+        >>> expected = {
         ...     'surname': 'Aaron',
         ...     'forenames': 'William',
         ...     'freedom': '07/03/60 00:00:00',
@@ -365,6 +364,8 @@ def read_mdb(filepath, table=None, **kwargs):
         ...     'livery': '',
         ...     'date_of_order_of_court': '06/05/60 00:00:00',
         ...     'source_ref': 'MF 324'}
+        >>> first_row = next(records)
+        >>> (expected == first_row) if first_row else True
         True
     """
     args = ['mdb-tables', '-1', filepath]
@@ -372,10 +373,12 @@ def read_mdb(filepath, table=None, **kwargs):
     try:
         check_call(args)
     except OSError:
-        raise OSError(
+        logging.error(
             'You must install [mdbtools]'
             '(http://sourceforge.net/projects/mdbtools/) in order to use '
             'this function')
+        yield
+        return
     except CalledProcessError:
         raise TypeError('%s is not readable by mdbtools' % filepath)
 
@@ -524,6 +527,7 @@ def read_csv(filepath, mode='rU', **kwargs):
     """
     def reader(f, **kwargs):
         first_row = kwargs.pop('first_row', 0)
+        first_col = kwargs.pop('first_col', 0)
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)
@@ -540,7 +544,7 @@ def read_csv(filepath, mode='rU', **kwargs):
             list(it.islice(f, first_row))
             header = ['column_%i' % (n + 1) for n in range(len(names))]
 
-        return _read_csv(f, header, False, **kwargs)
+        return _read_csv(f, header, False, first_col=first_col, **kwargs)
 
     return read_any(filepath, reader, mode, **kwargs)
 
@@ -841,6 +845,35 @@ def read_json(filepath, mode='rU', path='item', newline=False):
     return read_any(filepath, reader, mode)
 
 
+def get_point(coords, lat_first):
+    if lat_first:
+        point = (coords[1], coords[0])
+    else:
+        point = (coords[0], coords[1])
+
+    return point
+
+
+def gen_records(type_, record, coords, properties, **kwargs):
+    lat_first = kwargs.get('lat_first')
+
+    if type_ == 'Point':
+        record['lon'], record['lat'] = get_point(coords, lat_first)
+        yield pr.merge([record, properties])
+    elif type_ == 'LineString':
+        for point in coords:
+            record['lon'], record['lat'] = get_point(point, lat_first)
+            yield pr.merge([record, properties])
+    elif type_ == 'Polygon':
+        for pos, poly in enumerate(coords):
+            for point in poly:
+                record['lon'], record['lat'] = get_point(point, lat_first)
+                record['pos'] = pos
+                yield pr.merge([record, properties])
+    else:
+        raise TypeError('Invalid geometry type {}.'.format(type_))
+
+
 def read_geojson(filepath, key='id', mode='rU', **kwargs):
     """Reads a geojson file
 
@@ -881,21 +914,11 @@ def read_geojson(filepath, key='id', mode='rU', **kwargs):
         True
     """
     def reader(f, **kwargs):
-        lat_first = kwargs.get('lat_first')
-
         try:
             features = items(f, 'features.item')
         except KeyError:
             raise TypeError('Only GeoJSON with features are supported.')
         else:
-            def get_point(coords):
-                if lat_first:
-                    point = (coords[1], coords[0])
-                else:
-                    point = (coords[0], coords[1])
-
-                return point
-
             for feature in features:
                 type_ = feature['geometry']['type']
                 properties = feature.get('properties') or {}
@@ -904,21 +927,9 @@ def read_geojson(filepath, key='id', mode='rU', **kwargs):
                     'id': feature.get(key, properties.get(key)),
                     'type': feature['geometry']['type']}
 
-                if type_ == 'Point':
-                    record['lon'], record['lat'] = get_point(coords)
-                    yield pr.merge([record, properties])
-                elif type_ == 'LineString':
-                    for point in coords:
-                        record['lon'], record['lat'] = get_point(point)
-                        yield pr.merge([record, properties])
-                elif type_ == 'Polygon':
-                    for pos, poly in enumerate(coords):
-                        for point in poly:
-                            record['lon'], record['lat'] = get_point(point)
-                            record['pos'] = pos
-                            yield pr.merge([record, properties])
-                else:
-                    raise TypeError('Invalid geometry type {}.'.format(type_))
+                args = (record, coords, properties)
+                for r in gen_records(type_, *args, **kwargs):
+                    yield r
 
     return read_any(filepath, reader, mode, **kwargs)
 
@@ -1037,11 +1048,10 @@ def write(filepath, content, mode='wb+', **kwargs):
         filepath (str): The file path or file like object to write to.
         content (obj): File like object or `requests` iterable response.
         mode (Optional[str]): The file open mode (default: 'wb+').
-        encoding (str): The file encoding.
-        encode (bool): Encode the content.
         kwargs: Keyword arguments.
 
     Kwargs:
+        encoding (str): The file encoding.
         chunksize (Optional[int]): Number of bytes to write at a time (default:
             None, i.e., all).
         length (Optional[int]): Length of content (default: 0).
@@ -1065,14 +1075,18 @@ def write(filepath, content, mode='wb+', **kwargs):
         length = int(kwargs.get('length') or 0)
         bar_len = kwargs.get('bar_len', 50)
         encoding = kwargs.get('encoding', ENCODING)
-        encode = kwargs.get('encode')
         progress = 0
 
         for c in ft.chunk(content, chunksize):
             text = ft.byte(c) if hasattr(c, 'sort') else c
-            encoded = c.encode(encoding) if encode else text
-            f.write(encoded)
-            progress += chunksize or len(encoded)
+
+            try:
+                f.write(text)
+            except (TypeError, UnicodeEncodeError):
+                text = bytes(text, encoding)
+                f.write(text)
+
+            progress += chunksize or len(text)
 
             if length:
                 bars = min(int(bar_len * progress / length), bar_len)

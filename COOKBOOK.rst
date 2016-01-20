@@ -13,6 +13,7 @@ Command output is preceded by ``>>>``.
     from tabutils import io, process as pr, convert as cv
     from io import StringIO
 
+    # To setup, lets define a universal header
     header = ['A', 'B', 'C', 'D']
 
     # Create some data in the same structure as what the various `read...`
@@ -36,7 +37,7 @@ Command output is preceded by ``>>>``.
     len(list(concated)) + 1
     >>> 7
 
-    # Now let's create two records sets that we want to join
+    # Now let's create two sets of records that we want to join
     left = [{'key': 'foo', 'lval': 1}, {'key': 'foo', 'lval': 2}]
     right = [{'key': 'foo', 'rval': 4}, {'key': 'foo', 'rval': 5}]
 
@@ -48,7 +49,7 @@ Command output is preceded by ``>>>``.
     ... {'key': 'foo', 'lval': 2, 'rval': 4},
     ... {'key': 'foo', 'lval': 2, 'rval': 5}]
 
-    # Now let's create a new records like iterator
+    # Now let's create a new records-like list
     records = [
         {'A': 'foo', 'B': -1.202872},
         {'A': 'bar', 'B': 1.814470},
@@ -65,9 +66,7 @@ Command output is preceded by ``>>>``.
     list(pr.group(records, 'A', **kwargs)
     >>> [{'A': 'bar', 'B': 1.219023}, {'A': 'foo', 'B': 0.600015}]
 
-    """Pivot tables
-    --> pd.pivot_table(records, values='D', index=['A', 'B'], columns=['C'])
-    """
+    # Now lets generate some random data to manipulate
     rrange = random.sample(range(-10, 10), 12)
     a = ['one', 'one', 'two', 'three'] * 3
     b = ['ah', 'beh', 'say'] * 4
@@ -87,7 +86,10 @@ Command output is preceded by ``>>>``.
     ... {'A': 'three', 'B': 'ah', 'C': 'bar', 'D': 0.38015},
     ... {'A': 'one', 'B': 'beh', 'C': 'bar', 'D': 0.0}]
 
-    # Now lets pivot the data
+    """Pivot tables
+    --> pd.pivot_table(records, values='D', index=['A', 'B'], columns=['C'])
+    """
+    # Let's create a classic excel style pivot table
     pivot = pr.pivot(records, 'D', 'C')
     pivot, peek = pr.peek(pivot)
     peek

@@ -34,17 +34,26 @@ PyPy 4.0; and PyPy3 2.4
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^
 
-+------------------+-------------------------+-----------+--------------+----------------------------+
-| File type        | Recognized extension(s) | Reader    | Dependency   | Installation               |
-+==================+=========================+===========+==============+============================+
-| Microsoft Access | mdb                     | read_mdb  | `mdbtools`_  | sudo port install mdbtools |
-+------------------+-------------------------+-----------+--------------+----------------------------+
-| HTML table       | html                    | read_html | `lxml`_ [#]_ | pip install lxml           |
-+------------------+-------------------------+-----------+--------------+----------------------------+
++------------------+-------------------------+-----------+--------------+--------------------------------+
+| File type        | Recognized extension(s) | Reader    | Dependency   | Installation                   |
++==================+=========================+===========+==============+================================+
+| Microsoft Access | mdb                     | read_mdb  | `mdbtools`_  | ``sudo port install mdbtools`` |
++------------------+-------------------------+-----------+--------------+--------------------------------+
+| HTML table       | html                    | read_html | `lxml`_ [#]_ | ``pip install lxml``           |
++------------------+-------------------------+-----------+--------------+--------------------------------+
+
+==================================  ==========  ======================
+function                            Dependency  Installation
+==================================  ==========  ======================
+tabuils.convert.records2array [#]_  `numpy`_    ``pip install numpy``
+tabuils.convert.records2df          `pandas`_   ``pip install pandas``
+==================================  ==========  ======================
 
 Notes
 ^^^^^
 .. [#] If ``lxml`` isn't present, ``read_html`` will default to the builtin Python html reader
+
+.. [#] ``records2array`` can be used without ``numpy`` by passing ``native=True`` in the function call. This will convert `records` into a list of native ``array.array`` objects.
 
 Motivation
 ----------
@@ -420,6 +429,8 @@ setup
 
 .. code-block:: python
 
+    from tabutils import process as pr
+
     # First create some records and types. Also, convert the records to a list
     # so we can reuse them.
     records = [{'a': 'one', 'b': 2}, {'a': 'five', 'b': 10, 'c': 20.1}]
@@ -490,7 +501,7 @@ from records to arrays to records
     next(cv.array2records(recarray))
     >>> {'a': 'one', 'b': 2, 'c': nan}
 
-    """Convert the native array back to records"""
+    """Convert the native array back to records generator"""
     next(cv.array2records(narray, native=True))
     {'a': 'one', 'b': 2, 'c': 0.0}
 
@@ -734,6 +745,7 @@ tabutils is distributed under the `MIT License`_.
 .. _mdbtools: http://sourceforge.net/projects/mdbtools/
 .. _lxml: http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
 .. _library: #usage
+.. _numpy: https://github.com/numpy/numpy
 .. _a library: https://csvkit.readthedocs.org/en/0.9.1/api/csvkit.py3.html
 .. _PyPy: https://github.com/pydata/pandas/issues/9532
 .. _walk in the park: http://pandas.pydata.org/pandas-docs/stable/install.html#installing-pandas-with-anaconda

@@ -7,6 +7,15 @@ python:
   - "pypy"
   - "pypy3"
 
+cache:
+  directories:
+    - ~/.cache/pip
+
+env:
+  global:
+    - PIP_WHEEL_DIR=$HOME/.cache/pip/wheels
+    - PIP_FIND_LINKS=file://$HOME/.cache/pip/wheels
+
 notifications:
   email:
     on_success: always
@@ -15,10 +24,15 @@ branches:
   except:
     - /^v[0-9]/
 
+before_install:
+  - pip install -U pip
+  - pip install wheel
+
 install:
   - pip install -r dev-requirements.txt
   - if [[ $TRAVIS_PYTHON_VERSION == 2.7 ]]; then pip install future==0.15.2; fi
   - if [[ "$TRAVIS_PYTHON_VERSION" == "pypy" ]]; then pip install future==0.15.2; fi
+  - if [[ "$TRAVIS_PYTHON_VERSION" != "pypy"* ]]; then pip wheel -r optional-requirements.txt; fi
   - if [[ "$TRAVIS_PYTHON_VERSION" != "pypy"* ]]; then pip install -r optional-requirements.txt; fi
 
 script:

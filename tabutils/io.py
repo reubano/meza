@@ -524,6 +524,7 @@ def read_csv(filepath, mode='rU', **kwargs):
     """
     def reader(f, **kwargs):
         first_row = kwargs.pop('first_row', 0)
+        first_col = kwargs.pop('first_col', 0)
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)
@@ -540,7 +541,7 @@ def read_csv(filepath, mode='rU', **kwargs):
             list(it.islice(f, first_row))
             header = ['column_%i' % (n + 1) for n in range(len(names))]
 
-        return _read_csv(f, header, False, **kwargs)
+        return _read_csv(f, header, False, first_col=first_col, **kwargs)
 
     return read_any(filepath, reader, mode, **kwargs)
 

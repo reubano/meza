@@ -12,7 +12,6 @@ Examples:
     Setup
 
         >>> import itertools as it
-        >>> import random
         >>> import numpy as np
         >>> import pandas as pd
 
@@ -21,7 +20,6 @@ Examples:
         >>> from json import loads
         >>> from datetime import date
         >>> from tabutils import io, process as pr, convert as cv, stats
-        >>> random.seed(30)
 
 
     Loading, type casting, and writing to a CSV file
@@ -96,23 +94,27 @@ Examples:
 
         # Create a `records` compatible df
         >>> header = ['A', 'B', 'C', 'D']
-        >>> data = [(random.random() for _ in range(4)) for x in range(7)]
+        >>> data = [
+        ...     [0.5607, 0.9338, 0.4769, 0.7804],
+        ...     [0.8227, 0.2844, 0.8166, 0.7323],
+        ...     [0.4627, 0.8633, 0.3283, 0.1909],
+        ...     [0.3932, 0.5454, 0.9604, 0.6376],
+        ...     [0.3685, 0.9166, 0.9457, 0.8066],
+        ...     [0.7584, 0.6981, 0.5625, 0.3578],
+        ...     [0.8959, 0.6932, 0.2565, 0.3378]]
         >>> df = [dict(zip(header, d)) for d in data]
 
         >>> df[0] ==  {
-        ...     'A': 0.5390815646058106,
-        ...     'B': 0.2891964436397205,
-        ...     'C': 0.03003690855112706,
-        ...     'D': 0.6536357538927619}
+        ...     'A': 0.5607,
+        ...     'B': 0.9338,
+        ...     'C': 0.4769,
+        ...     'D': 0.7804}
         True
 
         >>> next(pr.sort(df, 'B')) == {
-        ...     'A': 0.535204782203361,
-        ...     'B': 0.06763103158333483,
-        ...     'C': 0.023510063056781383,
-        ...     'D': 0.8052942869277137}
+        ...     'A': 0.8227, 'B': 0.2844, 'C': 0.8166, 'D': 0.7323}
         True
-        >>> next(pr.cut(df, ['A'])) == {'A': 0.5390815646058106}
+        >>> next(pr.cut(df, ['A'])) == {'A': 0.5607}
         True
         >>> len(list(it.islice(df, 3)))
         3
@@ -120,21 +122,15 @@ Examples:
         # Use a single column’s values to select data
         >>> rules = [{'fields': ['A'], 'pattern': lambda x: x < 0.5}]
         >>> next(pr.grep(df, rules)) == {
-        ...     'A': 0.21000869554973112,
-        ...     'B': 0.2572769749796092,
-        ...     'C': 0.39719826263322744,
-        ...     'D': 0.6415781537746728}
+        ...     'A': 0.4627, 'B': 0.8633, 'C': 0.3283, 'D': 0.1909}
         True
 
         # Aggregation
-        >>> pr.aggregate(df, 'A', stats.mean)['A']
-        0.5410437473067938
+        >>> round(pr.aggregate(df, 'A', stats.mean)['A'], 4)
+        0.6089
 
         >>> pr.merge(df, pred=bool, op=sum) == {
-        ...     'A': 3.787306231147557,
-        ...     'B': 2.828756979845426,
-        ...     'C': 3.141952839530555,
-        ...     'D': 5.263300500059669}
+        ...     'A': 4.2621, 'B': 4.9348, 'C': 4.3469, 'D': 3.8434}
         True
 
 
@@ -362,22 +358,29 @@ Examples:
 
         # Create some data in the same structure as what the various `read...`
         # functions output
-        >>> data = [(random.random() for _ in range(4)) for x in range(7)]
+        >>> data = [
+        ...     [0.5607, 0.9338, 0.4769, 0.7804],
+        ...     [0.8227, 0.2844, 0.8166, 0.7323],
+        ...     [0.4627, 0.8633, 0.3283, 0.1909],
+        ...     [0.3932, 0.5454, 0.9604, 0.6376],
+        ...     [0.3685, 0.9166, 0.9457, 0.8066],
+        ...     [0.7584, 0.6981, 0.5625, 0.3578],
+        ...     [0.8959, 0.6932, 0.2565, 0.3378]]
         >>> records = [dict(zip(header, d)) for d in data]
 
         # Select multiple columns
         >>> next(pr.cut(records, ['A', 'B'], exclude=True)) == {
-        ...     'C': 0.11175001869696033, 'D': 0.4944504196475903}
+        ...     'C': 0.4769, 'D': 0.7804}
         True
 
         # Concatenate records together
         >>> pieces = [it.islice(records, 3), it.islice(records, 3, None)]
         >>> concated = it.chain(*pieces)
         >>> next(concated) == {
-        ...     'A': 0.6387228188088844,
-        ...     'B': 0.8951756504920998,
-        ...     'C': 0.11175001869696033,
-        ...     'D': 0.4944504196475903}
+        ...     'A': 0.5607,
+        ...     'B': 0.9338,
+        ...     'C': 0.4769,
+        ...     'D': 0.7804}
         True
         >>> len(list(concated)) + 1
         7
@@ -404,33 +407,36 @@ Examples:
         True
 
         # Pivot tables
-        >>> rrange = random.sample(range(-10, 10), 12)
         >>> a = ['one', 'one', 'two', 'three'] * 3
         >>> b = ['ah', 'beh', 'say'] * 4
         >>> c = ['foo', 'foo', 'foo', 'bar', 'bar', 'bar'] * 2
-        >>> d = (random.random() * x for x in rrange)
+        >>> d = [
+        ...     -0.5616, 2.2791, -3.9950, -0.6289, 4.6962, 0.9220,
+        ...     -3.8169, -6.0872, -1.8378, 3.3339, 0.7682, 1.3109]
         >>> values = zip(a, b, c, d)
         >>> records = (dict(zip(header, v)) for v in values)
         >>> records, peek = pr.peek(records)
+        >>> set(int(p['D'] or 0) for p in peek).issubset({0, 2, 4, -3})
+        True
         >>> peek == [
-        ...     {'A': 'one', 'B': 'ah', 'C': 'foo', 'D': -3.6982230400621234},
-        ...     {'A': 'one', 'B': 'beh', 'C': 'foo', 'D': -3.720184399162731},
-        ...     {'A': 'two', 'B': 'say', 'C': 'foo', 'D': 1.0214689218724586},
-        ...     {'A': 'three', 'B': 'ah', 'C': 'bar', 'D': 0.38015862302086945},
-        ...     {'A': 'one', 'B': 'beh', 'C': 'bar', 'D': 0.0}]
+        ...     {'A': 'one', 'B': 'ah', 'C': 'foo', 'D': -0.5616},
+        ...     {'A': 'one', 'B': 'beh', 'C': 'foo', 'D': 2.2791},
+        ...     {'A': 'two', 'B': 'say', 'C': 'foo', 'D': -3.995},
+        ...     {'A': 'three', 'B': 'ah', 'C': 'bar', 'D': -0.6289},
+        ...     {'A': 'one', 'B': 'beh', 'C': 'bar', 'D': 4.6962}]
         True
 
         >>> pivot = pr.pivot(records, 'D', 'C')
         >>> pivot, peek = pr.peek(pivot)
-        >>> set(int(p.get('bar', 0)) for p in peek).issubset({0, 2})
+        >>> set(int(p.get('bar', 0)) for p in peek).issubset({0, 3, 4})
         True
-        >>> set(int(p.get('foo', 0)) for p in peek).issubset({-5, -3, -2, 0, 5})
+        >>> set(int(p.get('foo', 0)) for p in peek).issubset({0, 2, -6, -3, -1})
         True
 
         # Data normalization
         >>> normal = pr.normalize(pivot, 'D', 'C', ['foo', 'bar'])
         >>> normal, peek = pr.peek(normal)
-        >>> set(int(p['D'] or 0) for p in peek).issubset({-5, -3, -2, 0, 2})
+        >>> set(int(p['D'] or 0) for p in peek).issubset({0, 2, 3, 4, -3, -1})
         True
 
 """

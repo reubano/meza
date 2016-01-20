@@ -845,6 +845,35 @@ def read_json(filepath, mode='rU', path='item', newline=False):
     return read_any(filepath, reader, mode)
 
 
+def get_point(coords, lat_first):
+    if lat_first:
+        point = (coords[1], coords[0])
+    else:
+        point = (coords[0], coords[1])
+
+    return point
+
+
+def gen_records(type_, record, coords, properties, **kwargs):
+    lat_first = kwargs.get('lat_first')
+
+    if type_ == 'Point':
+        record['lon'], record['lat'] = get_point(coords, lat_first)
+        yield pr.merge([record, properties])
+    elif type_ == 'LineString':
+        for point in coords:
+            record['lon'], record['lat'] = get_point(point, lat_first)
+            yield pr.merge([record, properties])
+    elif type_ == 'Polygon':
+        for pos, poly in enumerate(coords):
+            for point in poly:
+                record['lon'], record['lat'] = get_point(point, lat_first)
+                record['pos'] = pos
+                yield pr.merge([record, properties])
+    else:
+        raise TypeError('Invalid geometry type {}.'.format(type_))
+
+
 def read_geojson(filepath, key='id', mode='rU', **kwargs):
     """Reads a geojson file
 
@@ -885,21 +914,11 @@ def read_geojson(filepath, key='id', mode='rU', **kwargs):
         True
     """
     def reader(f, **kwargs):
-        lat_first = kwargs.get('lat_first')
-
         try:
             features = items(f, 'features.item')
         except KeyError:
             raise TypeError('Only GeoJSON with features are supported.')
         else:
-            def get_point(coords):
-                if lat_first:
-                    point = (coords[1], coords[0])
-                else:
-                    point = (coords[0], coords[1])
-
-                return point
-
             for feature in features:
                 type_ = feature['geometry']['type']
                 properties = feature.get('properties') or {}
@@ -908,21 +927,9 @@ def read_geojson(filepath, key='id', mode='rU', **kwargs):
                     'id': feature.get(key, properties.get(key)),
                     'type': feature['geometry']['type']}
 
-                if type_ == 'Point':
-                    record['lon'], record['lat'] = get_point(coords)
-                    yield pr.merge([record, properties])
-                elif type_ == 'LineString':
-                    for point in coords:
-                        record['lon'], record['lat'] = get_point(point)
-                        yield pr.merge([record, properties])
-                elif type_ == 'Polygon':
-                    for pos, poly in enumerate(coords):
-                        for point in poly:
-                            record['lon'], record['lat'] = get_point(point)
-                            record['pos'] = pos
-                            yield pr.merge([record, properties])
-                else:
-                    raise TypeError('Invalid geometry type {}.'.format(type_))
+                args = (record, coords, properties)
+                for r in gen_records(type_, *args, **kwargs):
+                    yield r
 
     return read_any(filepath, reader, mode, **kwargs)
 

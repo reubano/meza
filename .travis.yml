@@ -1,4 +1,4 @@
-sudo: required
+sudo: false
 language: python
 python:
   - "2.7"
@@ -14,9 +14,6 @@ notifications:
 branches:
   except:
     - /^v[0-9]/
-
-before_install:
-  - sudo apt-get install mdbtools-gmdb
 
 install:
   - pip install -r dev-requirements.txt

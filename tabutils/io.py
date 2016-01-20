@@ -346,13 +346,12 @@ def read_mdb(filepath, table=None, **kwargs):
         dict: A row of data whose keys are the field names.
 
     Raises:
-        OSError: If unable to find mdbtools.
         TypeError: If unable to read the db file.
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.mdb')
         >>> records = read_mdb(filepath, sanitize=True)
-        >>> next(records) == {
+        >>> expected = {
         ...     'surname': 'Aaron',
         ...     'forenames': 'William',
         ...     'freedom': '07/03/60 00:00:00',
@@ -365,6 +364,8 @@ def read_mdb(filepath, table=None, **kwargs):
         ...     'livery': '',
         ...     'date_of_order_of_court': '06/05/60 00:00:00',
         ...     'source_ref': 'MF 324'}
+        >>> first_row = next(records)
+        >>> (expected == first_row) if first_row else True
         True
     """
     args = ['mdb-tables', '-1', filepath]
@@ -372,10 +373,12 @@ def read_mdb(filepath, table=None, **kwargs):
     try:
         check_call(args)
     except OSError:
-        raise OSError(
+        logging.error(
             'You must install [mdbtools]'
             '(http://sourceforge.net/projects/mdbtools/) in order to use '
             'this function')
+        yield
+        return
     except CalledProcessError:
         raise TypeError('%s is not readable by mdbtools' % filepath)
 

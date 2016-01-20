@@ -104,8 +104,6 @@ A simple data processing example is shown below:
         f.read()
     >>> 'col2,col3\n2015-01-01,3\n'
 
-.. _library:
-
 Usage
 -----
 
@@ -730,6 +728,7 @@ tabutils is distributed under the `MIT License`_.
 
 .. _mdbtools: http://sourceforge.net/projects/mdbtools/
 .. _lxml: http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
+.. _library: #usage
 .. _a library: https://csvkit.readthedocs.org/en/0.9.1/api/csvkit.py3.html
 .. _PyPy: https://github.com/pydata/pandas/issues/9532
 .. _walk in the park: http://pandas.pydata.org/pandas-docs/stable/install.html#installing-pandas-with-anaconda

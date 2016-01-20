@@ -271,10 +271,10 @@ any supported file. E.g., ``read_xls``, ``read_sqlite``, etc.
     next(pr.cut(records, ['col_2']))
     >>> {'col_2': 'dill'}
 
-    """Select all data whose value for column `col_1` contains `jane`
+    """Select all data whose value for column `col_2` contains `jane`
     --> csvgrep -c col_1 -m jane file1.csv
     """
-    next(pr.grep(records, [{'pattern': 'jane'}], ['col_1']))
+    next(pr.grep(records, [{'pattern': 'jane'}], ['col_2']))
     >>> {'col_1': '3', 'col_2': 'jane', 'col_3': 'female'}
 
     """Convert a csv file to json --> csvjson -i 4 file1.csv"""
@@ -427,9 +427,9 @@ setup
     records, types = list(records), result['types']
     types
     >>> [
-    ...     {u'type': u'text', u'id': u'a'},
-    ...     {u'type': u'int', u'id': u'b'},
-    ...     {u'type': u'float', u'id': u'c'}]
+    ...     {'type': 'text', 'id': 'a'},
+    ...     {'type': 'int', 'id': 'b'},
+    ...     {'type': 'float', 'id': 'c'}]
 
 
 from records to pandas.DataFrame to records
@@ -452,17 +452,20 @@ from records to pandas.DataFrame to records
     next(cv.df2records(df))
     >>> {'a': 'one', 'b': 2, 'c': nan}
 
-from records to arrays
-^^^^^^^^^^^^^^^^^^^^^^
+from records to arrays to records
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
+    import numpy as np
+
+    from array import array
     from tabutils import convert as cv
 
     """Convert records to a structured array"""
     recarray = cv.records2array(records, types)
     recarray
-    >>> rec.array([(u'one', 2, nan), (u'five', 10, 20.100000381469727)],
+    >>> rec.array([('one', 2, nan), ('five', 10, 20.100000381469727)],
     ...           dtype=[('a', 'O'), ('b', '<i4'), ('c', '<f4')])
     recarray.b
     >>> array([ 2, 10], dtype=int32)
@@ -474,17 +477,6 @@ from records to arrays
     ... [array('u', 'one'), array('u', 'five')],
     ... array('i', [2, 10]),
     ... array('f', [0.0, 20.100000381469727])]
-
-
-from arrays to records
-^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: python
-
-    import numpy as np
-
-    from array import array
-    from tabutils import convert as cv
 
     """Convert a 2-D numpy array to a records generator"""
     data = np.array([[1, 2, 3], [4, 5, 6]], np.int32)

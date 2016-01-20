@@ -33,6 +33,7 @@ import itertools as it
 import operator
 import logging
 import codecs
+import sys
 
 from functools import partial
 from collections import defaultdict
@@ -620,6 +621,19 @@ def get_values(narray):
         for n in narray:
             for x in get_values(n):
                 yield x
+
+
+def get_native_str(text):
+    # dtype bug https://github.com/numpy/numpy/issues/2407
+    if sys.version_info.major < 3:
+        try:
+            encoded = text.encode('ascii')
+        except AttributeError:
+            encoded = text
+    else:
+        encoded = text
+
+    return encoded
 
 
 def xmlize(content):

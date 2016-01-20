@@ -21,7 +21,6 @@ from __future__ import (
 
 import itertools as it
 import logging
-import sys
 
 from os import path as p
 from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_DOWN
@@ -545,10 +544,11 @@ def array2records(data, native=False):
         >>> next(array2records(data, native)) == {
         ...     'column_1': 1, 'column_2': 2, 'column_3': 3}
         True
+        >>> i, f, u = [ft.get_native_str(x) for x in ['i', 'f', 'u']]
         >>> data = [
-        ...     array('i', [1, 2, 3]),
-        ...     array('f', [1.0, 2.0, 3.0]),
-        ...     [array('u', 'one'), array('u', 'two'), array('u', 'three')]]
+        ...     array(i, [1, 2, 3]),
+        ...     array(f, [1.0, 2.0, 3.0]),
+        ...     [array(u, 'one'), array(u, 'two'), array(u, 'three')]]
         >>> next(array2records(data, True)) == {
         ...     'column_1': 1, 'column_2': 1.0, 'column_3': 'one'}
         True
@@ -652,27 +652,22 @@ def records2array(records, types, native=False, silent=False):
         True
         >>> arr.beta.tolist() if np else list(ft.get_values(arr[2]))
         [2, 3]
+        >>> u, i = ft.get_native_str('u'), ft.get_native_str('i')
         >>> records2array(records, types, True) == [
-        ...     [array('u', 'alpha'), array('u', 'beta')],
-        ...     [array('u', 'aa'), array('u', 'bee')],
-        ...     array('i', [2, 3])]
+        ...     [array(u, 'alpha'), array(u, 'beta')],
+        ...     [array(u, 'aa'), array(u, 'bee')],
+        ...     array(i, [2, 3])]
         True
     """
     numpy = np and not native
     dialect = 'numpy' if numpy else 'array'
-    dtype = [ft.get_dtype(t['type'], dialect) for t in types]
+    _dtype = [ft.get_dtype(t['type'], dialect) for t in types]
+    dtype = [ft.get_native_str(d) for d in _dtype]
     ids = [t['id'] for t in types]
 
     if numpy:
         data = [tuple(r.get(id_) for id_ in ids) for r in records]
-        zipped = zip(ids, dtype)
-
-        # dtype bug https://github.com/numpy/numpy/issues/2407
-        if sys.version_info.major < 3:
-            ndtype = [tuple(s.encode('ascii') for s in d) for d in zipped]
-        else:
-            ndtype = list(zipped)
-
+        ndtype = [tuple(map(ft.get_native_str, z)) for z in zip(ids, dtype)]
         ndarray = np.array(data, dtype=ndtype)
         converted = ndarray.view(np.recarray)
     else:
@@ -683,12 +678,13 @@ def records2array(records, types, native=False, silent=False):
 
             logging.warning(msg)
 
-        header = [array('u', t['id']) for t in types]
+        header = [array(ft.get_native_str('u'), t['id']) for t in types]
         data = (zip_longest(*([r.get(i) for i in ids] for r in records)))
 
         # array.array can't have nulls, so convert to an appropriate equivalent
         clean = lambda t, d: (x if x else ft.ARRAY_NULL_TYPE[t] for x in d)
         cleaned = (it.starmap(clean, zip(dtype, data)))
+
         values = [
             [array(t, x) for x in d] if t in {'c', 'u'} else array(t, d)
             for t, d in zip(dtype, cleaned)]

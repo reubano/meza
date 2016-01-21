@@ -111,3 +111,63 @@ Command output is preceded by ``>>>``.
     ... {'A': 'one', 'B': 'beh', 'C': 'foo', 'D': -3.72018},
     ... {'A': 'one', 'B': 'beh', 'C': 'bar', 'D': 0.0},
     ... {'A': 'one', 'B': 'say', 'C': 'foo', 'D': -5.55774}]
+
+More fun with geojson files.
+
+First create a few geojson files (in bash)
+
+.. code-block:: bash
+
+    echo '{"type": "FeatureCollection","features": [' > file1.geojson
+    echo '{"type": "Feature", "id": 11, "geometry": {"type": "Point", "coordinates": [10, 20]}}]}' >> file1.geojson
+    echo '{"type": "FeatureCollection","features": [' > file2.geojson
+    echo '{"type": "Feature", "id": 12, "geometry": {"type": "Point", "coordinates": [5, 15]}}]}' >> file2.geojson
+
+Now we can combine the files and write the combined data to a new geojson file.
+
+.. code-block:: python
+
+    from io import open
+    from tabutils import io, process as pr, convert as cv
+
+    """Combine the GeoJSON files into one iterator
+    --> merge = require('geojson-merge')
+    --> fs = require('fs')
+
+    --> merged = merge(files.map(function(n) {
+    ...   return JSON.parse(fs.readFileSync(n));
+    ... }))
+    """
+    filepaths = ('file1.geojson', 'file2.geojson')
+    records, peek = pr.peek(io.join(*filepaths))
+    peek[0]
+    >>> {'lat': 20, 'type': 'Point', 'lon': 10, 'id': 11}
+
+    cv.records2geojson(records).read()
+    >>> {
+    ...   "type": "FeatureCollection",
+    ...   "bbox": [5, 15, 10, 20],
+    ...   "features": [
+    ...       {
+    ...         "type": "Feature",
+    ...         "id": 11,
+    ...         "geometry": {
+    ...           "type": "Point",
+    ...           "coordinates": [10, 20]
+    ...         }
+    ...       }, {
+    ...         "type": "Feature",
+    ...         "id": 12,
+    ...         "geometry": {
+    ...           "type": "Point",
+    ...           "coordinates": [5, 15]
+    ...         }
+    ...       }
+    ...     ],
+    ...     "crs": {
+    ...       "type": "name",
+    ...       "properties": {
+    ...         "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    ...       }
+    ...     }
+    ...   }

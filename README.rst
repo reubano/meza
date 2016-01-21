@@ -220,7 +220,7 @@ and command output is preceded by ``>>>``.
     """Select all data whose value for column `A` is less than 0.5
     --> df[df.A < 0.5]
     """
-    next(pr.grep(df, [{'pattern': lambda x: x < 0.5}], ['A']))
+    next(pr.tfilter(df, 'A', lambda x: x < 0.5))
     >>> {'A': 0.21000..., 'B': 0.25727..., 'C': 0.39719..., 'D': 0.64157...}
 
     # Note: since `aggregate` and `merge` (by definition) return just one row,
@@ -246,10 +246,11 @@ First create a few simple csv files (in bash)
     echo 'col_1,col_2,col_3\n1,dill,male\n2,bob,male\n3,jane,female' > file1.csv
     echo 'col_1,col_2,col_3\n4,tom,male\n5,dick,male\n6,jill,female' > file2.csv
 
-Now we can read the files, manipulate the data, convert it to json, and write
-it back to a new file. Also, note that since all readers return equivalent `records`
-iterators, you can use them interchangeably (in place of ``read_csv``) to open
-any supported file. E.g., ``read_xls``, ``read_sqlite``, etc.
+Now we can read the files, manipulate the data, convert the manipulated data to
+json, and write the json back to a new file. Also, note that since all readers
+return equivalent `records` iterators, you can use them interchangeably (in
+place of ``read_csv``) to open any supported file. E.g., ``read_xls``,
+``read_sqlite``, etc.
 
 .. code-block:: python
 
@@ -277,10 +278,10 @@ any supported file. E.g., ``read_xls``, ``read_sqlite``, etc.
     next(pr.cut(records, ['col_2']))
     >>> {'col_2': 'dill'}
 
-    """Select all data whose value for column `col_2` contains `jane`
+    """Select all data whose value for column `col_2` contains `jan`
     --> csvgrep -c col_1 -m jane file1.csv
     """
-    next(pr.grep(records, [{'pattern': 'jane'}], ['col_2']))
+    next(pr.grep(records, [{'pattern': 'jan'}], ['col_2']))
     >>> {'col_1': '3', 'col_2': 'jane', 'col_3': 'female'}
 
     """Convert a csv file to json --> csvjson -i 4 file1.csv"""
@@ -299,73 +300,44 @@ Geo processing (à la mapbox) [#]_
 In the following example, ``mapbox`` equivalent commands are preceded by ``-->``,
 and command output is preceded by ``>>>``.
 
-First create a few simple csv files (in bash)
+First create a geojson file (in bash)
 
 .. code-block:: bash
 
-    echo 'id,lon,lat,type\\n11,10,20,Point\\n12,5,15,Point\\n' > file1.csv
-    echo 'id,lon,lat,type\\n13,15,20,Point\\n14,5,25,Point\\n' > file2.csv
+    echo '{"type": "FeatureCollection","features": [' > file.geojson
+    echo '{"type": "Feature", "id": 11, "geometry": {"type": "Point", "coordinates": [10, 20]}},' >> file.geojson
+    echo '{"type": "Feature", "id": 12, "geometry": {"type": "Point", "coordinates": [5, 15]}}]}' >> file.geojson
 
-Now we can read the files, manipulate the data, convert it to geojson, and write
-it back to a new file.
+Now we can open the file, split the data by id, and finally convert the split data
+to a new geojson file-like object.
 
 .. code-block:: python
 
-    from io import open
     from tabutils import io, process as pr, convert as cv
 
-    # Now lets open the files
-    f1, f2 = [open(fp, encoding='utf-8') for fp in ['file1.csv', 'file2.csv']]
-
-    """Convert the csv files into GeoJSON files
-    --> fs = require('fs')
-    --> concat = require('concat-stream')
-
-    --> function convert(data) {
-    ...   csv2geojson.csv2geojson(data.toString(), {}, function(err, data) {
-    ...     console.log(data)
-    ...   })
-    ... }
-
-    --> fs.createReadStream('file1.csv').pipe(concat(convert))
-    """
-    geofiles = []
-
-    for f in [f1, f2]:
-        records = io.read_csv(f)
-        records, result = pr.detect_types(records)
-        casted_records = pr.type_cast(records, result['types'])
-        geo_f = cv.records2geojson(casted_records)
-        geofiles.append(geo_f)
-
-    """Merge the GeoJSON files into one iterator
-    --> merge = require('geojson-merge')
-    --> fs = require('fs')
-
-    --> merged = merge(files.map(function(n) {
-    ...   return JSON.parse(fs.readFileSync(n));
-    ... }))
-    """
-    records = io.join(*geofiles, ext='geojson')
-    next(records)
+    # Load the geojson file and peek at the results
+    records, peek = pr.peek(io.read_geojson('file.geojson'))
+    peek[0]
     >>> {'lat': 20, 'type': 'Point', 'lon': 10, 'id': 11}
 
-    """Split the remaining records by a geojson feature and convert the first
-    feature to a geojson file --> geojsplit -k id file.geojson
+    """Split the records by feature ``id`` and select the first feature
+    --> geojsplit -k id file.geojson
     """
     splits = pr.split(records, 'id')
-    records, name = next(splits)
+    feature_records, name = next(splits)
     name
-    >>> 12
-    cv.records2geojson(records).readline()
-    >>> '{"type": "FeatureCollection", "bbox": [5, 15, 5, 15], "features": '
-    ... '[{"type": "Feature", "id": 12, "geometry": {"type": "Point", '
-    ... '"coordinates": [5, 15]}, "properties": {"id": 12}}], "crs": {"type": '
+    >>> 11
+
+    """Convert the feature records into a GeoJSON file-like object"""
+    geojson = cv.records2geojson(feature_records)
+    geojson.readline()
+    >>> '{"type": "FeatureCollection", "bbox": [10, 20, 10, 20], "features": '
+    ... '[{"type": "Feature", "id": 11, "geometry": {"type": "Point", '
+    ... '"coordinates": [10, 20]}, "properties": {"id": 11}}], "crs": {"type": '
     ... '"name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}}}'
 
-    # Finally, clean up by closing the open csv files
-    f1.close()
-    f2.close()
+    # Note: you can also write back to a file as shown previously
+    # io.write('file.geojson', geojson)
 
 Writing data
 ^^^^^^^^^^^^

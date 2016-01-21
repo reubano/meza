@@ -125,7 +125,7 @@ Examples:
         3
 
         # Use a single column’s values to select data
-        >>> next(pr.grep(df, [{'pattern': lambda x: x < 0.5}], ['A'])) == {
+        >>> next(pr.tfilter(df, 'A', lambda x: x < 0.5)) == {
         ...     'A': 0.4627, 'B': 0.8633, 'C': 0.3283, 'D': 0.1909}
         True
 
@@ -172,7 +172,7 @@ Examples:
         >>> next(pr.cut(records, ['col_2'])) == {'col_2': 'dill'}
         True
 
-        >>> next(pr.grep(records, [{'pattern': 'jane'}], ['col_2'])) == {
+        >>> next(pr.grep(records, [{'pattern': 'jan'}], ['col_2'])) == {
         ...     'col_1': '3', 'col_2': 'jane', 'col_3': 'female'}
         True
 
@@ -185,38 +185,35 @@ Examples:
 
     GeoJSON
 
-        # First create a few simple csv files
-        >>> f1 = StringIO('id,lon,lat,type\\n11,10,20,Point\\n12,5,15,Point\\n')
-        >>> f2 = StringIO('id,lon,lat,type\\n13,15,20,Point\\n14,5,25,Point\\n')
-        >>> bool(f1.seek(0))
-        False
-        >>> bool(f2.seek(0))
+        # First create a geojson fi
+        >>> f = StringIO(
+        ...     '{"type": "FeatureCollection","features": ['
+        ...     '{"type": "Feature", "id": 11, "geometry": '
+        ...     '{"type": "Point", "coordinates": [10, 20]}},'
+        ...     '{"type": "Feature", "id": 12, "geometry": '
+        ...     '{"type": "Point", "coordinates": [5, 15]}}]}')
+
+        >>> bool(f.seek(0))
         False
 
-        # Convert files to GeoJSON
-        >>> geofiles = []
-        >>> for f in [f1, f2]:
-        ...     records = io.read_csv(f)
-        ...     records, result = pr.detect_types(records)
-        ...     casted_records = pr.type_cast(records, result['types'])
-        ...     geofiles.append(cv.records2geojson(casted_records))
-
-        # Merge multiple GeoJSON files into one
-        >>> records = io.join(*geofiles, ext='geojson')
-        >>> next(records) == {'lat': 20, 'type': 'Point', 'lon': 10, 'id': 11}
+        # Load the geojson file
+        >>> records, peek = pr.peek(io.read_geojson(f))
+        >>> peek[0] == {'lat': 20, 'type': 'Point', 'lon': 10, 'id': 11}
         True
 
-        # Split records by geojson feature
+        # Split the casted records by feature ``id``
         >>> splits = pr.split(records, 'id')
-        >>> sub_records, name = next(splits)
+        >>> feature_records, name = next(splits)
         >>> name
-        12
-        >>> geojson = cv.records2geojson(sub_records)
+        11
+
+        # Convert the feature records into a GeoJSON file-like object
+        >>> geojson = cv.records2geojson(feature_records)
         >>> geojson.readline() == (
-        ...     '{"type": "FeatureCollection", "bbox": [5, 15, 5, 15], '
-        ...     '"features": [{"type": "Feature", "id": 12, "geometry": '
-        ...     '{"type": "Point", "coordinates": [5, 15]}, "properties": '
-        ...     '{"id": 12}}], "crs": {"type": "name", "properties": {"name": '
+        ...     '{"type": "FeatureCollection", "bbox": [10, 20, 10, 20], '
+        ...     '"features": [{"type": "Feature", "id": 11, "geometry": '
+        ...     '{"type": "Point", "coordinates": [10, 20]}, "properties": '
+        ...     '{"id": 11}}], "crs": {"type": "name", "properties": {"name": '
         ...     '"urn:ogc:def:crs:OGC:1.3:CRS84"}}}')
         True
 
@@ -417,6 +414,37 @@ Examples:
         >>> normal = pr.normalize(pivot, 'D', 'C', ['foo', 'bar'])
         >>> normal, peek = pr.peek(normal)
         >>> set(int(p['D'] or 0) for p in peek).issubset({0, 2, 3, 4, -3, -1})
+        True
+
+        # More fun with geojson
+        >>> f1 = StringIO(
+        ...     '{"type": "FeatureCollection","features": [{"type": "Feature", '
+        ...     '"id": 11, "geometry": {"type": "Point", "coordinates": '
+        ...     '[10, 20]}}]}')
+        >>> f2 = StringIO(
+        ...     '{"type": "FeatureCollection","features": [{"type": "Feature", '
+        ...     '"id": 12, "geometry": {"type": "Point", "coordinates": '
+        ...     '[5, 15]}}]}')
+        >>> bool(f1.seek(0))
+        False
+        >>> bool(f2.seek(0))
+        False
+
+        # Combine the GeoJSON files into one iterator
+        >>> records, peek = pr.peek(io.join(f1, f2, ext='geojson'))
+        >>> peek[0] == {'lat': 20, 'type': 'Point', 'lon': 10, 'id': 11}
+        True
+
+        >>> records, result = pr.detect_types(records)
+        >>> casted_records = pr.type_cast(records, result['types'])
+        >>> cv.records2geojson(casted_records).read() == (
+        ...     '{"type": "FeatureCollection", "bbox": [5, 15, 10, 20], '
+        ...     '"features": [{"type": "Feature", "id": 11, "geometry": '
+        ...     '{"type": "Point", "coordinates": [10, 20]}, "properties": '
+        ...     '{"id": 11}}, {"type": "Feature", "id": 12, "geometry": '
+        ...     '{"type": "Point", "coordinates": [5, 15]}, "properties": '
+        ...     '{"id": 12}}], "crs": {"type": "name", "properties": {"name": '
+        ...     '"urn:ogc:def:crs:OGC:1.3:CRS84"}}}')
         True
 
 """

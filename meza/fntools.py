@@ -33,7 +33,7 @@ import itertools as it
 import operator
 import logging
 
-from functools import partial
+from functools import partial, reduce
 from collections import defaultdict
 from json import JSONEncoder
 from os import path as p
@@ -41,8 +41,8 @@ from os import path as p
 from builtins import *
 from six.moves import filterfalse
 from slugify import slugify
+
 from . import CURRENCIES, ENCODING
-from functools import reduce
 from ._compat import encode
 
 DEF_TRUES = ('yes', 'y', 'true', 't')

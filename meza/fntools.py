@@ -291,6 +291,66 @@ def mreplace(content, replacements):
     return reduce(func, replacements, content)
 
 
+def rreplace(content, needle, replace):
+    """ Recursively replaces all occurrences of needle with replace
+
+    Args:
+        content (Iter[str]): An iterable of strings on which to perform the
+            replacement
+
+        needle (str): the value being searched for (an iterable of strings may
+            be used to designate multiple needles)
+
+        replace (scalar): the replacement value that replaces needle (an
+            iterable of scalars may be used to designate multiple replacements)
+
+    Yields:
+        str: replaced content
+
+    Examples:
+        >>> subs = rreplace([('one', 'two', 'three')], 'two', 2)
+        >>> next(subs) == ['one', '2', 'three']
+        True
+    """
+    for item in content:
+        try:
+            yield item.replace(needle, str(replace))
+        except AttributeError:
+            yield list(rreplace(item, needle, replace))
+
+
+def find_type(type_, content, n=0):
+    """ Searches content for the nth (zero based) occurrence of a given type
+    and returns the corresponding key if successful.
+
+    Args:
+        type_ (str): the type of element to find (i.e. 'numeric'
+            or 'string')
+
+        content (Iter[str]): the content to search
+
+    Returns:
+        int: Index of the found element or -1 on failure
+
+    Examples:
+        >>> find_type('string', ('one', '2w', '3a'), 2)
+        2
+        >>> find_type('numeric', ('1', 2, 3), 2)
+        -1
+        >>> find_type('numeric', ('one', 2, 3), 1)
+        2
+    """
+    switch = {'numeric': 'real', 'string': 'upper'}
+    func = lambda x: hasattr(x, switch[type_])
+
+    try:
+        found = next(it.islice(filter(func, content), n, None))
+    except StopIteration:
+        return -1
+    else:
+        return content.index(found)
+
+
 def strip(value, thousand_sep=',', decimal_sep='.'):
     """Strips a string of all non-numeric characters.
 
@@ -936,58 +996,6 @@ def flatten(record, prefix=None):
                 yield flattened
     except AttributeError:
         yield (prefix, record)
-
-
-def array_search_type(needle, haystack, n=0):
-    """ Searches an array for the nth (zero based) occurrence of a given value
-     type and returns the corresponding key if successful.
-
-    Args:
-        needle (str): the type of element to find (i.e. 'numeric'
-            or 'string')
-        haystack (List[str]): the array to search
-
-    Returns:
-        (List[str]): array of the key(s) of the found element(s)
-
-    Examples:
-        >>> next(array_search_type('string', ('one', '2w', '3a'), 2)) == '3a'
-        True
-        >>> next(array_search_type('numeric', ('1', 2, 3), 2))
-        Traceback (most recent call last):
-        StopIteration
-        >>> next(array_search_type('numeric', ('one', 2, 3), 1))
-        3
-    """
-    switch = {'numeric': 'real', 'string': 'upper'}
-    func = lambda x: hasattr(x, switch[needle])
-    return it.islice(filter(func, haystack), n, None)
-
-
-def array_substitute(content, needle, replace):
-    """ Recursively replaces all occurrences of needle with replace
-
-    Args:
-        content (List[str]): the array to perform the replacement on
-        needle (str): the value being searched for (an array may
-            be used to designate multiple needles)
-
-        replace (scalar): the replacement value that replaces needle
-            (an array may be used to designate multiple replacements)
-
-    Returns:
-        List[str]: new array with replaced values
-
-    Examples:
-        >>> subs = array_substitute([('one', 'two', 'three')], 'two', 2)
-        >>> next(subs) == ['one', '2', 'three']
-        True
-    """
-    for item in content:
-        try:
-            yield item.replace(needle, str(replace))
-        except AttributeError:
-            yield list(array_substitute(item, needle, replace))
 
 
 def def_itemgetter(attr, default=None):

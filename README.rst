@@ -594,7 +594,7 @@ Design Principles
 Readers
 -------
 
-meza' available readers are outlined below:
+meza's available readers are outlined below:
 
 +-----------------------+-------------------------+----------------+
 | File type             | Recognized extension(s) | Default reader |

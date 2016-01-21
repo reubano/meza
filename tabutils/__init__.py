@@ -25,7 +25,7 @@ import logging
 from datetime import datetime as dt
 from builtins import *
 
-__version__ = '0.27.1'
+__version__ = '0.27.2'
 
 __title__ = 'tabutils'
 __package_name__ = 'tabutils'

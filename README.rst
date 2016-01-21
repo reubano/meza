@@ -34,14 +34,14 @@ PyPy 4.0; and PyPy3 2.4
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^
 
-==================================  ==============  ==============================  =======================
-Function                            Dependency      Installation                    File type / extension
-==================================  ==============  ==============================  =======================
-``meza.io.read_mdb``            `mdbtools`_     ``sudo port install mdbtools``  Microsoft Access / mdb
-``meza.io.read_html``           `lxml`_ [#]_    ``pip install lxml``            HTML / html
-``meza.convert.records2array``  `NumPy`_ [#]_   ``pip install numpy``           n/a
-``meza.convert.records2df``     `pandas`_       ``pip install pandas``          n/a
-==================================  ==============  ==============================  =======================
+===============================  ==============  ==============================  =======================
+Function                         Dependency      Installation                    File type / extension
+===============================  ==============  ==============================  =======================
+``meza.io.read_mdb``             `mdbtools`_     ``sudo port install mdbtools``   Microsoft Access / mdb
+``meza.io.read_html``            `lxml`_ [#]_    ``pip install lxml``             HTML / html
+``meza.convert.records2array``   `NumPy`_ [#]_   ``pip install numpy``            n/a
+``meza.convert.records2df``      `pandas`_       ``pip install pandas``           n/a
+===============================  ==============  ==============================  =======================
 
 Notes
 ^^^^^

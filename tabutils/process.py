@@ -800,6 +800,9 @@ def tfilter(records, field, pred=None):
             `True`  if the record should be included (default: None, i.e.,
             return the record if value is True).
 
+    See also:
+        `tabutils.process.grep`
+
     Returns:
         Iter[dict]: The filtered records.
 
@@ -964,6 +967,9 @@ def grep(records, rules, fields=None, any_match=False, inverse=False):
 
         inverse (bool): Only return records which don't match the rules
             (default: False)
+
+    See also:
+        `tabutils.process.tfilter`
 
     Returns:
         Iter[dict]: The filtered records.

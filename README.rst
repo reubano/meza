@@ -67,8 +67,8 @@ First create a simple csv file (in bash)
 
     echo 'col1,col2,col3\nhello,5/4/82,1\none,1/1/15,2\nhappy,7/1/92,3\n' > data.csv
 
-Now we can read the file, manipulate the data a bit, and write it back to a new
-file.
+Now we can read the file, manipulate the data a bit, and write the manipulated
+data back to a new file.
 
 .. code-block:: python
 
@@ -106,8 +106,10 @@ file.
     merged
     >>> {'col2': datetime.date(2015, 1, 1), 'col3': 3}
 
-    # Now write data back to a new csv file.
+    # Now write merged data back to a new csv file.
     io.write('out.csv', cv.records2csv(merged))
+
+    # View the result
     with open('out.csv', 'utf-8') as f:
         f.read()
     >>> 'col2,col3\n2015-01-01,3\n'
@@ -255,7 +257,7 @@ any supported file. E.g., ``read_xls``, ``read_sqlite``, etc.
 
     from tabutils import io, process as pr, convert as cv
 
-    """Join multiple files together by stacking the contents
+    """Combine the files into one iterator
     --> csvstack *.csv
     """
     records = io.join('file1.csv', 'file2.csv')
@@ -283,6 +285,8 @@ any supported file. E.g., ``read_xls``, ``read_sqlite``, etc.
 
     """Convert a csv file to json --> csvjson -i 4 file1.csv"""
     io.write('file.json', cv.records2json(records))
+
+    # View the result
     with open('file.json', 'utf-8') as f:
         f.read()
     >>> '[{"col_1": "1", "col_2": "dill", "col_3": "male"}, {"col_1": "2",
@@ -740,7 +744,7 @@ tabutils is distributed under the `MIT License`_.
 .. _mdbtools: http://sourceforge.net/projects/mdbtools/
 .. _lxml: http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
 .. _library: #usage
-.. _numpy: https://github.com/numpy/numpy
+.. _NumPy: https://github.com/numpy/numpy
 .. _a library: https://csvkit.readthedocs.org/en/0.9.1/api/csvkit.py3.html
 .. _PyPy: https://github.com/pydata/pandas/issues/9532
 .. _walk in the park: http://pandas.pydata.org/pandas-docs/stable/install.html#installing-pandas-with-anaconda

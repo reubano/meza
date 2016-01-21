@@ -553,7 +553,7 @@ def read_tsv(filepath, mode='rU', **kwargs):
     """Reads a csv file.
 
     Args:
-        filepath (str): The csv file path or file like object.
+        filepath (str): The tsv file path or file like object.
         mode (Optional[str]): The file open mode (default: 'rU').
         kwargs (dict): Keyword arguments that are passed to the csv reader.
 
@@ -594,7 +594,7 @@ def read_fixed_fmt(filepath, widths=None, mode='rU', **kwargs):
     """Reads a fixed-width csv file.
 
     Args:
-        filepath (str): The fixed width csv file path or file like object.
+        filepath (str): The fixed width formatted file path or file like object.
         widths (List[int]): The zero-based 'start' position of each column.
         mode (Optional[str]): The file open mode (default: 'rU').
         kwargs (dict): Keyword arguments that are passed to the csv reader.
@@ -940,7 +940,7 @@ def read_yaml(filepath, mode='rU', **kwargs):
     TODO: convert to a streaming parser
 
     Args:
-        filepath (str): The json file path or file like object.
+        filepath (str): The yaml file path or file like object.
         mode (Optional[str]): The file open mode (default: 'rU').
 
     Kwargs:
@@ -977,7 +977,7 @@ def read_html(filepath, table=0, mode='rU', **kwargs):
     http://lxml.de/parsing.html#iterparse-and-iterwalk
 
     Args:
-        filepath (str): The json file path or file like object.
+        filepath (str): The html file path or file like object.
         table (int): Zero indexed table to open (default: 0)
         mode (Optional[str]): The file open mode (default: 'rU').
         kwargs (dict): Keyword arguments
@@ -1262,7 +1262,7 @@ def join(*filepaths, **kwargs):
     """Reads multiple filepaths and yields all the resulting records.
 
     Args:
-        filepaths (iter[str]): Iterator of filepaths.
+        filepaths (iter[str]): Iterator of filepaths or file like objects.
 
         kwargs (dict): keyword args passed to the individual readers.
 

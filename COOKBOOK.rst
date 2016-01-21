@@ -1,6 +1,9 @@
 meza Cookbook
 =================
 
+More fun with pandas
+--------------------
+
 Note that the ``pandas`` equivalent methods are preceded by ``-->``.
 Command output is preceded by ``>>>``.
 
@@ -113,6 +116,7 @@ Command output is preceded by ``>>>``.
     ... {'A': 'one', 'B': 'say', 'C': 'foo', 'D': -5.55774}]
 
 More fun with geojson files.
+----------------------------
 
 First create a few geojson files (in bash)
 

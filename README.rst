@@ -191,8 +191,6 @@ and command output is preceded by ``>>>``.
 
     import itertools as it
     import random
-    import numpy as np
-    import pandas as pd
 
     from io import StringIO
     from tabutils import io, process as pr, convert as cv, stats
@@ -259,7 +257,7 @@ place of ``read_csv``) to open any supported file. E.g., ``read_xls``,
     from tabutils import io, process as pr, convert as cv
 
     """Combine the files into one iterator
-    --> csvstack *.csv
+    --> csvstack file1.csv file2.csv
     """
     records = io.join('file1.csv', 'file2.csv')
     next(records)
@@ -270,7 +268,9 @@ place of ``read_csv``) to open any supported file. E.g., ``read_xls``,
     # Now let's create a persistant records list
     records = list(io.read_csv('file1.csv'))
 
-    """Sort records by the value of column `col_2` --> csvsort -c col_2 file1.csv"""
+    """Sort records by the value of column `col_2`
+    --> csvsort -c col_2 file1.csv
+    """
     next(pr.sort(records, 'col_2'))
     >>> {'col_1': '2', 'col_2': 'bob', 'col_3': 'male'
 
@@ -279,7 +279,7 @@ place of ``read_csv``) to open any supported file. E.g., ``read_xls``,
     >>> {'col_2': 'dill'}
 
     """Select all data whose value for column `col_2` contains `jan`
-    --> csvgrep -c col_1 -m jane file1.csv
+    --> csvgrep -c col_2 -m jan file1.csv
     """
     next(pr.grep(records, [{'pattern': 'jan'}], ['col_2']))
     >>> {'col_1': '3', 'col_2': 'jane', 'col_3': 'female'}
@@ -341,6 +341,15 @@ to a new geojson file-like object.
 
 Writing data
 ^^^^^^^^^^^^
+
+tabutils can persist ``records`` to disk via the following functions:
+
+- ``tabutils.convert.records2csv``
+- ``tabutils.convert.records2json``
+- ``tabutils.convert.records2geojson``
+
+Each function returns a file-like object that you can write to disk via
+``tabutils.io.write('/path/to/file', result)``.
 
 .. code-block:: python
 
@@ -631,7 +640,8 @@ table.
 Args
 ^^^^
 
-All readers take as their first argument, either a file path or file like object.
+Most readers take as their first argument, either a file path or file like object.
+The notable execption is ``read_mdb`` which only accepts a file path.
 File like objects should be opened using Python's stdlib ``io.open``. If the file
 is opened in binary mode ``io.open('/path/to/file')``, be sure to pass the proper
 encoding if it is anything other than ``utf-8``, e.g.,
@@ -639,6 +649,7 @@ encoding if it is anything other than ``utf-8``, e.g.,
 .. code-block:: python
 
     from io import open
+    from tabutils import io
 
     with open('path/to/file.xlsx') as f:
         records = io.read_xls(f, encoding='latin-1')
@@ -655,8 +666,8 @@ kwarg       type  description                              default  implementing
 mode        str   File open mode                           rU       read_csv, read_fixed_fmt, read_geojson, read_html, read_json, read_tsv, read_xls, read_yaml
 encoding    str   File encoding                            utf-8    read_csv, read_dbf, read_fixed_fmt, read_geojson, read_html, read_json, read_tsv, read_xls, read_yaml
 has_header  bool  Data has a header row?                   True     read_csv, read_fixed_fmt, read_tsv, read_xls
-first_row   int   First row (zero indexed)                 0        read_csv, read_fixed_fmt, read_tsv, read_xls
-first_col   int   First column (zero indexed)              0        read_csv, read_fixed_fmt, read_tsv, read_xls
+first_row   int   First row to read (zero indexed)         0        read_csv, read_fixed_fmt, read_tsv, read_xls
+first_col   int   First column to read (zero indexed)      0        read_csv, read_fixed_fmt, read_tsv, read_xls
 sanitize    bool  Underscorify and lowercase field names?  False    read_csv, read_dbf, read_fixed_fmt, read_html, read_mdb, read_tsv, read_xls
 dedupe      bool  Deduplicate field names?                 False    read_csv, read_fixed_fmt, read_html, read_mdb, read_tsv, read_xls
 sheet       int   Sheet to read (zero indexed)             0        read_xls

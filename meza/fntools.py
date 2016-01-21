@@ -159,8 +159,16 @@ class Andand(object):
         >>> kw = Objectify(kwargs)
         >>> kw.key == 'value'
         True
-        >>> Andand(kw).key.missing.undefined.item
-        >>> Andand(kw).key.missing.undefined()
+        >>> Andand(kw).key  # doctest: +ELLIPSIS
+        <meza.fntools.Andand object at 0x...>
+        >>> Andand(kw).key.item == 'value'
+        True
+        >>> Andand(kw).key() == 'value'
+        True
+        >>> Andand(kw).key.imnot.here  # doctest: +ELLIPSIS
+        <meza.fntools.Andand object at 0x...>
+        >>> Andand(kw).key.imnot.here.item
+        >>> Andand(kw).key.imnot.here()
     """
 
     def __init__(self, item=None):
@@ -215,7 +223,7 @@ def underscorify(content):
 
 
 def get_ext(path):
-    """ Gets a file (local )
+    """ Gets a file (local)
 
     Args:
         content (Iter[str]): the content to dedupe

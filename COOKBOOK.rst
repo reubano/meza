@@ -1,4 +1,4 @@
-tabutils Cookbook
+meza Cookbook
 =================
 
 Note that the ``pandas`` equivalent methods are preceded by ``-->``.
@@ -10,7 +10,7 @@ Command output is preceded by ``>>>``.
     import pandas as pd
 
     from random import random
-    from tabutils import io, process as pr, convert as cv
+    from meza import io, process as pr, convert as cv
     from io import StringIO
 
     # To setup, lets define a universal header
@@ -128,7 +128,7 @@ Now we can combine the files and write the combined data to a new geojson file.
 .. code-block:: python
 
     from io import open
-    from tabutils import io, process as pr, convert as cv
+    from meza import io, process as pr, convert as cv
 
     """Combine the GeoJSON files into one iterator
     --> merge = require('geojson-merge')

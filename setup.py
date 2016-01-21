@@ -8,7 +8,7 @@ import sys
 
 from builtins import *
 
-import tabutils as module
+import meza as module
 import pkutils
 
 try:

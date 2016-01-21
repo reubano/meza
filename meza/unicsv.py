@@ -3,8 +3,8 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils.unicsv
-~~~~~~~~~~~~~~~
+meza.unicsv
+~~~~~~~~~~~
 
 Provides py2 compatible methods for reading and writing unicode csv data in
 a py3 futurized codebase.

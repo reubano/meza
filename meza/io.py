@@ -3,15 +3,15 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils.io
-~~~~~~~~~~~
+meza.io
+~~~~~~~
 
 Provides methods for reading/writing/processing tabular formatted files
 
 Examples:
     basic usage::
 
-        from tabutils.io import read_csv
+        from meza.io import read_csv
 
         csv_records = read_csv('path/to/file.csv')
         csv_header = next(csv_records).keys()
@@ -252,12 +252,12 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
         encoding (str): File encoding.
 
     See also:
-        `tabutils.io.read_csv`
-        `tabutils.io.read_fixed_fmt`
-        `tabutils.io.read_json`
-        `tabutils.io.read_geojson`
-        `tabutils.io.write`
-        `tabutils.io.hash_file`
+        `meza.io.read_csv`
+        `meza.io.read_fixed_fmt`
+        `meza.io.read_json`
+        `meza.io.read_geojson`
+        `meza.io.write`
+        `meza.io.hash_file`
 
     Yields:
         scalar: Result of applying the reader func to the file.
@@ -296,7 +296,7 @@ def _read_csv(f, header=None, has_header=True, **kwargs):
         dict: A csv record.
 
     See also:
-        `tabutils.io.read_csv`
+        `meza.io.read_csv`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
@@ -463,7 +463,7 @@ def read_sqlite(filepath, table=None):
         NotFound: If unable to find the resource.
 
     See also:
-        `tabutils.io.read_any`
+        `meza.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.sqlite')
@@ -512,8 +512,8 @@ def read_csv(filepath, mode='rU', **kwargs):
         NotFound: If unable to find the resource.
 
     See also:
-        `tabutils.io.read_any`
-        `tabutils.io._read_csv`
+        `meza.io.read_any`
+        `meza.io._read_csv`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
@@ -575,7 +575,7 @@ def read_tsv(filepath, mode='rU', **kwargs):
         NotFound: If unable to find the resource.
 
     See also:
-        `tabutils.io.read_any`
+        `meza.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.tsv')
@@ -615,7 +615,7 @@ def read_fixed_fmt(filepath, widths=None, mode='rU', **kwargs):
         NotFound: If unable to find the resource.
 
     See also:
-        `tabutils.io.read_any`
+        `meza.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'fixed.txt')
@@ -826,7 +826,7 @@ def read_json(filepath, mode='rU', path='item', newline=False):
         Iterable: The parsed records
 
     See also:
-        `tabutils.io.read_any`
+        `meza.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.json')
@@ -894,8 +894,8 @@ def read_geojson(filepath, key='id', mode='rU', **kwargs):
         TypeError if no features list or invalid geometry type.
 
     See also:
-        `tabutils.io.read_any`
-        `tabutils.convert.records2geojson`
+        `meza.io.read_any`
+        `meza.convert.records2geojson`
 
     Examples:
         >>> from decimal import Decimal
@@ -950,7 +950,7 @@ def read_yaml(filepath, mode='rU', **kwargs):
         Iterable: The parsed records
 
     See also:
-        `tabutils.io.read_any`
+        `meza.io.read_any`
 
     Examples:
         >>> from datetime import date, datetime as dt
@@ -994,7 +994,7 @@ def read_html(filepath, table=0, mode='rU', **kwargs):
         Iterable: The parsed records
 
     See also:
-        `tabutils.io.read_any`
+        `meza.io.read_any`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.html')
@@ -1061,7 +1061,7 @@ def write(filepath, content, mode='wb+', **kwargs):
         int: bytes written
 
     See also:
-        `tabutils.io.read_any`
+        `meza.io.read_any`
 
     Examples:
         >>> from tempfile import TemporaryFile
@@ -1115,8 +1115,8 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
         str: File hash.
 
     See also:
-        `tabutils.io.read_any`
-        `tabutils.process.hash`
+        `meza.io.read_any`
+        `meza.process.hash`
 
     Examples:
         >>> from tempfile import TemporaryFile
@@ -1191,7 +1191,7 @@ def get_reader(extension):
         func: The file reading function
 
     See also:
-        `tabutils.io.read`
+        `meza.io.read`
 
     Raises:
         TypeError: If unable to find a suitable reader.
@@ -1235,8 +1235,8 @@ def read(filepath, ext=None, **kwargs):
         Iterable: The parsed records
 
     See also:
-        `tabutils.io.get_reader`
-        `tabutils.io.join`
+        `meza.io.get_reader`
+        `meza.io.join`
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.xls')
@@ -1273,7 +1273,7 @@ def join(*filepaths, **kwargs):
         dict: A parsed record
 
     See also:
-        `tabutils.io.read`
+        `meza.io.read`
 
     Examples:
         >>> fs = [p.join(DATA_DIR, 'test.xls'), p.join(DATA_DIR, 'test.csv')]

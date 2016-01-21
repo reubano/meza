@@ -19,7 +19,7 @@ from io import StringIO
 from operator import itemgetter
 from builtins import *
 
-from tabutils import fntools as ft, io, stats
+from meza import fntools as ft, io, stats
 
 
 def setup_module():

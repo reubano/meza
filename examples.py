@@ -23,7 +23,7 @@ Examples:
         >>> from array import array
         >>> from json import loads
         >>> from datetime import date
-        >>> from tabutils import (
+        >>> from meza import (
         ...     io, process as pr, convert as cv, fntools as ft, stats)
 
 

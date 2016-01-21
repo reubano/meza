@@ -2,7 +2,7 @@
 Changelog
 =========
 
-Here you can find the recent changes to pygogo..
+Here you can find the recent changes to meza..
 
 .. changelog::
     :version: dev

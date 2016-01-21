@@ -3,15 +3,15 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils.process
-~~~~~~~~~~~~~~~~
+meza.process
+~~~~~~~~~~~~
 
 Provides methods for processing `records`, i.e., tabular data.
 
 Examples:
     basic usage::
 
-        from tabutils.process import type_cast
+        from meza.process import type_cast
 
         records = [{'some_value', '1'}, {'some_value', '2'}]
         casted_records = next(type_cast(records, [{'some_value': 'int'}]))
@@ -46,7 +46,7 @@ def type_cast(records, types, warn=False):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         types (Iter[dicts]): Field types (`guess_type_by_field` or
             `guess_type_by_value` output).
@@ -57,17 +57,17 @@ def type_cast(records, types, warn=False):
         dict: Type casted record. A row of data whose keys are the field names.
 
     See also:
-        `tabutils.process.detect_types`
-        `tabutils.process.json_recode`
-        `tabutils.typetools.guess_type_by_field`
-        `tabutils.typetools.guess_type_by_value`
-        `tabutils.convert.to_int`
-        `tabutils.convert.to_float`
-        `tabutils.convert.to_decimal`
-        `tabutils.convert.to_date`
-        `tabutils.convert.to_time`
-        `tabutils.convert.to_datetime`
-        `tabutils.convert.to_bool`
+        `meza.process.detect_types`
+        `meza.process.json_recode`
+        `meza.typetools.guess_type_by_field`
+        `meza.typetools.guess_type_by_value`
+        `meza.convert.to_int`
+        `meza.convert.to_float`
+        `meza.convert.to_decimal`
+        `meza.convert.to_date`
+        `meza.convert.to_time`
+        `meza.convert.to_datetime`
+        `meza.convert.to_bool`
 
     Examples:
         >>> import datetime
@@ -118,14 +118,14 @@ def json_recode(records):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
     Yields:
         dict: JSON dumped and loaded record. A row of data whose keys are the
             field names.
 
     See also:
-        `tabutils.process.type_cast`
+        `meza.process.type_cast`
 
     Examples:
         >>> import datetime
@@ -174,9 +174,9 @@ def gen_confidences(tally, types, a=1):
         Iter(decimal): Generator of confidences
 
     See also:
-        `tabutils.typetools.guess_type_by_field`
-        `tabutils.typetools.guess_type_by_value`
-        `tabutils.process.detect_types`
+        `meza.typetools.guess_type_by_field`
+        `meza.typetools.guess_type_by_value`
+        `meza.process.detect_types`
 
     Examples:
         >>> from decimal import Decimal
@@ -208,7 +208,7 @@ def gen_types(tally):
         dict: Field type. The parsed field and its type.
 
     See also:
-        `tabutils.process.detect_types`
+        `meza.process.detect_types`
 
     Examples:
         >>> tally = {
@@ -260,7 +260,7 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         min_conf (float): minimum confidence level, a lower value will
             converge faster (default: 0.95)
@@ -281,11 +281,11 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
         tuple(Iter[dict], dict): Tuple of records and the result
 
     See also:
-        `tabutils.process.type_cast`
-        `tabutils.process.gen_types`
-        `tabutils.process.gen_confidences`
-        `tabutils.typetools.guess_type_by_field`
-        `tabutils.typetools.guess_type_by_value`
+        `meza.process.type_cast`
+        `meza.process.gen_types`
+        `meza.process.gen_confidences`
+        `meza.typetools.guess_type_by_field`
+        `meza.typetools.guess_type_by_value`
 
     Examples:
         >>> record = {
@@ -357,7 +357,7 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
     Kwargs:
         value (str): Value to use to fill holes (default: None).
@@ -380,7 +380,7 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `tabutils.fntools.fill`
+        `meza.fntools.fill`
 
     Examples:
         >>> record = {'a': '1', 'b': '27', 'c': ''}
@@ -434,7 +434,7 @@ def merge(records, **kwargs):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         kwargs (dict): keyword arguments
 
@@ -470,9 +470,9 @@ def merge(records, **kwargs):
         dict: merged record
 
     See also:
-        `tabutils.process.aggregate`
-        `tabutils.process.join`
-        `tabutils.fntools.combine`
+        `meza.process.aggregate`
+        `meza.process.join`
+        `meza.fntools.combine`
 
     Examples:
         >>> records = [
@@ -504,7 +504,7 @@ def aggregate(records, key, op, default=0):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         key (str): The field to aggregate
 
@@ -519,7 +519,7 @@ def aggregate(records, key, op, default=0):
         dict: The first record with an aggregated value for `key`
 
     See also:
-        `tabutils.process.merge`
+        `meza.process.merge`
 
     Examples:
         >>> from . import stats
@@ -547,7 +547,7 @@ def group(records, keyfunc, tupled=True, aggregator=list, **kwargs):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         keyfunc (func): Either a fieldname or function which receives a record
             and selects which value to sort/group by.
@@ -594,7 +594,7 @@ def prepend(records, row):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         row (dict): A row of data.
 
@@ -602,7 +602,7 @@ def prepend(records, row):
         Iterator of rows.
 
     See also:
-        `tabutils.process.peek`
+        `meza.process.peek`
 
     Examples:
         >>> records = [
@@ -625,7 +625,7 @@ def peek(records, n=5):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         n (int): The number of rows to preview
 
@@ -634,7 +634,7 @@ def peek(records, n=5):
             rows.
 
     See also:
-        `tabutils.process.prepend`
+        `meza.process.prepend`
 
     Examples:
         >>> records = [
@@ -661,7 +661,7 @@ def pivot(records, data, column, op=sum, **kwargs):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         data (str): Field to aggregate
         column (str): Field to group by and create columns for in the resulting
@@ -684,8 +684,8 @@ def pivot(records, data, column, op=sum, **kwargs):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `tabutils.process.aggregate`
-        `tabutils.process.normalize`
+        `meza.process.aggregate`
+        `meza.process.normalize`
 
     Examples:
         >>> records = [
@@ -728,7 +728,7 @@ def normalize(records, data, column, rows):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         data (str): Field name to create for values of the normalized fields.
         column (str): Field name to create for keys of the normalized fields.
@@ -738,7 +738,7 @@ def normalize(records, data, column, rows):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `tabutils.process.pivot`
+        `meza.process.pivot`
 
     Examples:
         >>> records = [
@@ -763,16 +763,16 @@ def join(left, right):
 
     Args:
         left (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         right (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
     Returns:
         Iterator of records.
 
     See also:
-        `tabutils.process.merge`
+        `meza.process.merge`
 
     Examples:
         >>> left = [
@@ -791,7 +791,7 @@ def tfilter(records, field, pred=None):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         field (str): The column to to apply the predicate to.
 
@@ -801,7 +801,7 @@ def tfilter(records, field, pred=None):
             return the record if value is True).
 
     See also:
-        `tabutils.process.grep`
+        `meza.process.grep`
 
     Returns:
         Iter[dict]: The filtered records.
@@ -829,7 +829,7 @@ def unique(records, fields=None, pred=None, bufsize=4096):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         fields (Seq[str]): The columns to use for testing uniqueness
             (default: None, i.e., all columns). Overridden by `pred`.
@@ -880,7 +880,7 @@ def cut(records, fields=None, exclude=False, prune=False):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         fields (Iter[str]): Column names to include. (default: None, i.e.,
             all columns.').
@@ -892,7 +892,7 @@ def cut(records, fields=None, exclude=False, prune=False):
 
 
     See also:
-        `tabutils.fntools.dfilter`
+        `meza.fntools.dfilter`
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
@@ -953,7 +953,7 @@ def grep(records, rules, fields=None, any_match=False, inverse=False):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         rules (Iter[dict]): Each rule dict must contain a `pattern`
             key whose value can be either a string, function, or regular
@@ -969,7 +969,7 @@ def grep(records, rules, fields=None, any_match=False, inverse=False):
             (default: False)
 
     See also:
-        `tabutils.process.tfilter`
+        `meza.process.tfilter`
 
     Returns:
         Iter[dict]: The filtered records.
@@ -1016,7 +1016,7 @@ def hash(records, fields=None, algo='md5'):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         fields (Seq[str]): The columns to use for testing uniqueness
             (default: None, i.e., all columns). Overridden by `pred`.
@@ -1026,7 +1026,7 @@ def hash(records, fields=None, algo='md5'):
                 ripemd320, sha1, sha256, sha512, sha384, whirlpool
 
     See also:
-        `tabutils.io.hash_file`
+        `meza.io.hash_file`
 
     Yields:
         dict: Record. A row of data whose keys are the field names.

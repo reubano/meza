@@ -1,4 +1,4 @@
-tabutils: A Python toolkit for processing tabular data
+meza: A Python toolkit for processing tabular data
 ======================================================
 
 |travis| |versions| |pypi|
@@ -13,11 +13,11 @@ Index
 Introduction
 ------------
 
-**tabutils** is a Python `library`_ for reading and processing tabular data.
+**meza** is a Python `library`_ for reading and processing tabular data.
 It has a functional programming style API, excels at reading, large files,
 and can process 10+ file types.
 
-With tabutils, you can
+With meza, you can
 
 - Read csv/xls/xlsx/mdb/dbf files, and more!
 - Type cast records (date, float, text...)
@@ -28,7 +28,7 @@ With tabutils, you can
 Requirements
 ------------
 
-tabutils has been tested and is known to work on Python 2.7, 3.4, and 3.5;
+meza has been tested and is known to work on Python 2.7, 3.4, and 3.5;
 PyPy 4.0; and PyPy3 2.4
 
 Optional Dependencies
@@ -37,10 +37,10 @@ Optional Dependencies
 ==================================  ==============  ==============================  =======================
 Function                            Dependency      Installation                    File type / extension
 ==================================  ==============  ==============================  =======================
-``tabutils.io.read_mdb``            `mdbtools`_     ``sudo port install mdbtools``  Microsoft Access / mdb
-``tabutils.io.read_html``           `lxml`_ [#]_    ``pip install lxml``            HTML / html
-``tabutils.convert.records2array``  `NumPy`_ [#]_   ``pip install numpy``           n/a
-``tabutils.convert.records2df``     `pandas`_       ``pip install pandas``          n/a
+``meza.io.read_mdb``            `mdbtools`_     ``sudo port install mdbtools``  Microsoft Access / mdb
+``meza.io.read_html``           `lxml`_ [#]_    ``pip install lxml``            HTML / html
+``meza.convert.records2array``  `NumPy`_ [#]_   ``pip install numpy``           n/a
+``meza.convert.records2df``     `pandas`_       ``pip install pandas``          n/a
 ==================================  ==============  ==============================  =======================
 
 Notes
@@ -56,7 +56,7 @@ Motivation
 pandas is great, but installing it isn't exactly a `walk in the park`_. It also
 doesn't play nice with `PyPy`_. `csvkit`_ is an equally useful project, but it
 doesn't expose the same API when used as `a library`_ as it does via the command
-line. I designed **tabutils** to provide much of same functionality as
+line. I designed **meza** to provide much of same functionality as
 pandas and csvkit, while using functional programming methods.
 
 A simple data processing example is shown below:
@@ -72,7 +72,7 @@ data back to a new file.
 
 .. code-block:: python
 
-    from tabutils import io, process as pr, convert as cv
+    from meza import io, process as pr, convert as cv
     from io import open
 
     # Load the csv file
@@ -92,7 +92,7 @@ data back to a new file.
     {t['id']: t['type'] for t in result['types']}
     >>> {'col1': 'text', 'col2': 'date', 'col3': 'int'}
 
-    # Now type cast the records. Note: most `tabutils.process` functions return
+    # Now type cast the records. Note: most `meza.process` functions return
     # generators, so lets wrap the result in a list to view the data
     casted = list(pr.type_cast(records, result['types']))
     casted[0]
@@ -117,7 +117,7 @@ data back to a new file.
 Usage
 -----
 
-tabutils is intended to be used directly as a Python library.
+meza is intended to be used directly as a Python library.
 
 Usage Index
 ^^^^^^^^^^^
@@ -135,14 +135,14 @@ Usage Index
 Reading data
 ^^^^^^^^^^^^
 
-tabutils can read both filepaths and file-like objects. Additionally, all readers
+meza can read both filepaths and file-like objects. Additionally, all readers
 return equivalent `records` iterators, i.e., a generator of dictionaries with
 keys corresponding to the column names.
 
 .. code-block:: python
 
     from io import open, StringIO
-    from tabutils import io
+    from meza import io
 
     """Read a filepath"""
     records = io.read_json('path/to/file.json')
@@ -193,7 +193,7 @@ and command output is preceded by ``>>>``.
     import random
 
     from io import StringIO
-    from tabutils import io, process as pr, convert as cv, stats
+    from meza import io, process as pr, convert as cv, stats
 
     # Create some data in the same structure as what the various `read...`
     # functions output
@@ -254,7 +254,7 @@ place of ``read_csv``) to open any supported file. E.g., ``read_xls``,
 
     import itertools as it
 
-    from tabutils import io, process as pr, convert as cv
+    from meza import io, process as pr, convert as cv
 
     """Combine the files into one iterator
     --> csvstack file1.csv file2.csv
@@ -313,7 +313,7 @@ to a new geojson file-like object.
 
 .. code-block:: python
 
-    from tabutils import io, process as pr, convert as cv
+    from meza import io, process as pr, convert as cv
 
     # Load the geojson file and peek at the results
     records, peek = pr.peek(io.read_geojson('file.geojson'))
@@ -342,18 +342,18 @@ to a new geojson file-like object.
 Writing data
 ^^^^^^^^^^^^
 
-tabutils can persist ``records`` to disk via the following functions:
+meza can persist ``records`` to disk via the following functions:
 
-- ``tabutils.convert.records2csv``
-- ``tabutils.convert.records2json``
-- ``tabutils.convert.records2geojson``
+- ``meza.convert.records2csv``
+- ``meza.convert.records2json``
+- ``meza.convert.records2geojson``
 
 Each function returns a file-like object that you can write to disk via
-``tabutils.io.write('/path/to/file', result)``.
+``meza.io.write('/path/to/file', result)``.
 
 .. code-block:: python
 
-    from tabutils import io, convert as cv
+    from meza import io, convert as cv
     from io import StringIO, open
 
     # First let's create a simple tsv file like object
@@ -402,14 +402,14 @@ Notes
 Interoperability
 ----------------
 
-tabutils plays nicely with NumPy and friends out of the box
+meza plays nicely with NumPy and friends out of the box
 
 setup
 ^^^^^
 
 .. code-block:: python
 
-    from tabutils import process as pr
+    from meza import process as pr
 
     # First create some records and types. Also, convert the records to a list
     # so we can reuse them.
@@ -429,7 +429,7 @@ from records to pandas.DataFrame to records
 .. code-block:: python
 
     import pandas as pd
-    from tabutils import convert as cv
+    from meza import convert as cv
 
     """Convert the records to a DataFrame"""
     df = cv.records2df(records, types)
@@ -451,7 +451,7 @@ from records to arrays to records
     import numpy as np
 
     from array import array
-    from tabutils import convert as cv
+    from meza import convert as cv
 
     """Convert records to a structured array"""
     recarray = cv.records2array(records, types)
@@ -490,17 +490,17 @@ Installation
 
 (You are using a `virtualenv`_, right?)
 
-At the command line, install tabutils using either ``pip`` (*recommended*)
+At the command line, install meza using either ``pip`` (*recommended*)
 
 .. code-block:: bash
 
-    pip install tabutils
+    pip install meza
 
 or ``easy_install``
 
 .. code-block:: bash
 
-    easy_install tabutils
+    easy_install meza
 
 Please see the `installation doc`_ for more details.
 
@@ -563,7 +563,7 @@ Project Structure
     ├── requirements.txt
     ├── setup.cfg
     ├── setup.py
-    ├── tabutils
+    ├── meza
     │   ├── __init__.py
     │   ├── convert.py
     │   ├── dbf.py
@@ -589,12 +589,12 @@ Design Principles
 - make conversion between ``records``, ``arrays``, and ``DataFrames`` dead simple
 - whenever possible, lazily read objects and stream the result [#]_
 
-.. [#] Notable exceptions are ``tabutils.process.group``, ``tabutils.process.sort``, ``tabutils.io.read_dbf``, ``tabutils.io.read_yaml``, and ``tabutils.io.read_html``. These functions read the entire contents into memory up front.
+.. [#] Notable exceptions are ``meza.process.group``, ``meza.process.sort``, ``meza.io.read_dbf``, ``meza.io.read_yaml``, and ``meza.io.read_html``. These functions read the entire contents into memory up front.
 
 Readers
 -------
 
-tabutils' available readers are outlined below:
+meza' available readers are outlined below:
 
 +-----------------------+-------------------------+----------------+
 | File type             | Recognized extension(s) | Default reader |
@@ -622,14 +622,14 @@ tabutils' available readers are outlined below:
 | YAML                  | yml, yaml               | read_yaml      |
 +-----------------------+-------------------------+----------------+
 
-Alternatively, tabutils provides a universal reader which will select the
+Alternatively, meza provides a universal reader which will select the
 appropriate reader based on the file extension as specified in the above
 table.
 
 .. code-block:: python
 
     from io import open
-    from tabutils import io
+    from meza import io
 
     records1 = io.read('path/to/file.csv')
     records2 = io.read('path/to/file.xls')
@@ -649,7 +649,7 @@ encoding if it is anything other than ``utf-8``, e.g.,
 .. code-block:: python
 
     from io import open
-    from tabutils import io
+    from meza import io
 
     with open('path/to/file.xlsx') as f:
         records = io.read_xls(f, encoding='latin-1')
@@ -677,7 +677,7 @@ table       int   Table to read (zero indexed)             0        read_dbf, re
 Scripts
 -------
 
-tabutils comes with a built in task manager ``manage.py``
+meza comes with a built in task manager ``manage.py``
 
 Setup
 ^^^^^
@@ -708,21 +708,21 @@ Please see the `contributing doc`_ for more details.
 Credits
 -------
 
-Shoutouts to `csvkit`_, `messytables`_, and `pandas`_ for heavily inspiring tabutils.
+Shoutouts to `csvkit`_, `messytables`_, and `pandas`_ for heavily inspiring meza.
 
 License
 -------
 
-tabutils is distributed under the `MIT License`_.
+meza is distributed under the `MIT License`_.
 
-.. |travis| image:: https://img.shields.io/travis/reubano/tabutils/master.svg
-    :target: https://travis-ci.org/reubano/tabutils
+.. |travis| image:: https://img.shields.io/travis/reubano/meza/master.svg
+    :target: https://travis-ci.org/reubano/meza
 
-.. |versions| image:: https://img.shields.io/pypi/pyversions/tabutils.svg
-    :target: https://pypi.python.org/pypi/tabutils
+.. |versions| image:: https://img.shields.io/pypi/pyversions/meza.svg
+    :target: https://pypi.python.org/pypi/meza
 
-.. |pypi| image:: https://img.shields.io/pypi/v/tabutils.svg
-    :target: https://pypi.python.org/pypi/tabutils
+.. |pypi| image:: https://img.shields.io/pypi/v/meza.svg
+    :target: https://pypi.python.org/pypi/meza
 
 .. _mdbtools: http://sourceforge.net/projects/mdbtools/
 .. _lxml: http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
@@ -736,6 +736,6 @@ tabutils is distributed under the `MIT License`_.
 .. _pandas: https://github.com/pydata/pandas
 .. _MIT License: http://opensource.org/licenses/MIT
 .. _virtualenv: http://www.virtualenv.org/en/latest/index.html
-.. _contributing doc: https://github.com/reubano/tabutils/blob/master/CONTRIBUTING.rst
-.. _installation doc: https://github.com/reubano/tabutils/blob/master/INSTALLATION.rst
-.. _cookbook guide: https://github.com/reubano/tabutils/blob/master/COOKBOOK.rst
+.. _contributing doc: https://github.com/reubano/meza/blob/master/CONTRIBUTING.rst
+.. _installation doc: https://github.com/reubano/meza/blob/master/INSTALLATION.rst
+.. _cookbook guide: https://github.com/reubano/meza/blob/master/COOKBOOK.rst

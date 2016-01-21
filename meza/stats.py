@@ -3,8 +3,8 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils.stats
-~~~~~~~~~~~~~~
+meza.stats
+~~~~~~~~~~
 
 Statistics functions
 """

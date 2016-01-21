@@ -3,15 +3,15 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils.convert
-~~~~~~~~~~~~~~~~
+meza.convert
+~~~~~~~~~~~~
 
 Provides methods for converting data structures
 
 Examples:
     basic usage::
 
-        from tabutils.convert import to_decimal
+        from meza.convert import to_decimal
 
         decimal = to_decimal('$123.45')
 """
@@ -113,7 +113,7 @@ def to_bool(content, trues=None, falses=None, warn=False):
             (default: False)
 
     See also:
-        `tabutils.process.type_cast`
+        `meza.process.type_cast`
 
     Returns:
         bool: The parsed content.
@@ -172,7 +172,7 @@ def to_int(content, thousand_sep=',', decimal_sep='.', warn=False):
             (default: False)
 
     See also:
-        `tabutils.process.type_cast`
+        `meza.process.type_cast`
 
     Returns:
         flt: The parsed number.
@@ -226,7 +226,7 @@ def to_float(content, thousand_sep=',', decimal_sep='.', warn=False):
         flt: The parsed number.
 
     See also:
-        `tabutils.process.type_cast`
+        `meza.process.type_cast`
 
     Examples:
         >>> to_float('$123.45')
@@ -275,7 +275,7 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
         places (int): Number of decimal places to display (default: 2).
 
     See also:
-        `tabutils.process.type_cast`
+        `meza.process.type_cast`
 
     Examples:
         >>> to_decimal('$123.45')
@@ -362,7 +362,7 @@ def to_datetime(content, dt_format=None, warn=False):
         obj: The datetime object or formatted datetime string.
 
     See also:
-        `tabutils.process.type_cast`
+        `meza.process.type_cast`
 
     Examples:
         >>> fmt = '%Y-%m-%d %H:%M:%S'
@@ -419,7 +419,7 @@ def to_date(content, date_format=None, warn=False):
         obj: The date object or formatted date string.
 
     See also:
-        `tabutils.process.type_cast`
+        `meza.process.type_cast`
 
     Examples:
         >>> to_date('5/4/82')
@@ -454,7 +454,7 @@ def to_time(content, time_format=None, warn=False):
         obj: The time object or formatted time string.
 
     See also:
-        `tabutils.process.type_cast`
+        `meza.process.type_cast`
 
     Examples:
         >>> to_time('2:00 pm')
@@ -535,7 +535,7 @@ def array2records(data, native=False):
         Iterable of dicts
 
     See also:
-        `tabutils.convert.df2records`
+        `meza.convert.df2records`
 
     Examples:
         >>> arr = [[1, 2, 3], [4, 5, 6]] if np else [(1, 4), (2, 5), (3, 6)]
@@ -589,7 +589,7 @@ def df2records(df):
         dict: Record. A row of data whose keys are the field names.
 
     See also:
-        `tabutils.process.array2records`
+        `meza.process.array2records`
 
     Examples:
         >>> records = [
@@ -628,7 +628,7 @@ def records2array(records, types, native=False, silent=False):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         types (Iter[dict]):
 
@@ -640,7 +640,7 @@ def records2array(records, types, native=False, silent=False):
         numpy.recarray
 
     See also:
-        `tabutils.convert.records2df`
+        `meza.convert.records2df`
 
     Examples:
         >>> records = [{'alpha': 'aa', 'beta': 2}, {'alpha': 'bee', 'beta': 3}]
@@ -699,7 +699,7 @@ def records2df(records, types):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         types (Iter[dict]):
 
@@ -709,7 +709,7 @@ def records2df(records, types):
         numpy.recarray
 
     See also:
-        `tabutils.convert.records2array`
+        `meza.convert.records2array`
 
     Examples:
         >>> records = [
@@ -749,7 +749,7 @@ def records2csv(records, encoding=ENCODING, bom=False, skip_header=False):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         encoding (str): File encoding (default: ENCODING constant)
         bom (bool): Add Byte order marker (default: False)
@@ -794,7 +794,7 @@ def records2json(records, **kwargs):
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
     Kwargs:
         indent (int): Number of spaces to indent (default: 2).
@@ -803,7 +803,7 @@ def records2json(records, **kwargs):
         ensure_ascii (bool): Sort response dict by keys (default: False).
 
     See also:
-        `tabutils.convert.records2geojson`
+        `meza.convert.records2geojson`
 
     Returns:
         obj: io.StringIO instance
@@ -834,7 +834,7 @@ def gen_features(subresults, kw):
 
      Args:
         subresults (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         kw (obj): `fntools.Objectify` instance with the following Attributes:
             key (str): GeoJSON Feature ID
@@ -843,7 +843,7 @@ def gen_features(subresults, kw):
             sort_keys (bool): Sort rows by keys
 
     See also:
-        `tabutils.convert.records2geojson`
+        `meza.convert.records2geojson`
 
     Yields:
         dict: a geojson feature
@@ -890,7 +890,7 @@ def gen_subresults(records, kw):
 
      Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io` read function.
+            E.g., output from any `meza.io` read function.
 
         kw (obj): `fntools.Objectify` instance with the following Attributes:
             key (str): GeoJSON Feature ID
@@ -898,7 +898,7 @@ def gen_subresults(records, kw):
             lat (str): latitude field name
 
     See also:
-        `tabutils.convert.records2geojson`
+        `meza.convert.records2geojson`
 
     Yields:
         tuple(iter, dict): tuple of coordinates and row
@@ -936,7 +936,7 @@ def records2geojson(records, **kwargs):
 
      Args:
         records (Iter[dict]): Rows of data whose keys are the field names.
-            E.g., output from any `tabutils.io.read_geojson`.
+            E.g., output from any `meza.io.read_geojson`.
 
         kwargs (dict): Keyword arguments.
 
@@ -951,8 +951,8 @@ def records2geojson(records, **kwargs):
         ensure_ascii (bool): Sort response dict by keys (default: False).
 
     See also:
-        `tabutils.convert.records2json`
-        `tabutils.io.read_geojson`
+        `meza.convert.records2json`
+        `meza.io.read_geojson`
 
     Returns:
         obj: io.StringIO instance

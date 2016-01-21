@@ -3,15 +3,15 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils.fntools
-~~~~~~~~~~~~~~~~
+meza.fntools
+~~~~~~~~~~~~
 
 Provides methods for functional manipulation of content
 
 Examples:
     basic usage::
 
-        from tabutils.fntools import underscorify
+        from meza.fntools import underscorify
 
         header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
         list(underscorify(header))
@@ -508,7 +508,7 @@ def dfilter(content, blacklist=None, inverse=False):
         inverse (bool): Keep fields instead of removing them (default: False)
 
     See also:
-        `tabutils.process.cut`
+        `meza.process.cut`
 
     Returns:
         dict: The filtered content
@@ -838,7 +838,7 @@ def fill(previous, current, **kwargs):
         dict: The updated count.
 
     See also:
-        `tabutils.process.fillempty`
+        `meza.process.fillempty`
 
     Examples:
         >>> previous = {}
@@ -897,11 +897,11 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
     Args:
         x (dict): First record. Row of data whose keys are the field names.
             E.g., result from from calling next() on the output of any
-            `tabutils.io` read function.
+            `meza.io` read function.
 
         y (dict): Second record. Row of data whose keys are the field names.
             E.g., result from from calling next() on the output of any
-            `tabutils.io` read function.
+            `meza.io` read function.
 
         key (str): Current key.
         value (Optional[scalar]): The 2nd record's value of the given `key`.
@@ -927,7 +927,7 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
         (scalar): the combined value
 
     See also:
-        `tabutils.process.merge`
+        `meza.process.merge`
 
     Examples:
         >>> records = [

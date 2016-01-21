@@ -49,7 +49,7 @@ def check():
 @manager.command
 def lint(where=None, strict=False):
     """Check style with linters"""
-    args = 'pylint --rcfile=tests/standard.rc -rn -fparseable tabutils'
+    args = 'pylint --rcfile=tests/standard.rc -rn -fparseable meza'
 
     try:
         check_call(['flake8', where] if where else 'flake8')

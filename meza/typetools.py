@@ -3,15 +3,15 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils.typetools
-~~~~~~~~~~~~~~~~~~
+meza.typetools
+~~~~~~~~~~~~~~
 
 Provides methods for type guessing
 
 Examples:
     basic usage::
 
-        from tabutils.typetools import underscorify
+        from meza.typetools import underscorify
 
         header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
         underscored = list(underscorify(header))
@@ -56,10 +56,10 @@ def guess_type_by_field(content):
         dict: Field type. The parsed field and its type.
 
     See also:
-        `tabutils.typetools.guess_type_by_value`
-        `tabutils.process.type_cast`
-        `tabutils.process.gen_confidences`
-        `tabutils.process.detect_types`
+        `meza.typetools.guess_type_by_value`
+        `meza.process.type_cast`
+        `meza.process.gen_confidences`
+        `meza.process.detect_types`
 
     Examples:
         >>> fields = ['date', 'raw_value', 'date_and_time', 'length', 'field']
@@ -107,10 +107,10 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
         dict: Field type. The parsed field and its type.
 
     See also:
-        `tabutils.typetools.guess_type_by_field`
-        `tabutils.process.type_cast`
-        `tabutils.process.gen_confidences`
-        `tabutils.process.detect_types`
+        `meza.typetools.guess_type_by_field`
+        `meza.process.type_cast`
+        `meza.process.gen_confidences`
+        `meza.process.detect_types`
 
     Examples:
         >>> from datetime import datetime as dt, date, time

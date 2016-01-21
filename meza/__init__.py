@@ -3,8 +3,8 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils
-~~~~~~~~
+meza
+~~~~
 
 Provides methods for reading and processing data from tabular formatted files
 
@@ -27,8 +27,8 @@ from builtins import *
 
 __version__ = '0.27.2'
 
-__title__ = 'tabutils'
-__package_name__ = 'tabutils'
+__title__ = 'meza'
+__package_name__ = 'meza'
 __author__ = 'Reuben Cummings'
 __description__ = 'A Python toolkit for processing tabular data'
 __email__ = 'reubano@gmail.com'

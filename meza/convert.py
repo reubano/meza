@@ -35,6 +35,7 @@ from builtins import *
 from six.moves import filterfalse, zip_longest
 from dateutil.parser import parse
 from . import fntools as ft, csv, ENCODING, DEFAULT_DATETIME
+from ._compat import get_native_str
 
 try:
     import numpy as np
@@ -544,7 +545,7 @@ def array2records(data, native=False):
         >>> next(array2records(data, native)) == {
         ...     'column_1': 1, 'column_2': 2, 'column_3': 3}
         True
-        >>> i, f, u = [ft.get_native_str(x) for x in ['i', 'f', 'u']]
+        >>> i, f, u = [get_native_str(x) for x in ['i', 'f', 'u']]
         >>> data = [
         ...     array(i, [1, 2, 3]),
         ...     array(f, [1.0, 2.0, 3.0]),
@@ -652,7 +653,7 @@ def records2array(records, types, native=False, silent=False):
         True
         >>> arr.beta.tolist() if np else list(ft.get_values(arr[2]))
         [2, 3]
-        >>> u, i = ft.get_native_str('u'), ft.get_native_str('i')
+        >>> u, i = get_native_str('u'), get_native_str('i')
         >>> records2array(records, types, True) == [
         ...     [array(u, 'alpha'), array(u, 'beta')],
         ...     [array(u, 'aa'), array(u, 'bee')],
@@ -662,12 +663,12 @@ def records2array(records, types, native=False, silent=False):
     numpy = np and not native
     dialect = 'numpy' if numpy else 'array'
     _dtype = [ft.get_dtype(t['type'], dialect) for t in types]
-    dtype = [ft.get_native_str(d) for d in _dtype]
+    dtype = [get_native_str(d) for d in _dtype]
     ids = [t['id'] for t in types]
 
     if numpy:
         data = [tuple(r.get(id_) for id_ in ids) for r in records]
-        ndtype = [tuple(map(ft.get_native_str, z)) for z in zip(ids, dtype)]
+        ndtype = [tuple(map(get_native_str, z)) for z in zip(ids, dtype)]
         ndarray = np.array(data, dtype=ndtype)
         converted = ndarray.view(np.recarray)
     else:
@@ -678,7 +679,7 @@ def records2array(records, types, native=False, silent=False):
 
             logging.warning(msg)
 
-        header = [array(ft.get_native_str('u'), t['id']) for t in types]
+        header = [array(get_native_str('u'), t['id']) for t in types]
         data = (zip_longest(*([r.get(i) for i in ids] for r in records)))
 
         # array.array can't have nulls, so convert to an appropriate equivalent

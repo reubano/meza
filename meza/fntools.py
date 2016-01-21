@@ -32,8 +32,6 @@ from __future__ import (
 import itertools as it
 import operator
 import logging
-import codecs
-import sys
 
 from functools import partial
 from collections import defaultdict
@@ -45,6 +43,7 @@ from six.moves import filterfalse
 from slugify import slugify
 from . import CURRENCIES, ENCODING
 from functools import reduce
+from ._compat import encode
 
 DEF_TRUES = ('yes', 'y', 'true', 't')
 DEF_FALSES = ('no', 'n', 'false', 'f')
@@ -192,57 +191,6 @@ class CustomEncoder(JSONEncoder):
             encoded = super(CustomEncoder, self).default(obj)
 
         return encoded
-
-decoder = lambda encoding: codecs.getincrementaldecoder(encoding)()
-encoder = lambda encoding: codecs.getincrementalencoder(encoding)()
-
-
-def decode(content, encoding=ENCODING):
-    """Decode bytes (py2-str) into unicode
-
-    Args:
-        content (scalar): the content to analyze
-        encoding (str)
-
-    Returns:
-        unicode
-
-    Examples:
-        >>> from datetime import datetime as dt, date, time
-    """
-    try:
-        decoded = decoder(encoding).decode(content)
-    except (TypeError, UnicodeDecodeError):
-        decoded = content
-
-    return decoded
-
-
-def encode(content, encoding=ENCODING, parse_ints=False):
-    """Encode unicode or ints into bytes (py2-str)
-    """
-    if hasattr(content, 'encode'):
-        try:
-            encoded = encoder(encoding).encode(content)
-        except UnicodeDecodeError:
-            encoded = content
-    elif parse_ints:
-        try:
-            length = (content.bit_length() // 8) + 1
-        except AttributeError:
-            encoded = content
-        else:
-            try:
-                encoded = content.to_bytes(length, byteorder='big')
-            except AttributeError:
-                # http://stackoverflow.com/a/20793663/408556
-                h = '%x' % content
-                zeros = '0' * (len(h) % 2) + h
-                encoded = zeros.zfill(length * 2).decode('hex')
-    else:
-        encoded = content
-
-    return encoded
 
 
 def underscorify(content):
@@ -621,19 +569,6 @@ def get_values(narray):
         for n in narray:
             for x in get_values(n):
                 yield x
-
-
-def get_native_str(text):
-    # dtype bug https://github.com/numpy/numpy/issues/2407
-    if sys.version_info.major < 3:
-        try:
-            encoded = text.encode('ascii')
-        except AttributeError:
-            encoded = text
-    else:
-        encoded = text
-
-    return encoded
 
 
 def xmlize(content):

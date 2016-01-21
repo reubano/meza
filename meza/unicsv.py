@@ -21,9 +21,8 @@ if sys.version_info.major == 2:
     import codecs
     import cStringIO
 
-    from . import ENCODING, fntools as ft
-
-    encode, decode = ft.encode, ft.decode
+    from . import ENCODING
+    from ._compat import encode, decode
 
     def encode_all(f=None, **kwargs):
         """

@@ -34,23 +34,18 @@ PyPy 4.0; and PyPy3 2.4
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^
 
-+------------------+-------------------------+---------------+--------------+--------------------------------+
-| File type        | Recognized extension(s) | Reader        | Dependency   | Installation                   |
-+==================+=========================+===============+==============+================================+
-| Microsoft Access | mdb                     | ``read_mdb``  | `mdbtools`_  | ``sudo port install mdbtools`` |
-+------------------+-------------------------+---------------+--------------+--------------------------------+
-| HTML table       | html                    | ``read_html`` | `lxml`_ [#]_ | ``pip install lxml``           |
-+------------------+-------------------------+---------------+--------------+--------------------------------+
-
-=================================  =============  ======================
-function                           Dependency     Installation
-=================================  =============  ======================
-``tabutils.convert.records2array``  `NumPy`_ [#]_  ``pip install numpy``
-``tabutils.convert.records2df``     `pandas`_      ``pip install pandas``
-=================================  =============  ======================
+==================================  ==============  ==============================  =======================
+Function                            Dependency      Installation                    File type / extension
+==================================  ==============  ==============================  =======================
+``tabutils.io.read_mdb``            `mdbtools`_     ``sudo port install mdbtools``  Microsoft Access / mdb
+``tabutils.io.read_html``           `lxml`_ [#]_    ``pip install lxml``            HTML / html
+``tabutils.convert.records2array``  `NumPy`_ [#]_   ``pip install numpy``           n/a
+``tabutils.convert.records2df``     `pandas`_       ``pip install pandas``          n/a
+==================================  ==============  ==============================  =======================
 
 Notes
 ^^^^^
+
 .. [#] If ``lxml`` isn't present, ``read_html`` will default to the builtin Python html reader
 
 .. [#] ``records2array`` can be used without ``numpy`` by passing ``native=True`` in the function call. This will convert ``records`` into a list of native ``array.array`` objects.

@@ -17,7 +17,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://github.com/reubano/pygogo/issues.
+Report bugs at https://github.com/reubano/meza/issues.
 
 If you are reporting a bug, please include:
 
@@ -38,14 +38,14 @@ Look through the GitHub `issues`_ for anything tagged with ``feature`` and hack 
 Write Documentation
 ~~~~~~~~~~~~~~~~~~~
 
-pygogo could always use more documentation, whether as part of the
+meza could always use more documentation, whether as part of the
 official docs, in docstrings, or even on the web in blog posts, articles, and such.
 Feel free to contribute any type of documentation.
 
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at https://github.com/reubano/pygogo/issues.
+The best way to send feedback is to file an issue at https://github.com/reubano/meza/issues.
 
 If you are proposing a feature:
 
@@ -57,20 +57,20 @@ If you are proposing a feature:
 Get Started!
 ------------
 
-Ready to contribute? Here's how to set up ``pygogo`` for local development.
+Ready to contribute? Here's how to set up ``meza`` for local development.
 
-1. Fork the ``pygogo`` repo on GitHub and clone
+1. Fork the ``meza`` repo on GitHub and clone
 
 .. code-block:: bash
 
-    git clone git@github.com:<your_username>/pygogo.git
-    cd pygogo
+    git clone git@github.com:<your_username>/meza.git
+    cd meza
 
 2. Setup a new `virtualenv`_ with ``virtualenvwrapper``
 
 .. code-block:: bash
 
-    mkvirtualenv --no-site-packages pygogo
+    mkvirtualenv --no-site-packages meza
     pip install -r dev-requirements.txt
     python setup.py develop
 
@@ -78,8 +78,8 @@ Or, if you only have ``virtualenv`` installed
 
 .. code-block:: bash
 
-    virtualenv --no-site-packages ~/.venvs/pygogo
-    source ~/.venvs/pygogo/bin/activate
+    virtualenv --no-site-packages ~/.venvs/meza
+    source ~/.venvs/meza/bin/activate
     pip install -r dev-requirements.txt
     python setup.py develop
 
@@ -105,7 +105,7 @@ Or, if you only have ``virtualenv`` installed
     git commit -m "Your detailed description of your changes."
     git push origin name-of-your-bugfix-or-feature
 
-6. Submit a pull request on the pygogo `repo`_.
+6. Submit a pull request on the meza `repo`_.
 
 Pull Request Guidelines
 -----------------------
@@ -117,6 +117,6 @@ Before you submit a pull request, check that it meets these guidelines:
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
 
-.. _issues: https://github.com/reubano/pygogo/issues
-.. _repo: https://github.com/reubano/pygogo
+.. _issues: https://github.com/reubano/meza/issues
+.. _repo: https://github.com/reubano/meza
 .. _virtualenv: https://virtualenv.pypa.io/en/latest/index.html

@@ -3,15 +3,15 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils.dbf
-~~~~~~~~~~~~
+meza.dbf
+~~~~~~~~
 
 Provides methods for reading dbf files
 
 Examples:
     basic usage::
 
-        from tabutils.dbf import DBF2
+        from meza.dbf import DBF2
 
         record = next(DBF2('test.dbf'))
 

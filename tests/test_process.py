@@ -19,7 +19,7 @@ from operator import itemgetter, truediv, eq, is_not, contains
 from collections import defaultdict
 
 from builtins import *
-from tabutils import process as pr, stats, fntools as ft
+from meza import process as pr, stats, fntools as ft
 
 
 def setup_module():

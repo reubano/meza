@@ -21,7 +21,7 @@ from io import StringIO
 from decimal import Decimal
 
 from builtins import *
-from tabutils import io, convert as cv
+from meza import io, convert as cv
 
 
 def setup_module():

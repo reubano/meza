@@ -3,15 +3,15 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils.fntools
-~~~~~~~~~~~~~~~~
+meza.fntools
+~~~~~~~~~~~~
 
 Provides methods for functional manipulation of content
 
 Examples:
     basic usage::
 
-        from tabutils.fntools import underscorify
+        from meza.fntools import underscorify
 
         header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
         list(underscorify(header))
@@ -32,10 +32,8 @@ from __future__ import (
 import itertools as it
 import operator
 import logging
-import codecs
-import sys
 
-from functools import partial
+from functools import partial, reduce
 from collections import defaultdict
 from json import JSONEncoder
 from os import path as p
@@ -43,8 +41,9 @@ from os import path as p
 from builtins import *
 from six.moves import filterfalse
 from slugify import slugify
+
 from . import CURRENCIES, ENCODING
-from functools import reduce
+from ._compat import encode
 
 DEF_TRUES = ('yes', 'y', 'true', 't')
 DEF_FALSES = ('no', 'n', 'false', 'f')
@@ -160,8 +159,16 @@ class Andand(object):
         >>> kw = Objectify(kwargs)
         >>> kw.key == 'value'
         True
-        >>> Andand(kw).key.missing.undefined.item
-        >>> Andand(kw).key.missing.undefined()
+        >>> Andand(kw).key  # doctest: +ELLIPSIS
+        <meza.fntools.Andand object at 0x...>
+        >>> Andand(kw).key.item == 'value'
+        True
+        >>> Andand(kw).key() == 'value'
+        True
+        >>> Andand(kw).key.imnot.here  # doctest: +ELLIPSIS
+        <meza.fntools.Andand object at 0x...>
+        >>> Andand(kw).key.imnot.here.item
+        >>> Andand(kw).key.imnot.here()
     """
 
     def __init__(self, item=None):
@@ -193,57 +200,6 @@ class CustomEncoder(JSONEncoder):
 
         return encoded
 
-decoder = lambda encoding: codecs.getincrementaldecoder(encoding)()
-encoder = lambda encoding: codecs.getincrementalencoder(encoding)()
-
-
-def decode(content, encoding=ENCODING):
-    """Decode bytes (py2-str) into unicode
-
-    Args:
-        content (scalar): the content to analyze
-        encoding (str)
-
-    Returns:
-        unicode
-
-    Examples:
-        >>> from datetime import datetime as dt, date, time
-    """
-    try:
-        decoded = decoder(encoding).decode(content)
-    except (TypeError, UnicodeDecodeError):
-        decoded = content
-
-    return decoded
-
-
-def encode(content, encoding=ENCODING, parse_ints=False):
-    """Encode unicode or ints into bytes (py2-str)
-    """
-    if hasattr(content, 'encode'):
-        try:
-            encoded = encoder(encoding).encode(content)
-        except UnicodeDecodeError:
-            encoded = content
-    elif parse_ints:
-        try:
-            length = (content.bit_length() // 8) + 1
-        except AttributeError:
-            encoded = content
-        else:
-            try:
-                encoded = content.to_bytes(length, byteorder='big')
-            except AttributeError:
-                # http://stackoverflow.com/a/20793663/408556
-                h = '%x' % content
-                zeros = '0' * (len(h) % 2) + h
-                encoded = zeros.zfill(length * 2).decode('hex')
-    else:
-        encoded = content
-
-    return encoded
-
 
 def underscorify(content):
     """ Slugifies elements of an array with underscores
@@ -267,7 +223,7 @@ def underscorify(content):
 
 
 def get_ext(path):
-    """ Gets a file (local )
+    """ Gets a file (local)
 
     Args:
         content (Iter[str]): the content to dedupe
@@ -341,6 +297,66 @@ def mreplace(content, replacements):
     """
     func = lambda x, y: x.replace(y[0], y[1])
     return reduce(func, replacements, content)
+
+
+def rreplace(content, needle, replace):
+    """ Recursively replaces all occurrences of needle with replace
+
+    Args:
+        content (Iter[str]): An iterable of strings on which to perform the
+            replacement
+
+        needle (str): the value being searched for (an iterable of strings may
+            be used to designate multiple needles)
+
+        replace (scalar): the replacement value that replaces needle (an
+            iterable of scalars may be used to designate multiple replacements)
+
+    Yields:
+        str: replaced content
+
+    Examples:
+        >>> subs = rreplace([('one', 'two', 'three')], 'two', 2)
+        >>> next(subs) == ['one', '2', 'three']
+        True
+    """
+    for item in content:
+        try:
+            yield item.replace(needle, str(replace))
+        except AttributeError:
+            yield list(rreplace(item, needle, replace))
+
+
+def find_type(type_, content, n=0):
+    """ Searches content for the nth (zero based) occurrence of a given type
+    and returns the corresponding key if successful.
+
+    Args:
+        type_ (str): the type of element to find (i.e. 'numeric'
+            or 'string')
+
+        content (Iter[str]): the content to search
+
+    Returns:
+        int: Index of the found element or -1 on failure
+
+    Examples:
+        >>> find_type('string', ('one', '2w', '3a'), 2)
+        2
+        >>> find_type('numeric', ('1', 2, 3), 2)
+        -1
+        >>> find_type('numeric', ('one', 2, 3), 1)
+        2
+    """
+    switch = {'numeric': 'real', 'string': 'upper'}
+    func = lambda x: hasattr(x, switch[type_])
+
+    try:
+        found = next(it.islice(filter(func, content), n, None))
+    except StopIteration:
+        return -1
+    else:
+        return content.index(found)
 
 
 def strip(value, thousand_sep=',', decimal_sep='.'):
@@ -508,7 +524,7 @@ def dfilter(content, blacklist=None, inverse=False):
         inverse (bool): Keep fields instead of removing them (default: False)
 
     See also:
-        `tabutils.process.cut`
+        `meza.process.cut`
 
     Returns:
         dict: The filtered content
@@ -621,19 +637,6 @@ def get_values(narray):
         for n in narray:
             for x in get_values(n):
                 yield x
-
-
-def get_native_str(text):
-    # dtype bug https://github.com/numpy/numpy/issues/2407
-    if sys.version_info.major < 3:
-        try:
-            encoded = text.encode('ascii')
-        except AttributeError:
-            encoded = text
-    else:
-        encoded = text
-
-    return encoded
 
 
 def xmlize(content):
@@ -838,7 +841,7 @@ def fill(previous, current, **kwargs):
         dict: The updated count.
 
     See also:
-        `tabutils.process.fillempty`
+        `meza.process.fillempty`
 
     Examples:
         >>> previous = {}
@@ -897,11 +900,11 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
     Args:
         x (dict): First record. Row of data whose keys are the field names.
             E.g., result from from calling next() on the output of any
-            `tabutils.io` read function.
+            `meza.io` read function.
 
         y (dict): Second record. Row of data whose keys are the field names.
             E.g., result from from calling next() on the output of any
-            `tabutils.io` read function.
+            `meza.io` read function.
 
         key (str): Current key.
         value (Optional[scalar]): The 2nd record's value of the given `key`.
@@ -927,7 +930,7 @@ def combine(x, y, key, value=None, pred=None, op=None, default=0):
         (scalar): the combined value
 
     See also:
-        `tabutils.process.merge`
+        `meza.process.merge`
 
     Examples:
         >>> records = [
@@ -1001,58 +1004,6 @@ def flatten(record, prefix=None):
                 yield flattened
     except AttributeError:
         yield (prefix, record)
-
-
-def array_search_type(needle, haystack, n=0):
-    """ Searches an array for the nth (zero based) occurrence of a given value
-     type and returns the corresponding key if successful.
-
-    Args:
-        needle (str): the type of element to find (i.e. 'numeric'
-            or 'string')
-        haystack (List[str]): the array to search
-
-    Returns:
-        (List[str]): array of the key(s) of the found element(s)
-
-    Examples:
-        >>> next(array_search_type('string', ('one', '2w', '3a'), 2)) == '3a'
-        True
-        >>> next(array_search_type('numeric', ('1', 2, 3), 2))
-        Traceback (most recent call last):
-        StopIteration
-        >>> next(array_search_type('numeric', ('one', 2, 3), 1))
-        3
-    """
-    switch = {'numeric': 'real', 'string': 'upper'}
-    func = lambda x: hasattr(x, switch[needle])
-    return it.islice(filter(func, haystack), n, None)
-
-
-def array_substitute(content, needle, replace):
-    """ Recursively replaces all occurrences of needle with replace
-
-    Args:
-        content (List[str]): the array to perform the replacement on
-        needle (str): the value being searched for (an array may
-            be used to designate multiple needles)
-
-        replace (scalar): the replacement value that replaces needle
-            (an array may be used to designate multiple replacements)
-
-    Returns:
-        List[str]: new array with replaced values
-
-    Examples:
-        >>> subs = array_substitute([('one', 'two', 'three')], 'two', 2)
-        >>> next(subs) == ['one', '2', 'three']
-        True
-    """
-    for item in content:
-        try:
-            yield item.replace(needle, str(replace))
-        except AttributeError:
-            yield list(array_substitute(item, needle, replace))
 
 
 def def_itemgetter(attr, default=None):

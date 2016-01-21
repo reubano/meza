@@ -3,8 +3,8 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils.unicsv
-~~~~~~~~~~~~~~~
+meza.unicsv
+~~~~~~~~~~~
 
 Provides py2 compatible methods for reading and writing unicode csv data in
 a py3 futurized codebase.
@@ -21,9 +21,8 @@ if sys.version_info.major == 2:
     import codecs
     import cStringIO
 
-    from . import ENCODING, fntools as ft
-
-    encode, decode = ft.encode, ft.decode
+    from . import ENCODING
+    from ._compat import encode, decode
 
     def encode_all(f=None, **kwargs):
         """

@@ -3,8 +3,8 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-tabutils
-~~~~~~~~
+meza
+~~~~
 
 Provides methods for reading and processing data from tabular formatted files
 
@@ -25,12 +25,12 @@ import logging
 from datetime import datetime as dt
 from builtins import *
 
-__version__ = '0.27.2'
+__version__ = '0.28.0'
 
-__title__ = 'tabutils'
-__package_name__ = 'tabutils'
+__title__ = 'meza'
+__package_name__ = 'meza'
 __author__ = 'Reuben Cummings'
-__description__ = 'A (tabular) data processing toolkit'
+__description__ = 'A Python toolkit for processing tabular data'
 __email__ = 'reubano@gmail.com'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'

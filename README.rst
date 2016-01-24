@@ -734,5 +734,5 @@ meza is distributed under the `MIT License`_.
 .. _MIT License: http://opensource.org/licenses/MIT
 .. _virtualenv: http://www.virtualenv.org/en/latest/index.html
 .. _contributing doc: https://github.com/reubano/meza/blob/master/CONTRIBUTING.rst
-.. _installation doc: https://github.com/reubano/meza/blob/master/INSTALLATION.rst
-.. _cookbook guide: https://github.com/reubano/meza/blob/master/COOKBOOK.rst
+.. _installation doc: https://github.com/reubano/meza/blob/master/docs/INSTALLATION.rst
+.. _cookbook guide: https://github.com/reubano/meza/blob/master/docs/COOKBOOK.rst

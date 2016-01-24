@@ -201,7 +201,7 @@ Examples:
         >>> peek[0] == {'lat': 20, 'type': 'Point', 'lon': 10, 'id': 11}
         True
 
-        # Split the casted records by feature ``id``
+        # Split the records by feature ``id``
         >>> splits = pr.split(records, 'id')
         >>> feature_records, name = next(splits)
         >>> name

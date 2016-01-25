@@ -508,60 +508,27 @@ Project Structure
 
 .. code-block:: bash
 
-    ┌── AUTHORS.rst
-    ├── CHANGES.rst
-    ├── CONTRIBUTING.rst
-    ├── INSTALLATION.rst
+    ┌── CONTRIBUTING.rst
     ├── LICENSE
     ├── MANIFEST.in
     ├── Makefile
     ├── README.rst
-    ├── TODO.rst
     ├── data
-    │   ├── converted
-    │   │   ├── dbf.csv
-    │   │   ├── fixed.csv
-    │   │   ├── geo.csv
-    │   │   ├── geojson.csv
-    │   │   ├── json.csv
-    │   │   ├── json_multiline.csv
-    │   │   └── sheet_2.csv
-    │   └── test
-    │       ├── fixed.txt
-    │       ├── fixed_w_header.txt
-    │       ├── iris.csv
-    │       ├── irismeta.csv
-    │       ├── latin1.csv
-    │       ├── mac_newlines.csv
-    │       ├── newline.json
-    │       ├── no_header_row.csv
-    │       ├── test.csv
-    │       ├── test.dbf
-    │       ├── test.geojson
-    │       ├── test.html
-    │       ├── test.json
-    │       ├── test.mdb
-    │       ├── test.sqlite
-    │       ├── test.tsv
-    │       ├── test.xls
-    │       ├── test.xlsx
-    │       ├── test.yml
-    │       ├── utf16_big.csv
-    │       ├── utf16_little.csv
-    │       └── utf8.csv
+    │   ├── converted/*
+    │   └── test/*
     ├── dev-requirements.txt
-    ├── examples.py
-    ├── helpers
-    │   ├── check-stage
-    │   ├── clean
-    │   ├── pippy
-    │   ├── srcdist
-    │   └── wheel
+    ├── docs
+    │   ├── AUTHORS.rst
+    │   ├── CHANGES.rst
+    │   ├── COOKBOOK.rst
+    │   ├── FAQ.rst
+    │   ├── INSTALLATION.rst
+    │   └── TODO.rst
+    ├── examples
+    │   ├── usage.ipynb
+    │   └── usage.py
+    ├── helpers/*
     ├── manage.py
-    ├── py2-requirements.txt
-    ├── requirements.txt
-    ├── setup.cfg
-    ├── setup.py
     ├── meza
     │   ├── __init__.py
     │   ├── convert.py
@@ -572,6 +539,11 @@ Project Structure
     │   ├── stats.py
     │   ├── typetools.py
     │   └── unicsv.py
+    ├── optional-requirements.txt
+    ├── py2-requirements.txt
+    ├── requirements.txt
+    ├── setup.cfg
+    ├── setup.py
     ├── tests
     │   ├── __init__.py
     │   ├── standard.rc

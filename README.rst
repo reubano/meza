@@ -7,8 +7,8 @@ Index
 -----
 
 `Introduction`_ | `Requirements`_ | `Motivation`_ | `Usage`_ | `Interoperability`_ |
-`Installation`_ | `Project Structure`_ | `Design Principles`_ | `Readers`_ |
-`Scripts`_ | `Contributing`_ | `Credits`_ | `License`_
+`Installation`_ | `Project Structure`_ | `Design Principles`_ | `Scripts`_ |
+`Contributing`_ | `Credits`_ | `More Info`_ | `License`_
 
 Introduction
 ------------
@@ -114,6 +114,8 @@ data back to a new file.
     ...     f.read()
     'col2,col3\n2015-01-01,3\n'
 
+For more detailed information, please check-out the `FAQ`_ or ipython `notebook`_.
+
 Usage
 -----
 
@@ -175,7 +177,7 @@ keys corresponding to the column names.
     >>> f.seek(0)
     >>> records = io.read(f, ext='csv', dedupe=True)
 
-Please see `Readers`_ for a complete list of available readers and recognized
+Please see `readers`_ for a complete list of available readers and recognized
 file types.
 
 Processing data
@@ -210,7 +212,7 @@ In the following example, ``pandas`` equivalent methods are preceded by ``-->``.
     >>> next(pr.cut(df, ['A']))
     {'A': 0.53908170489952006}
 
-    """Select the first the rows of data --> df[0:3]"""
+    """Select the first three rows of data --> df[0:3]"""
     >>> len(list(it.islice(df, 3)))
     3
 
@@ -588,89 +590,6 @@ Design Principles
 
 .. [#] Notable exceptions are ``meza.process.group``, ``meza.process.sort``, ``meza.io.read_dbf``, ``meza.io.read_yaml``, and ``meza.io.read_html``. These functions read the entire contents into memory up front.
 
-Readers
--------
-
-meza's available readers are outlined below:
-
-+-----------------------+-------------------------+----------------+
-| File type             | Recognized extension(s) | Default reader |
-+=======================+=========================+================+
-| Comma separated file  | csv                     | read_csv       |
-+-----------------------+-------------------------+----------------+
-| dBASE/FoxBASE         | dbf                     | read_dbf       |
-+-----------------------+-------------------------+----------------+
-| Fixed width file      | fixed                   | read_fixed_fmt |
-+-----------------------+-------------------------+----------------+
-| GeoJSON               | geojson, geojson.json   | read_geojson   |
-+-----------------------+-------------------------+----------------+
-| HTML table            | html                    | read_html      |
-+-----------------------+-------------------------+----------------+
-| JSON                  | json                    | read_json      |
-+-----------------------+-------------------------+----------------+
-| Microsoft Access      | mdb                     | read_mdb       |
-+-----------------------+-------------------------+----------------+
-| SQLite                | sqlite                  | read_sqlite    |
-+-----------------------+-------------------------+----------------+
-| Tab separated file    | tsv                     | read_tsv       |
-+-----------------------+-------------------------+----------------+
-| Microsoft Excel       | xls, xlsx               | read_xls       |
-+-----------------------+-------------------------+----------------+
-| YAML                  | yml, yaml               | read_yaml      |
-+-----------------------+-------------------------+----------------+
-
-Alternatively, meza provides a universal reader which will select the
-appropriate reader based on the file extension as specified in the above
-table.
-
-.. code-block:: python
-
-    >>> from io import open
-    >>> from meza import io
-
-    >>> records1 = io.read('path/to/file.csv')
-    >>> records2 = io.read('path/to/file.xls')
-
-    >>> with open('path/to/file.json', encoding='utf-8') as f:
-    ...     records3 = io.read(f, ext='json')
-
-Args
-^^^^
-
-Most readers take as their first argument, either a file path or file like object.
-The notable execption is ``read_mdb`` which only accepts a file path.
-File like objects should be opened using Python's stdlib ``io.open``. If the file
-is opened in binary mode ``io.open('/path/to/file')``, be sure to pass the proper
-encoding if it is anything other than ``utf-8``, e.g.,
-
-.. code-block:: python
-
-    >>> from io import open
-    >>> from meza import io
-
-    >>> with open('path/to/file.xlsx') as f:
-    ...     records = io.read_xls(f, encoding='latin-1')
-
-Kwargs
-^^^^^^
-
-While each reader has kwargs specific to itself, the following table outlines
-the most common ones.
-
-==========  ====  =======================================  =======  =====================================================================================================
-kwarg       type  description                              default  implementing readers
-==========  ====  =======================================  =======  =====================================================================================================
-mode        str   File open mode                           rU       read_csv, read_fixed_fmt, read_geojson, read_html, read_json, read_tsv, read_xls, read_yaml
-encoding    str   File encoding                            utf-8    read_csv, read_dbf, read_fixed_fmt, read_geojson, read_html, read_json, read_tsv, read_xls, read_yaml
-has_header  bool  Data has a header row?                   True     read_csv, read_fixed_fmt, read_tsv, read_xls
-first_row   int   First row to read (zero indexed)         0        read_csv, read_fixed_fmt, read_tsv, read_xls
-first_col   int   First column to read (zero indexed)      0        read_csv, read_fixed_fmt, read_tsv, read_xls
-sanitize    bool  Underscorify and lowercase field names?  False    read_csv, read_dbf, read_fixed_fmt, read_html, read_mdb, read_tsv, read_xls
-dedupe      bool  Deduplicate field names?                 False    read_csv, read_fixed_fmt, read_html, read_mdb, read_tsv, read_xls
-sheet       int   Sheet to read (zero indexed)             0        read_xls
-table       int   Table to read (zero indexed)             0        read_dbf, read_html, read_mdb, read_sqlite
-==========  ====  =======================================  =======  =====================================================================================================
-
 Scripts
 -------
 
@@ -707,6 +626,13 @@ Credits
 
 Shoutouts to `csvkit`_, `messytables`_, and `pandas`_ for heavily inspiring meza.
 
+More Info
+---------
+
+- `FAQ`_
+- `cookbook guide`_
+- ipython `notebook`_
+
 License
 -------
 
@@ -734,5 +660,8 @@ meza is distributed under the `MIT License`_.
 .. _MIT License: http://opensource.org/licenses/MIT
 .. _virtualenv: http://www.virtualenv.org/en/latest/index.html
 .. _contributing doc: https://github.com/reubano/meza/blob/master/CONTRIBUTING.rst
+.. _FAQ: https://github.com/reubano/meza/blob/master/docs/FAQ.rst
+.. _notebook: http://nbviewer.jupyter.org/github/reubano/meza/blob/master/examples/usage.ipynb
+.. _readers: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#what readers-are-available
 .. _installation doc: https://github.com/reubano/meza/blob/master/docs/INSTALLATION.rst
 .. _cookbook guide: https://github.com/reubano/meza/blob/master/docs/COOKBOOK.rst

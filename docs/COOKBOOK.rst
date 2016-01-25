@@ -1,5 +1,10 @@
 meza Cookbook
-=================
+=============
+
+Index
+-----
+
+`More fun with pandas`_ | `More fun with geojson files`_
 
 More fun with pandas
 --------------------
@@ -114,8 +119,8 @@ Note that the ``pandas`` equivalent methods are preceded by ``-->``.
     {'A': 'one', 'B': 'beh', 'C': 'bar', 'D': 0.0},
     {'A': 'one', 'B': 'say', 'C': 'foo', 'D': -5.55774}]
 
-More fun with geojson files.
-----------------------------
+More fun with geojson files
+---------------------------
 
 First create a few geojson files (in bash)
 

@@ -71,7 +71,7 @@ Why you should use meza
 - low `memory usage`_ (via iterators) reading / writing large files
 - `pypy support`_
 - `geojson support`_ (reading/writing)
-- `seemless integration`_ with sqlachemy (and other libs that work with iterators of dicts)
+- `seamless integration`_ with sqlachemy (and other libs that work with iterators of dicts)
 
 For more detailed information, please check-out the `FAQ`_.
 

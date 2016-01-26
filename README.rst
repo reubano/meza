@@ -653,7 +653,7 @@ meza is distributed under the `MIT License`_.
 .. _memory usage: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#memory
 .. _pypy support: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#pypy
 .. _geojson support: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#geojson
-.. _seemless integration: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#convenience
+.. _seamless integration: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#convenience
 .. _notebook: http://nbviewer.jupyter.org/github/reubano/meza/blob/master/examples/usage.ipynb
 .. _readers: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#what readers-are-available
 .. _installation doc: https://github.com/reubano/meza/blob/master/docs/INSTALLATION.rst

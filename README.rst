@@ -102,7 +102,7 @@ data back to a new file.
     >>> row
     {'col1': 'hello', 'col2': '5/4/82', 'col3': '1'}
 
-    >>> # Let's replace the first row so as not to loose any data
+    >>> # Let's replace the first row so as not to lose any data
     >>> records = pr.prepend(records, row)
 
     # Guess column types. Note: `detect_types` returns a new `records`

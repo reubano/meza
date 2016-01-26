@@ -68,7 +68,7 @@ Why you should use meza
 ``meza`` provides a number of benefits / differences from similar libraies such as ``pandas``. Namely:
 
 - functional instead of object oriented
-- low `memory usage`_ (via iterators) reading / writing large files
+- `iterators by default`_ (reading/writing) 
 - `pypy support`_
 - `geojson support`_ (reading/writing)
 - `seamless integration`_ with sqlachemy (and other libs that work with iterators of dicts)
@@ -650,7 +650,7 @@ meza is distributed under the `MIT License`_.
 .. _virtualenv: http://www.virtualenv.org/en/latest/index.html
 .. _contributing doc: https://github.com/reubano/meza/blob/master/CONTRIBUTING.rst
 .. _FAQ: https://github.com/reubano/meza/blob/master/docs/FAQ.rst
-.. _memory usage: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#memory
+.. _iterators by default: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#memory
 .. _pypy support: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#pypy
 .. _geojson support: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#geojson
 .. _seamless integration: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#convenience

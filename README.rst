@@ -14,7 +14,7 @@ Introduction
 ------------
 
 **meza** is a Python `library`_ for reading and processing tabular data.
-It has a functional programming style API, excels at reading, large files,
+It has a functional programming style API, excels at reading/writing large files,
 and can process 10+ file types.
 
 With meza, you can

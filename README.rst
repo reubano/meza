@@ -67,7 +67,7 @@ Why you should use meza
 
 ``meza`` provides a number of benefits / differences from similar libraies such as ``pandas``. Namely:
 
-- functions instead of objects
+- functional instead of object oriented
 - low `memory usage`_ (via iterators) reading / writing large files
 - `pypy support`_
 - `geojson support`_ (reading/writing)

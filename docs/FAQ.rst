@@ -9,7 +9,7 @@ Index
 How does ``meza`` compare to ``pandas``?
 ----------------------------------------
 
-Philosophically, ``meza`` is designed around **functional programming** and iterators of dictionaries whereas ``pandas`` is designed around the **DataFrame object**. Also, ``meza`` is better suited for processing evented, or streaming data; whereas ``pandas`` seems optimized for performing matrix transformations and linear algebra.
+Philosophically, ``meza`` is designed around **functional programming** and iterators of dictionaries whereas ``pandas`` is designed around the **DataFrame object**. Also, ``meza`` is better suited for `ETL`_, or processing evented / streaming data; whereas ``pandas`` seems optimized for performing matrix transformations and linear algebra.
 
 meza Advantages
 ^^^^^^^^^^^^^^^
@@ -175,3 +175,4 @@ table       int   Table to read (zero indexed)             0        read_dbf, re
 .. _How does meza compare to pandas: #how-does-meza-compare-to-pandas
 .. _What readers are available: #what-readers-are-available
 .. _vectorized operations: http://pandas.pydata.org/pandas-docs/stable/dsintro.html#vectorized-operations-and-label-alignment-with-series
+.. _ETL: https://en.wikipedia.org/wiki/Extract,_transform,_load

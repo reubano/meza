@@ -57,17 +57,15 @@ Why I built meza
 ^^^^^^^^^^^^^^^^
 
 pandas is great, but installing it isn't exactly a `walk in the park`_. It also
-doesn't play nice with `PyPy`_. `csvkit`_ is an equally useful project, but it
-doesn't expose the same API when used as `a library`_ as it does via the command
-line. I designed **meza** to provide much of same functionality as
-pandas and csvkit, while using functional programming methods.
+doesn't play nice with `PyPy`_. I designed **meza** to provide much of same functionality as
+pandas, using the functional programming paradigm.
 
 Why you should use meza
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 ``meza`` provides a number of benefits / differences from similar libraies such as ``pandas``. Namely:
 
-- functional instead of object oriented
+- a functional programming instead of object oriented API
 - `iterators by default`_ (reading/writing) 
 - `pypy support`_
 - `geojson support`_ (reading/writing)
@@ -640,7 +638,6 @@ meza is distributed under the `MIT License`_.
 .. _lxml: http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
 .. _library: #usage
 .. _NumPy: https://github.com/numpy/numpy
-.. _a library: https://csvkit.readthedocs.org/en/0.9.1/api/csvkit.py3.html
 .. _PyPy: https://github.com/pydata/pandas/issues/9532
 .. _walk in the park: http://pandas.pydata.org/pandas-docs/stable/install.html#installing-pandas-with-anaconda
 .. _csvkit: https://github.com/onyxfish/csvkit

@@ -56,18 +56,18 @@ Motivation
 Why I built meza
 ^^^^^^^^^^^^^^^^
 
-pandas is great, but installing it isn't exactly a `walk in the park`_. It also
-doesn't play nice with `PyPy`_. I designed **meza** to provide much of same functionality as
-pandas, using the functional programming paradigm.
+pandas is great, but installing it isn't exactly a `walk in the park`_, and it
+doesn't play nice with `PyPy`_. I designed **meza** to be a lightweight, easy to install, less featureful alternative to
+pandas. I also optimized **meza** for memory usage over speed, PyPy compatibility, and functional programming best practices.
 
 Why you should use meza
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-``meza`` provides a number of benefits / differences from similar libraies such as ``pandas``. Namely:
+``meza`` provides a number of benefits / differences from libraies such as ``pandas`` and the like. Namely:
 
-- a functional programming instead of object oriented API
+- a functional programming (instead of object oriented) API
 - `iterators by default`_ (reading/writing) 
-- `pypy support`_
+- `PyPy compatibility`_
 - `geojson support`_ (reading/writing)
 - `seamless integration`_ with sqlachemy (and other libs that work with iterators of dicts)
 
@@ -648,7 +648,7 @@ meza is distributed under the `MIT License`_.
 .. _contributing doc: https://github.com/reubano/meza/blob/master/CONTRIBUTING.rst
 .. _FAQ: https://github.com/reubano/meza/blob/master/docs/FAQ.rst
 .. _iterators by default: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#memory
-.. _pypy support: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#pypy
+.. _PyPy compatibility: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#pypy
 .. _geojson support: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#geojson
 .. _seamless integration: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#convenience
 .. _notebook: http://nbviewer.jupyter.org/github/reubano/meza/blob/master/examples/usage.ipynb

@@ -58,7 +58,7 @@ Why I built meza
 
 pandas is great, but installing it isn't exactly a `walk in the park`_, and it
 doesn't play nice with `PyPy`_. I designed **meza** to be a lightweight, easy to install, less featureful alternative to
-pandas. I also optimized **meza** for memory usage over speed, PyPy compatibility, and functional programming best practices.
+pandas. I also optimized **meza** for low memory usage, PyPy compatibility, and functional programming best practices.
 
 Why you should use meza
 ^^^^^^^^^^^^^^^^^^^^^^^

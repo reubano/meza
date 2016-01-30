@@ -63,7 +63,7 @@ pandas. I also optimized **meza** for low memory usage, PyPy compatibility, and 
 Why you should use meza
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-``meza`` provides a number of benefits / differences from libraies such as ``pandas`` and the like. Namely:
+``meza`` provides a number of benefits / differences from libraries such as ``pandas`` and the like. Namely:
 
 - a functional programming (instead of object oriented) API
 - `iterators by default`_ (reading/writing) 

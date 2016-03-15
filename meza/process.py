@@ -182,7 +182,9 @@ def gen_confidences(tally, types, a=1):
         >>> from decimal import Decimal
 
         >>> record = {'field_1': 'None', 'field_2': 'false'}
-        >>> types = list(tt.guess_type_by_value(record))
+        >>> types = [
+        ...     {'id': 'field_1', 'type': 'null'},
+        ...     {'id': 'field_2', 'type': 'bool'}]
         >>> tally = {'field_1': {'null': 3}, 'field_2': {'bool': 2}}
         >>> set(gen_confidences(tally, types)) == {
         ...     Decimal('0.52'), Decimal('0.58')}

@@ -213,9 +213,10 @@ def _read_any(f, reader, args, pos=0, **kwargs):
                 yield r
                 pos += 1
     except (UnicodeDecodeError, csvError, TypeError):
-        # bytes or the wrong encoding was used
-        if recursed:
-            logging.error('Unable to detect proper encoding for %s.', f.name)
+        logging.warning('Bytes or the wrong encoding was used to open file')
+
+        if recursed or not hasattr(f, 'seek'):
+            logging.error('Unable to detect proper file encoding')
             raise
 
         f.seek(0)
@@ -224,8 +225,9 @@ def _read_any(f, reader, args, pos=0, **kwargs):
             # See if we have bytes to avoid reopening the file
             encoding = detect_encoding(f)['encoding']
         except UnicodeDecodeError:
-            # We had an incorrectly encoded file, so reopen with bytes and
-            # detect the encoding
+            msg = 'Incorrectly encoded file, reopening with bytes to detect'
+            msg += ' encoding'
+            logging.warning(msg)
             f.close()
 
             with open(f.name, 'rb') as new_f:
@@ -233,6 +235,7 @@ def _read_any(f, reader, args, pos=0, **kwargs):
         else:
             f.close()
 
+        logging.debug('Reopening file with encoding: %s.', encoding)
         with open(f.name, 'rU', encoding=encoding) as enc_f:
             kwargs['recursed'] = True
             for r in _read_any(enc_f, reader, args, pos, **kwargs):

@@ -162,7 +162,7 @@ def gen_confidences(tally, types, a=1):
 
     Args:
         tally (dict): Rows of data whose keys are the field names and whose
-            data is a dict of types and counts.
+            values is a dict of types and counts.
 
         types (Iter[dicts]): Field types (`guess_type_by_field` or
             `guess_type_by_value` output).
@@ -258,7 +258,8 @@ def gen_types(tally):
 
 
 def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
-    """Detects record types.
+    """Detects record types by selecting the first type which reaches the
+    minimum confidence level (based on number of hits).
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.

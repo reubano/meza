@@ -273,7 +273,7 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
         ...     'Some Date', 'Sparse Data', 'Some Value', 'Unicode Test', '']
         True
     """
-    encoding = None if 'b' in mode else kwargs.pop('encoding', ENCODING)
+    encoding = kwargs.pop('encoding', None if 'b' in mode else ENCODING)
 
     if hasattr(filepath, 'read'):
         for r in _read_any(filepath, reader, args, **kwargs):

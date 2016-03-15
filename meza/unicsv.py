@@ -30,15 +30,19 @@ if sys.version_info.major == 2:
         """
         names = kwargs.pop('fieldnames', None)
         encoding = kwargs.pop('encoding', None) if f else False
+        fmtkeys = set(dir(csv.Dialect))
+        drkeys = fmtkeys.union(['fieldnames', 'restkey', 'restval', 'dialect'])
+        dwkeys = fmtkeys.union(['restval', 'extrasaction', 'dialect'])
+
         decoded = codecs.iterdecode(f, encoding) if encoding else f
         ekwargs = {encode(k): encode(v) for k, v in kwargs.items()}
-        fmtparams = {k: v for k, v in ekwargs.items() if k in dir(csv.Dialect)}
 
         res = {
             'f': codecs.iterencode(decoded, ENCODING) if f else None,
             'fieldnames': [encode(x) for x in names] if names else None,
-            'kwargs': ekwargs,
-            'fmtparams': fmtparams}
+            'drkwargs': {k: v for k, v in ekwargs.items() if k in drkeys},
+            'dwkwargs': {k: v for k, v in ekwargs.items() if k in dwkeys},
+            'fmtparams': {k: v for k, v in ekwargs.items() if k in fmtkeys}}
 
         return res
 
@@ -146,8 +150,8 @@ if sys.version_info.major == 2:
         def __init__(self, f, fieldnames=None, **kwargs):
             res = encode_all(f, fieldnames=fieldnames, **kwargs)
             args = (self, res['f'], res['fieldnames'])
-            csv.DictReader.__init__(*args, **res['kwargs'])
-            self.restkey = res['kwargs'].get('restkey')
+            csv.DictReader.__init__(*args, **res['drkwargs'])
+            self.restkey = res['drkwargs'].get('restkey')
 
         def next(self):
             row = csv.DictReader.next(self)
@@ -189,5 +193,5 @@ if sys.version_info.major == 2:
         def __init__(self, f, fieldnames=None, **kwargs):
             res = encode_all(fieldnames=fieldnames, **kwargs)
             args = (self, f, fieldnames)
-            csv.DictWriter.__init__(*args, **res['kwargs'])
+            csv.DictWriter.__init__(*args, **res['dwkwargs'])
             self.writer = UnicodeWriter(f, **res['fmtparams'])

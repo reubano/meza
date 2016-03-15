@@ -501,6 +501,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
+        custom_header (List[str]): Custom header names (default: None).
         first_row (int): First row (zero based, default: 0).
         first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
@@ -534,17 +535,32 @@ def read_csv(filepath, mode='rU', **kwargs):
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)
+        custom_header = kwargs.pop('custom_header', None)
+
+        # position file pointer at the first row
         list(it.islice(f, first_row))
         first_line = StringIO(str(f.readline()))
         names = next(csv.reader(first_line, **kwargs))
 
-        if has_header:
+        if has_header or custom_header:
+            names = custom_header if custom_header else names
             stripped = (name for name in names if name.strip())
             uscored = ft.underscorify(stripped) if sanitize else stripped
             header = list(ft.dedupe(uscored) if dedupe else uscored)
-        else:
-            f.seek(0)
+
+        if not has_header:
+            # reposition file pointer at the first row
+            try:
+                f.seek(0)
+            except AttributeError:
+                msg = 'Non seekable files must have either a specified or'
+                msg += 'custom header.'
+                logging.error(msg)
+                raise
+
             list(it.islice(f, first_row))
+
+        if not (has_header or custom_header):
             header = ['column_%i' % (n + 1) for n in range(len(names))]
 
         return _read_csv(f, header, False, first_col=first_col, **kwargs)

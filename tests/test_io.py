@@ -107,12 +107,14 @@ class TestUnicodeReader:
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row2, next(records))
 
-    def test_encoding_detection(self):
+    def test_bytes_encoding_detection(self):
         filepath = p.join(io.DATA_DIR, 'latin1.csv')
         records = io.read_csv(filepath, mode='rb')
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row2, next(records))
 
+    def test_wrong_encoding_detection(self):
+        filepath = p.join(io.DATA_DIR, 'latin1.csv')
         records = io.read_csv(filepath, encoding='ascii')
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row2, next(records))

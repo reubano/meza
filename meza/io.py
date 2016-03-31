@@ -213,9 +213,10 @@ def _read_any(f, reader, args, pos=0, **kwargs):
                 yield r
                 pos += 1
     except (UnicodeDecodeError, csvError, TypeError):
-        # bytes or the wrong encoding was used
-        if recursed:
-            logging.error('Unable to detect proper encoding for %s.', f.name)
+        logging.warning('Bytes or the wrong encoding was used to open file')
+
+        if recursed or not hasattr(f, 'seek'):
+            logging.error('Unable to detect proper file encoding')
             raise
 
         f.seek(0)
@@ -224,8 +225,9 @@ def _read_any(f, reader, args, pos=0, **kwargs):
             # See if we have bytes to avoid reopening the file
             encoding = detect_encoding(f)['encoding']
         except UnicodeDecodeError:
-            # We had an incorrectly encoded file, so reopen with bytes and
-            # detect the encoding
+            msg = 'Incorrectly encoded file, reopening with bytes to detect'
+            msg += ' encoding'
+            logging.warning(msg)
             f.close()
 
             with open(f.name, 'rb') as new_f:
@@ -233,6 +235,7 @@ def _read_any(f, reader, args, pos=0, **kwargs):
         else:
             f.close()
 
+        logging.debug('Reopening file with encoding: %s.', encoding)
         with open(f.name, 'rU', encoding=encoding) as enc_f:
             kwargs['recursed'] = True
             for r in _read_any(enc_f, reader, args, pos, **kwargs):
@@ -270,7 +273,7 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
         ...     'Some Date', 'Sparse Data', 'Some Value', 'Unicode Test', '']
         True
     """
-    encoding = None if 'b' in mode else kwargs.pop('encoding', ENCODING)
+    encoding = kwargs.pop('encoding', None if 'b' in mode else ENCODING)
 
     if hasattr(filepath, 'read'):
         for r in _read_any(filepath, reader, args, **kwargs):
@@ -498,6 +501,7 @@ def read_csv(filepath, mode='rU', **kwargs):
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
+        custom_header (List[str]): Custom header names (default: None).
         first_row (int): First row (zero based, default: 0).
         first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
@@ -531,17 +535,32 @@ def read_csv(filepath, mode='rU', **kwargs):
         sanitize = kwargs.pop('sanitize', False)
         dedupe = kwargs.pop('dedupe', False)
         has_header = kwargs.pop('has_header', True)
+        custom_header = kwargs.pop('custom_header', None)
+
+        # position file pointer at the first row
         list(it.islice(f, first_row))
         first_line = StringIO(str(f.readline()))
         names = next(csv.reader(first_line, **kwargs))
 
-        if has_header:
+        if has_header or custom_header:
+            names = custom_header if custom_header else names
             stripped = (name for name in names if name.strip())
             uscored = ft.underscorify(stripped) if sanitize else stripped
             header = list(ft.dedupe(uscored) if dedupe else uscored)
-        else:
-            f.seek(0)
+
+        if not has_header:
+            # reposition file pointer at the first row
+            try:
+                f.seek(0)
+            except AttributeError:
+                msg = 'Non seekable files must have either a specified or'
+                msg += 'custom header.'
+                logging.error(msg)
+                raise
+
             list(it.islice(f, first_row))
+
+        if not (has_header or custom_header):
             header = ['column_%i' % (n + 1) for n in range(len(names))]
 
         return _read_csv(f, header, False, first_col=first_col, **kwargs)

@@ -6,7 +6,7 @@ meza: A Python toolkit for processing tabular data
 Index
 -----
 
-`Introduction`_ | `Requirements`_ | `Motivation`_ | `Usage`_ | `Interoperability`_ |
+`Introduction`_ | `Requirements`_ | `Motivation`_ | `Hello World`_ | `Usage`_ | `Interoperability`_ |
 `Installation`_ | `Project Structure`_ | `Design Principles`_ | `Scripts`_ |
 `Contributing`_ | `Credits`_ | `More Info`_ | `License`_
 
@@ -53,11 +53,30 @@ Notes
 Motivation
 ----------
 
+Why I built meza
+^^^^^^^^^^^^^^^^
+
 pandas is great, but installing it isn't exactly a `walk in the park`_. It also
 doesn't play nice with `PyPy`_. `csvkit`_ is an equally useful project, but it
 doesn't expose the same API when used as `a library`_ as it does via the command
 line. I designed **meza** to provide much of same functionality as
 pandas and csvkit, while using functional programming methods.
+
+Why you should use meza
+^^^^^^^^^^^^^^^^^^^^^^^
+
+``meza`` provides a number of benefits / differences from similar libraies such as ``pandas``. Namely:
+
+- functions instead of objects
+- low `memory usage`_ (via iterators) reading / writing large files
+- `pypy support`_
+- `geojson support`_ (reading/writing)
+- `seemless integration`_ with sqlachemy (and other libs that work with iterators of dicts)
+
+For more detailed information, please check-out the `FAQ`_.
+
+Hello World
+-----------
 
 A simple data processing example is shown below:
 
@@ -113,8 +132,6 @@ data back to a new file.
     >>> with open('out.csv', 'utf-8') as f:
     ...     f.read()
     'col2,col3\n2015-01-01,3\n'
-
-For more detailed information, please check-out the `FAQ`_ or ipython `notebook`_.
 
 Usage
 -----
@@ -389,7 +406,7 @@ Each function returns a file-like object that you can write to disk via
 Cookbook
 ^^^^^^^^
 
-Please see the `cookbook guide`_ for more examples.
+Please see the `cookbook guide`_ or ipython `notebook`_ for more examples.
 
 Notes
 ^^^^^
@@ -633,6 +650,10 @@ meza is distributed under the `MIT License`_.
 .. _virtualenv: http://www.virtualenv.org/en/latest/index.html
 .. _contributing doc: https://github.com/reubano/meza/blob/master/CONTRIBUTING.rst
 .. _FAQ: https://github.com/reubano/meza/blob/master/docs/FAQ.rst
+.. _memory usage: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#memory
+.. _pypy support: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#pypy
+.. _geojson support: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#geojson
+.. _seemless integration: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#convenience
 .. _notebook: http://nbviewer.jupyter.org/github/reubano/meza/blob/master/examples/usage.ipynb
 .. _readers: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#what readers-are-available
 .. _installation doc: https://github.com/reubano/meza/blob/master/docs/INSTALLATION.rst

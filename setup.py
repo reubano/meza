@@ -56,7 +56,7 @@ setup(
         'examples': ['examples/*']
     },
     install_requires=requirements,
-    extras_require={':python_version<"3.0"': extras_require},
+    extras_require={'python_version<3.0': extras_require},
     setup_requires=['pkutils>=0.12.4,<0.13.0'],
     test_suite='nose.collector',
     tests_require=dev_requirements,

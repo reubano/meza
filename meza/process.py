@@ -162,7 +162,7 @@ def gen_confidences(tally, types, a=1):
 
     Args:
         tally (dict): Rows of data whose keys are the field names and whose
-            data is a dict of types and counts.
+            values is a dict of types and counts.
 
         types (Iter[dicts]): Field types (`guess_type_by_field` or
             `guess_type_by_value` output).
@@ -182,7 +182,9 @@ def gen_confidences(tally, types, a=1):
         >>> from decimal import Decimal
 
         >>> record = {'field_1': 'None', 'field_2': 'false'}
-        >>> types = list(tt.guess_type_by_value(record))
+        >>> types = [
+        ...     {'id': 'field_1', 'type': 'null'},
+        ...     {'id': 'field_2', 'type': 'bool'}]
         >>> tally = {'field_1': {'null': 3}, 'field_2': {'bool': 2}}
         >>> set(gen_confidences(tally, types)) == {
         ...     Decimal('0.52'), Decimal('0.58')}
@@ -256,7 +258,8 @@ def gen_types(tally):
 
 
 def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
-    """Detects record types.
+    """Detects record types by selecting the first type which reaches the
+    minimum confidence level (based on number of hits).
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.

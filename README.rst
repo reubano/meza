@@ -14,7 +14,7 @@ Introduction
 ------------
 
 **meza** is a Python `library`_ for reading and processing tabular data.
-It has a functional programming style API, excels at reading, large files,
+It has a functional programming style API, excels at reading/writing large files,
 and can process 10+ file types.
 
 With meza, you can
@@ -56,22 +56,20 @@ Motivation
 Why I built meza
 ^^^^^^^^^^^^^^^^
 
-pandas is great, but installing it isn't exactly a `walk in the park`_. It also
-doesn't play nice with `PyPy`_. `csvkit`_ is an equally useful project, but it
-doesn't expose the same API when used as `a library`_ as it does via the command
-line. I designed **meza** to provide much of same functionality as
-pandas and csvkit, while using functional programming methods.
+pandas is great, but installing it isn't exactly a `walk in the park`_, and it
+doesn't play nice with `PyPy`_. I designed **meza** to be a lightweight, easy to install, less featureful alternative to
+pandas. I also optimized **meza** for low memory usage, PyPy compatibility, and functional programming best practices.
 
 Why you should use meza
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-``meza`` provides a number of benefits / differences from similar libraies such as ``pandas``. Namely:
+``meza`` provides a number of benefits / differences from libraries such as ``pandas`` and the like. Namely:
 
-- functions instead of objects
-- low `memory usage`_ (via iterators) reading / writing large files
-- `pypy support`_
+- a functional programming (instead of object oriented) API
+- `iterators by default`_ (reading/writing) 
+- `PyPy compatibility`_
 - `geojson support`_ (reading/writing)
-- `seemless integration`_ with sqlachemy (and other libs that work with iterators of dicts)
+- `seamless integration`_ with sqlachemy (and other libs that work with iterators of dicts)
 
 For more detailed information, please check-out the `FAQ`_.
 
@@ -102,7 +100,7 @@ data back to a new file.
     >>> row
     {'col1': 'hello', 'col2': '5/4/82', 'col3': '1'}
 
-    >>> # Let's replace the first row so as not to loose any data
+    >>> # Let's replace the first row so as not to lose any data
     >>> records = pr.prepend(records, row)
 
     # Guess column types. Note: `detect_types` returns a new `records`
@@ -640,7 +638,6 @@ meza is distributed under the `MIT License`_.
 .. _lxml: http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
 .. _library: #usage
 .. _NumPy: https://github.com/numpy/numpy
-.. _a library: https://csvkit.readthedocs.org/en/0.9.1/api/csvkit.py3.html
 .. _PyPy: https://github.com/pydata/pandas/issues/9532
 .. _walk in the park: http://pandas.pydata.org/pandas-docs/stable/install.html#installing-pandas-with-anaconda
 .. _csvkit: https://github.com/onyxfish/csvkit
@@ -650,10 +647,10 @@ meza is distributed under the `MIT License`_.
 .. _virtualenv: http://www.virtualenv.org/en/latest/index.html
 .. _contributing doc: https://github.com/reubano/meza/blob/master/CONTRIBUTING.rst
 .. _FAQ: https://github.com/reubano/meza/blob/master/docs/FAQ.rst
-.. _memory usage: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#memory
-.. _pypy support: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#pypy
+.. _iterators by default: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#memory
+.. _PyPy compatibility: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#pypy
 .. _geojson support: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#geojson
-.. _seemless integration: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#convenience
+.. _seamless integration: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#convenience
 .. _notebook: http://nbviewer.jupyter.org/github/reubano/meza/blob/master/examples/usage.ipynb
 .. _readers: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#what readers-are-available
 .. _installation doc: https://github.com/reubano/meza/blob/master/docs/INSTALLATION.rst

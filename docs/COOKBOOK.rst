@@ -4,7 +4,7 @@ meza Cookbook
 Index
 -----
 
-`More fun with pandas`_ | `More fun with geojson files`_
+`More fun with pandas`_ | `More fun with geojson files`_ | `Tips and tricks`_
 
 More fun with pandas
 --------------------
@@ -118,7 +118,7 @@ Note that the ``pandas`` equivalent methods are preceded by ``-->``.
     {'A': 'one', 'B': 'beh', 'C': 'foo', 'D': -3.72018},
     {'A': 'one', 'B': 'beh', 'C': 'bar', 'D': 0.0},
     {'A': 'one', 'B': 'say', 'C': 'foo', 'D': -5.55774}]
-
+    
 More fun with geojson files
 ---------------------------
 
@@ -179,3 +179,62 @@ Now we can combine the files and write the combined data to a new geojson file.
         }
       }
     }
+
+Tips and tricks
+---------------
+
+Adding formulaic columns
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Say you have a table like so:
+
+===== =====
+col_1 col_2
+===== =====
+1     2
+3     4
+5     6
+===== =====
+
+and you want to add a new column that is a sum of the first two
+
+===== ===== =====
+col_1 col_2 col_3
+===== ===== =====
+1     2     3
+3     4     7
+5     6     11
+===== ===== =====
+
+you can easily do so as follows:
+
+First create a simple csv file (in bash)
+
+.. code-block:: bash
+
+    echo 'col_1,col_2\n1,2\n3,4\n5,6\n' > data.csv
+
+Now we can read the file and add the new column.
+
+.. code-block:: python
+
+    >>> from io import open
+    >>> from meza import io, process as pr, convert as cv
+
+    >>> # Load and type cast the csv file
+    >>> raw = io.read_csv('data.csv'))
+    >>> records, result = pr.detect_types(raw)
+    >>> casted = list(pr.type_cast(records, result['types']))
+
+    >>> # create the row level formula
+    >>> calc_col_3 = lambda row: row['col_1'] + row['col_2']
+    
+    >>> # generate the new column
+    >>> col_3 = [{'col_3': calc_col_3(r)} for r in casted]
+    
+    >>> # merge the new rows into the orginal table 
+    >>> [pr.merge(r) for r in zip(casted, col_3)]
+    [
+    ... {'col_1': 1, 'col_2': 2, 'col_3': 3},
+    ... {'col_1': 3, 'col_2': 4, 'col_3': 7},
+    ... {'col_1': 5, 'col_2': 6, 'col_3': 11}]

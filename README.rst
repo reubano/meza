@@ -280,7 +280,7 @@ place of ``read_csv``) to open any supported file. E.g., ``read_xls``,
     >>> next(it.islice(records, 4, None))
     {'col_1': '6', 'col_2': 'jill', 'col_3': 'female'}
 
-    # Now let's create a persistant records list
+    # Now let's create a persistent records list
     >>> records = list(io.read_csv('file1.csv'))
 
     """Sort records by the value of column `col_2`

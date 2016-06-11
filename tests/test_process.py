@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 """
-tests.test_main
-~~~~~~~~~~~~~~~
+tests.test_process
+~~~~~~~~~~~~~~~~~~
 
 Provides main unit tests.
 """

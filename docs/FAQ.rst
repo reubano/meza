@@ -139,7 +139,7 @@ Args
 ^^^^
 
 Most readers take as their first argument, either a file path or file like object.
-The notable execption is ``read_mdb`` which only accepts a file path.
+The notable exception is ``read_mdb`` which only accepts a file path.
 File like objects should be opened using Python's stdlib ``io.open``. If the file
 is opened in binary mode ``io.open('/path/to/file')``, be sure to pass the proper
 encoding if it is anything other than ``utf-8``, e.g.,

@@ -719,7 +719,7 @@ def get_separators(content):
     try:
         after_comma = afterish(content, exclude='.')
         after_decimal = afterish(content, '.', ',')
-    except AttributeError:
+    except (AttributeError, TypeError):
         # We don't have a string
         after_comma = 0
         after_decimal = 0

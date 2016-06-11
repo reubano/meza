@@ -25,7 +25,7 @@ import logging
 from datetime import datetime as dt
 from builtins import *
 
-__version__ = '0.28.6'
+__version__ = '0.29.1'
 __title__ = 'meza'
 __package_name__ = 'meza'
 __author__ = 'Reuben Cummings'

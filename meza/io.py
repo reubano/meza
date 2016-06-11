@@ -212,8 +212,11 @@ def _read_any(f, reader, args, pos=0, **kwargs):
             if num >= pos:
                 yield r
                 pos += 1
-    except (UnicodeDecodeError, csvError, TypeError):
-        logging.warning('Bytes or the wrong encoding was used to open file')
+    except (UnicodeDecodeError, csvError, TypeError) as err:
+        if 'NoneType' in str(err):
+            raise
+        else:
+            logging.warning('Bytes or the wrong encoding was used to open file')
 
         if recursed or not hasattr(f, 'seek'):
             logging.error('Unable to detect proper file encoding')

@@ -665,32 +665,35 @@ def xmlize(content):
                 yield mreplace(item, replacements) if item else ''
 
 
-def afterish(content, separator=',', exclude=None):
+def afterish(content, separator=','):
     """Calculates the number of digits after a given separator.
 
     Args:
-        content (str): Field names.
+        content (str): The string to parse.
         separator (char): Character to start counting from (default: ',').
         exclude (char): Character to ignore from the calculation (default: '').
 
-    Yields:
-        dict: Field type. The parsed field and its type.
+    Returns:
+        int: the number of digits that appear after the separator
 
     Examples:
         >>> afterish('123.45', '.')
         2
         >>> afterish('1001.', '.')
         0
+        >>> afterish('1,001€')
+        3
     """
     numeric = is_numeric(content)
 
     if numeric and separator in content:
-        excluded = [s for s in content.split(exclude) if separator in s][0]
-        after = len(excluded) - excluded.rfind(separator) - 1
+        pos = content.rfind(separator) + 1
+        included = it.takewhile(lambda x: x.isdigit(), content[pos:])
+        after = len(list(included))
     elif numeric:
         after = -1
     else:
-        raise TypeError('Not able to convert %s to a number' % content)
+        raise ValueError('Not able to coerce %s to a number' % content)
 
     return after
 
@@ -702,27 +705,28 @@ def get_separators(content):
         content (str): The string to parse.
 
     Examples:
-        >>> seps = get_separators('$123.45')
-        >>> seps['thousand_sep'] == ','
+        >>> s = get_separators('$123.45')
+        >>> (s['thousand_sep'], s['decimal_sep']) == (',', '.')
         True
-        >>> seps['decimal_sep'] == '.'
+        >>> s = get_separators('123,45€')
+        >>> (s['thousand_sep'], s['decimal_sep']) == ('.', ',')
         True
-        >>> seps = get_separators('123€')
-        >>> seps['thousand_sep'] == ','
-        True
-        >>> seps['decimal_sep'] == '.'
+        >>> s = get_separators(123.45)
+        >>> (s['thousand_sep'], s['decimal_sep']) == (',', '.')
         True
 
     Returns:
         dict: thousandths and decimal separators
     """
     try:
-        after_comma = afterish(content, exclude='.')
-        after_decimal = afterish(content, '.', ',')
-    except AttributeError:
+        after_comma = afterish(content)
+        after_decimal = afterish(content, '.')
+    except TypeError:
         # We don't have a string
-        after_comma = 0
-        after_decimal = 0
+        after_comma, after_decimal = 0, 0
+    except ValueError:
+        # We don't have a numeric
+        after_comma, after_decimal = None, None
 
     if after_comma in {-1, 0, 3} and after_decimal in {-1, 0, 1, 2}:
         thousand_sep, decimal_sep = ',', '.'
@@ -731,7 +735,7 @@ def get_separators(content):
     else:
         print('after_comma', after_comma)
         print('after_decimal', after_decimal)
-        raise TypeError('Invalid number format for `%s`.' % content)
+        raise ValueError('Invalid number format for `%s`.' % content)
 
     return {'thousand_sep': thousand_sep, 'decimal_sep': decimal_sep}
 

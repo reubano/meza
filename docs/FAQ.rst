@@ -9,7 +9,11 @@ Index
 How does ``meza`` compare to ``pandas``?
 ----------------------------------------
 
-Philosophically, ``meza`` is designed around **functional programming** and iterators of dictionaries whereas ``pandas`` is designed around the **DataFrame object**. Also, ``meza`` is better suited for `ETL`_, or processing evented / streaming data; whereas ``pandas`` seems optimized for performing matrix transformations and linear algebra.
+Philosophically, ``meza`` is designed around **functional programming** and
+iterators of dictionaries whereas ``pandas`` is designed around the
+**DataFrame object**. Also, ``meza`` is better suited for `ETL`_, or processing
+evented / streaming data; whereas ``pandas`` seems optimized for performing
+matrix transformations and linear algebra.
 
 meza Advantages
 ^^^^^^^^^^^^^^^
@@ -17,7 +21,8 @@ meza Advantages
 Memory
 ~~~~~~
 
-One advantage ``meza`` iterators has is that you can process extremely large files without reading them into memory.
+One advantage ``meza`` iterators has is that you can process extremely large
+files without reading them into memory.
 
 .. code-block:: python
 
@@ -28,7 +33,11 @@ One advantage ``meza`` iterators has is that you can process extremely large fil
     >>> next(pr.cut(records, ['text']))
     {'text': 'hi'}
 
-Here I used ``it.repeat`` to simulate the output of reading a large file via ``meza.io.read...``. Most of the ``meza`` functions operate iteratively, which means you can efficiently process files that can't fit into memory. This also illustrates ``meza``'s functional API. Since there are no objects, you don't need a special ``records`` constructor. Any iterable of dicts will do just fine.
+Here I used ``it.repeat`` to simulate the output of reading a large file via
+``meza.io.read...``. Most of the ``meza`` functions operate iteratively, which
+means you can efficiently process files that can't fit into memory. This also
+illustrates ``meza``'s functional API. Since there are no objects, you don't
+need a special ``records`` constructor. Any iterable of dicts will do just fine.
 
 PyPy
 ~~~~
@@ -38,7 +47,8 @@ PyPy
 Convenience
 ~~~~~~~~~~~
 
-The ``records`` data is structure is compatible with other libraries such as ``sqlachemy``'s bulk insert:
+The ``records`` data is structure is compatible with other libraries such as
+``sqlachemy``'s bulk insert:
 
 .. code-block:: python
 
@@ -50,7 +60,8 @@ The ``records`` data is structure is compatible with other libraries such as ``s
     >>> for data in ft.chunk(records, chunk_size):
     ...     db.engine.execute(Table.__table__.insert(), data)
 
-And since ``records`` is just an iterable, you have the power of the entire ``itertools`` module at your disposal.
+And since ``records`` is just an iterable, you have the power of the entire
+``itertools`` module at your disposal.
 
 GeoJSON
 ~~~~~~~
@@ -74,17 +85,28 @@ GeoJSON
 meza Disadvantage
 ^^^^^^^^^^^^^^^^^
 
-The tradeoff is that you lose the speed of ``pandas`` `vectorized operations`_. I imagine any heavy duty number crunching will be much faster in ``pandas`` than ``meza``. However, this can be partially offset by running ``meza`` under **PyPy**.
+The tradeoff is that you lose the speed of ``pandas`` `vectorized operations`_.
+I imagine any heavy duty number crunching will be much faster in ``pandas``
+than ``meza``. However, this can be partially offset by running ``meza`` under
+**PyPy**.
 
 Summary
 ^^^^^^^
 
-So I would use ``pandas`` when you want **speed** or are working with **matrices**; and ``meza`` when you are processing **streams** or **events**, want **low memory usage**,  **geojson support**, **PyPy** compatibility, or the convenience of working with **dictionaries**, (or if you just don't need the raw speed of arrays).
+So I would use ``pandas`` when you want **speed** or are working with
+**matrices**; and ``meza`` when you are processing **streams** or **events**,
+want **low memory usage**,  **geojson support**, **PyPy** compatibility, or the
+convenience of working with **dictionaries**, (or if you just don't need the
+raw speed of arrays).
 
 Optimization Tips
 ^^^^^^^^^^^^^^^^^
 
-I'd also like to point out one area you may like to explore if you want to squeeze out more speed: ``meza.convert.records2array`` and ``meza.convert.array2records``. These functions can convert ``records`` to and from a list of native ``array.array``'s. So any type of optimization techniques you may like to explore should start there.
+I'd also like to point out one area you may like to explore if you want to
+squeeze out more speed: ``meza.convert.records2array`` and
+``meza.convert.array2records``. These functions can convert ``records`` to and
+from a list of native ``array.array``'s. So any type of optimization techniques
+you may like to explore should start there.
 
 What readers are available?
 ---------------------------
@@ -139,7 +161,7 @@ Args
 ^^^^
 
 Most readers take as their first argument, either a file path or file like object.
-The notable execption is ``read_mdb`` which only accepts a file path.
+The notable exception is ``read_mdb`` which only accepts a file path.
 File like objects should be opened using Python's stdlib ``io.open``. If the file
 is opened in binary mode ``io.open('/path/to/file')``, be sure to pass the proper
 encoding if it is anything other than ``utf-8``, e.g.,

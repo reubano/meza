@@ -63,10 +63,11 @@ pandas. I also optimized **meza** for low memory usage, PyPy compatibility, and 
 Why you should use meza
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-``meza`` provides a number of benefits / differences from libraries such as ``pandas`` and the like. Namely:
+``meza`` provides a number of benefits / differences from similar libraries such
+as ``pandas``. Namely:
 
 - a functional programming (instead of object oriented) API
-- `iterators by default`_ (reading/writing) 
+- `iterators by default`_ (reading/writing)
 - `PyPy compatibility`_
 - `geojson support`_ (reading/writing)
 - `seamless integration`_ with sqlachemy (and other libs that work with iterators of dicts)
@@ -404,7 +405,7 @@ Each function returns a file-like object that you can write to disk via
 Cookbook
 ^^^^^^^^
 
-Please see the `cookbook guide`_ or ipython `notebook`_ for more examples.
+Please see the `cookbook`_ or ipython `notebook`_ for more examples.
 
 Notes
 ^^^^^
@@ -617,7 +618,7 @@ More Info
 ---------
 
 - `FAQ`_
-- `cookbook guide`_
+- `cookbook`_
 - ipython `notebook`_
 
 License
@@ -652,6 +653,6 @@ meza is distributed under the `MIT License`_.
 .. _geojson support: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#geojson
 .. _seamless integration: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#convenience
 .. _notebook: http://nbviewer.jupyter.org/github/reubano/meza/blob/master/examples/usage.ipynb
-.. _readers: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#what readers-are-available
+.. _readers: https://github.com/reubano/meza/blob/master/docs/FAQ.rst#what-readers-are-available
 .. _installation doc: https://github.com/reubano/meza/blob/master/docs/INSTALLATION.rst
-.. _cookbook guide: https://github.com/reubano/meza/blob/master/docs/COOKBOOK.rst
+.. _cookbook: https://github.com/reubano/meza/blob/master/docs/COOKBOOK.rst

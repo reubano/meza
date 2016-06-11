@@ -82,11 +82,10 @@ class TestIterStringIO:
     def test_afterish(self):
         nt.assert_equal(-1, ft.afterish('1001', '.'))
         nt.assert_equal(3, ft.afterish('1,001'))
-        nt.assert_equal(6, ft.afterish('2,100,001.00'))
-        nt.assert_equal(3, ft.afterish('2,100,001.00', exclude='.'))
-        nt.assert_equal(2, ft.afterish('1,000.00', '.', ','))
+        nt.assert_equal(3, ft.afterish('2,100,001.00'))
+        nt.assert_equal(2, ft.afterish('1,000.00', '.'))
 
-        with nt.assert_raises(TypeError):
+        with nt.assert_raises(ValueError):
             ft.afterish('eggs', '.')
 
     def test_get_separators(self):
@@ -96,7 +95,7 @@ class TestIterStringIO:
         expected = {'thousand_sep': '.', 'decimal_sep': ','}
         nt.assert_equal(expected, ft.get_separators('2.123,45'))
 
-        with nt.assert_raises(TypeError):
+        with nt.assert_raises(ValueError):
             ft.get_separators('spam')
 
     def test_fill(self):

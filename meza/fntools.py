@@ -26,8 +26,7 @@ Attributes:
     ARRAY_NULL_TYPE (dict): None to array.array type lookup table
 """
 from __future__ import (
-    absolute_import, division, print_function, with_statement,
-    unicode_literals)
+    absolute_import, division, print_function, unicode_literals)
 
 import itertools as it
 import operator

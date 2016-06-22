@@ -5,10 +5,6 @@ from __future__ import (
     absolute_import, division, print_function, with_statement)
 
 import sys
-
-from builtins import *
-
-import meza as module
 import pkutils
 
 try:
@@ -17,11 +13,12 @@ except ImportError:
     from distutils.core import setup, find_packages
 
 sys.dont_write_bytecode = True
-py2_requirements = sorted(pkutils.parse_requirements('py2-requirements.txt'))
-py3_requirements = sorted(pkutils.parse_requirements('requirements.txt'))
-dev_requirements = sorted(pkutils.parse_requirements('dev-requirements.txt'))
+py2_requirements = set(pkutils.parse_requirements('py2-requirements.txt'))
+py3_requirements = set(pkutils.parse_requirements('requirements.txt'))
+dev_requirements = set(pkutils.parse_requirements('dev-requirements.txt'))
 readme = pkutils.read('README.rst')
-changes = pkutils.read('CHANGES.rst').replace('.. :changelog:', '')
+# changes = pkutils.read('CHANGES.rst').replace('.. :changelog:', '')
+module = pkutils.parse_module('meza/__init__.py')
 license = module.__license__
 version = module.__version__
 project = module.__title__
@@ -29,19 +26,21 @@ description = module.__description__
 user = 'reubano'
 
 # Conditional sdist dependencies:
-if 'bdist_wheel' not in sys.argv and sys.version_info.major == 2:
-    requirements = py2_requirements
-else:
-    requirements = py3_requirements
+bdist = 'bdist_wheel' in sys.argv
+py2 = sys.version_info.major == 2
+requirements = py2_requirements if py2 and not bdist else py3_requirements
 
 # Conditional bdist_wheel dependencies:
-extras_require = sorted(set(py2_requirements).difference(py3_requirements))
+extras_require = py2_requirements.difference(py3_requirements)
+
+# Setup requirements
+setup_require = [r for r in dev_requirements if 'pkutils' in r]
 
 setup(
     name=project,
     version=version,
     description=description,
-    long_description='%s\n\n%s' % (readme, changes),
+    long_description=readme,
     author=module.__author__,
     author_email=module.__email__,
     url=pkutils.get_url(project, user),
@@ -57,7 +56,7 @@ setup(
     },
     install_requires=requirements,
     extras_require={'python_version<3.0': extras_require},
-    setup_requires=['pkutils>=0.12.4,<0.13.0'],
+    setup_requires=setup_require,
     test_suite='nose.collector',
     tests_require=dev_requirements,
     license=license,

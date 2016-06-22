@@ -198,7 +198,7 @@ class TestInput:
         filepath = p.join(io.DATA_DIR, 'test.csv')
         header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
 
-        with open(filepath, 'rU', encoding='utf-8') as f:
+        with open(filepath, 'r', encoding='utf-8') as f:
             records = io._read_csv(f, header)
             nt.assert_equal(self.sheet0_alt, next(records))
 

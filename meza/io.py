@@ -238,13 +238,13 @@ def _read_any(f, reader, args, pos=0, **kwargs):
             f.close()
 
         logging.debug('Reopening file with encoding: %s.', encoding)
-        with open(f.name, 'rU', encoding=encoding) as enc_f:
+        with open(f.name, 'r', encoding=encoding) as enc_f:
             kwargs['recursed'] = True
             for r in _read_any(enc_f, reader, args, pos, **kwargs):
                 yield r
 
 
-def read_any(filepath, reader, mode='rU', *args, **kwargs):
+def read_any(filepath, reader, mode='r', *args, **kwargs):
     """Reads a file or filepath
 
     Args:
@@ -270,7 +270,7 @@ def read_any(filepath, reader, mode='rU', *args, **kwargs):
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
         >>> reader = lambda f, **kw: (l.strip().split(',') for l in f)
-        >>> result = read_any(filepath, reader, 'rU')
+        >>> result = read_any(filepath, reader, 'r')
         >>> next(result) == [
         ...     'Some Date', 'Sparse Data', 'Some Value', 'Unicode Test', '']
         True
@@ -305,7 +305,7 @@ def _read_csv(f, header=None, has_header=True, **kwargs):
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
-        >>> with open(filepath, 'rU', encoding='utf-8') as f:
+        >>> with open(filepath, 'r', encoding='utf-8') as f:
         ...     sorted(next(_read_csv(f)).items()) == [
         ...         ('Some Date', '05/04/82'),
         ...         ('Some Value', '234'),
@@ -490,7 +490,7 @@ def read_sqlite(filepath, table=None):
     return map(dict, c)
 
 
-def read_csv(filepath, mode='rU', **kwargs):
+def read_csv(filepath, mode='r', **kwargs):
     """Reads a csv file.
 
     Args:
@@ -570,7 +570,7 @@ def read_csv(filepath, mode='rU', **kwargs):
     return read_any(filepath, reader, mode, **kwargs)
 
 
-def read_tsv(filepath, mode='rU', **kwargs):
+def read_tsv(filepath, mode='r', **kwargs):
     """Reads a csv file.
 
     Args:
@@ -611,7 +611,7 @@ def read_tsv(filepath, mode='rU', **kwargs):
     return read_csv(filepath, mode, dialect='excel-tab', **kwargs)
 
 
-def read_fixed_fmt(filepath, widths=None, mode='rU', **kwargs):
+def read_fixed_fmt(filepath, widths=None, mode='r', **kwargs):
     """Reads a fixed-width csv file.
 
     Args:
@@ -827,7 +827,7 @@ def read_xls(filepath, **kwargs):
             yield dict(zip(header, values))
 
 
-def read_json(filepath, mode='rU', path='item', newline=False):
+def read_json(filepath, mode='r', path='item', newline=False):
     """Reads a json file (both regular and newline-delimited)
 
     Args:
@@ -895,7 +895,7 @@ def gen_records(type_, record, coords, properties, **kwargs):
         raise TypeError('Invalid geometry type {}.'.format(type_))
 
 
-def read_geojson(filepath, key='id', mode='rU', **kwargs):
+def read_geojson(filepath, key='id', mode='r', **kwargs):
     """Reads a geojson file
 
     Args:
@@ -955,7 +955,7 @@ def read_geojson(filepath, key='id', mode='rU', **kwargs):
     return read_any(filepath, reader, mode, **kwargs)
 
 
-def read_yaml(filepath, mode='rU', **kwargs):
+def read_yaml(filepath, mode='r', **kwargs):
     """Reads a YAML file
 
     TODO: convert to a streaming parser
@@ -991,7 +991,7 @@ def read_yaml(filepath, mode='rU', **kwargs):
     return read_any(filepath, yaml.load, mode, **kwargs)
 
 
-def read_html(filepath, table=0, mode='rU', **kwargs):
+def read_html(filepath, table=0, mode='r', **kwargs):
     """Reads tables from an html file
 
     TODO: convert to lxml.etree.iterparse

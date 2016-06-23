@@ -624,8 +624,28 @@ def chunk(content, chunksize=None, start=0, stop=None):
 
 
 def get_values(narray):
-    """
-    Returns the raw values from a nested list of arrays
+    """Obtains the raw values from a nested list of arrays
+
+    Args:
+        narray (Iter[array]): An array or (nested) iterable of arrays
+
+    Yields:
+        Iter[scalar]: The flattened array values.
+
+    Examples:
+        >>> from array import array
+        >>> from ._compat import get_native_str
+        >>>
+        >>> u, i = get_native_str('u'), get_native_str('i')
+        >>> narray_0 = array(i, [2, 3])
+        >>> narray_1 = [array(u, 'alpha'), array(u, 'beta')]
+        >>> narray_2 = [array(u, 'aa'), [array(i, [9])]]
+        >>> list(get_values(narray_0)) == [2, 3]
+        True
+        >>> list(get_values(narray_1)) == ['alpha', 'beta']
+        True
+        >>> list(get_values(narray_2)) == ['aa', 9]
+        True
     """
     try:
         yield narray.tounicode()

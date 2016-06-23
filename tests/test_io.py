@@ -7,8 +7,7 @@ tests.test_io
 Provides main unit tests.
 """
 from __future__ import (
-    absolute_import, division, print_function, with_statement,
-    unicode_literals)
+    absolute_import, division, print_function, unicode_literals)
 
 import nose.tools as nt
 import requests
@@ -199,7 +198,7 @@ class TestInput:
         filepath = p.join(io.DATA_DIR, 'test.csv')
         header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
 
-        with open(filepath, 'rU', encoding='utf-8') as f:
+        with open(filepath, 'r', encoding='utf-8') as f:
             records = io._read_csv(f, header)
             nt.assert_equal(self.sheet0_alt, next(records))
 

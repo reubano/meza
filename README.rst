@@ -6,9 +6,10 @@ meza: A Python toolkit for processing tabular data
 Index
 -----
 
-`Introduction`_ | `Requirements`_ | `Motivation`_ | `Hello World`_ | `Usage`_ | `Interoperability`_ |
-`Installation`_ | `Project Structure`_ | `Design Principles`_ | `Scripts`_ |
-`Contributing`_ | `Credits`_ | `More Info`_ | `License`_
+`Introduction`_ | `Requirements`_ | `Motivation`_ | `Hello World`_ | `Usage`_ |
+`Interoperability`_ | `Installation`_ | `Project Structure`_ |
+`Design Principles`_ | `Scripts`_ | `Contributing`_ | `Credits`_ |
+`More Info`_ | `License`_
 
 Introduction
 ------------
@@ -29,7 +30,7 @@ Requirements
 ------------
 
 meza has been tested and is known to work on Python 2.7, 3.4, and 3.5;
-PyPy 4.0; and PyPy3 2.4
+PyPy2 5.1.1; and PyPy3 2.4.0.
 
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^

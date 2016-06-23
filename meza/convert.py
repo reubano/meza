@@ -16,8 +16,7 @@ Examples:
         decimal = to_decimal('$123.45')
 """
 from __future__ import (
-    absolute_import, division, print_function, with_statement,
-    unicode_literals)
+    absolute_import, division, print_function, unicode_literals)
 
 import itertools as it
 import logging
@@ -635,7 +634,7 @@ def records2array(records, types, native=False, silent=False):
 
         native (bool): Return a native array (default: False).
 
-        silent (bool): Supress the warning message (default: False).
+        silent (bool): Suppress the warning message (default: False).
 
     Returns:
         numpy.recarray
@@ -647,17 +646,25 @@ def records2array(records, types, native=False, silent=False):
         >>> records = [{'alpha': 'aa', 'beta': 2}, {'alpha': 'bee', 'beta': 3}]
         >>> types = [
         ...     {'id': 'alpha', 'type': 'text'}, {'id': 'beta', 'type': 'int'}]
-        >>> arr = records2array(records, types)
-        >>> columns = arr.alpha.tolist() if np else list(ft.get_values(arr[1]))
-        >>> columns == ['aa', 'bee']
-        True
-        >>> arr.beta.tolist() if np else list(ft.get_values(arr[2]))
-        [2, 3]
+        >>>
+        >>> arr = records2array(records, types, silent=True)
         >>> u, i = get_native_str('u'), get_native_str('i')
-        >>> records2array(records, types, True) == [
+        >>> native_resp = [
         ...     [array(u, 'alpha'), array(u, 'beta')],
         ...     [array(u, 'aa'), array(u, 'bee')],
         ...     array(i, [2, 3])]
+        >>>
+        >>> if np:
+        ...     arr.alpha.tolist() == ['aa', 'bee']
+        ...     arr.beta.tolist() == [2, 3]
+        ... else:
+        ...     True
+        ...     True
+        True
+        True
+        >>> True if np else arr == native_resp
+        True
+        >>> records2array(records, types, native=True) == native_resp
         True
     """
     numpy = np and not native
@@ -695,7 +702,7 @@ def records2array(records, types, native=False, silent=False):
     return converted
 
 
-def records2df(records, types):
+def records2df(records, types, native=False, silent=False):
     """Converts records into either a pandas.DataFrame
 
     Args:
@@ -704,7 +711,9 @@ def records2df(records, types):
 
         types (Iter[dict]):
 
-        native (bool): (default: False)
+        native (bool): Return a native array (default: False).
+
+        silent (bool): Suppress the warning message (default: False).
 
     Returns:
         numpy.recarray
@@ -719,28 +728,43 @@ def records2df(records, types):
         >>> types = [
         ...     {'id': 'col_1', 'type': 'text'},
         ...     {'id': 'col_2', 'type': 'float'}]
-        >>> df = records2df(records, types)
-        >>> columns = df.columns.tolist() if pd else list(ft.get_values(df[0]))
-        >>> columns == ['col_1', 'col_2']
+        >>> df = records2df(records, types, silent=True)
+        >>> u, f = get_native_str('u'), get_native_str('f')
+        >>>
+        >>> native_resp = [
+        ...     [array(u, 'col_1'), array(u, 'col_2')],
+        ...     [array(u, 'alpha'), array(u, 'beta')],
+        ...     array(f, [1.0, 2.299999952316284])]
+        >>>
+        >>> if pd:
+        ...     columns = df.columns.tolist()
+        ...     columns == ['col_1', 'col_2']
+        ...     df.col_1.tolist() == ['alpha', 'beta']
+        ...     [np.round(v, 1) if pd else round(v, 1) for v in df.col_2]
+        ... else:
+        ...     True
+        ...     True
+        ...     [1.0, 2.3]
         True
-        >>> col_1 = df.col_1.tolist() if pd else list(ft.get_values(df[1]))
-        >>> col_1 == ['alpha', 'beta']
         True
-        >>> col_2 = df.col_2 if pd else ft.get_values(df[2])
-        >>> [np.round(v, 1) if pd else round(v, 1) for v in col_2]
         [1.0, 2.3]
+        >>> True if pd else df == native_resp
+        True
+        >>> records2df(records, types, native=True) == native_resp
+        True
     """
-    recarray = records2array(records, types, silent=True)
-
-    if pd:
+    if pd and not native:
+        recarray = records2array(records, types)
         df = pd.DataFrame.from_records(recarray)
     else:
-        msg = (
-            "It looks like you don't have pandas installed. This function"
-            " will return a native array instead.")
+        if not (native or silent):
+            msg = (
+                "It looks like you don't have pandas installed. This function"
+                " will return a native array instead.")
 
-        logging.warning(msg)
-        df = recarray
+            logging.warning(msg)
+
+        df = records2array(records, types, native=True, silent=silent)
 
     return df
 

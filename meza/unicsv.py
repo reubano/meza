@@ -62,7 +62,7 @@ def encode_all(f=None, **kwargs):
 class UnicodeWriter(object):
     """
     >>> from io import StringIO
-
+    >>>
     >>> f = StringIO()
     >>> w = UnicodeWriter(f)
     >>> w.writerow((u'é', u'ñ'))
@@ -89,7 +89,7 @@ class UnicodeWriter(object):
 def reader(f, dialect='excel', **kwargs):
     """
     >>> from io import StringIO
-
+    >>>
     >>> f = StringIO()
     >>> bool(f.write('Şpâm Şpâm Şpâm |Bâkëd Bëâñs|\\n'))
     True
@@ -114,7 +114,7 @@ def reader(f, dialect='excel', **kwargs):
 def writer(f, dialect='excel', **kwargs):
     """
     >>> from io import StringIO
-
+    >>>
     >>> f = StringIO()
     >>> kwargs = {'delimiter': ' ', 'quotechar': '|'}
     >>> uniwriter = writer(f, **kwargs)
@@ -133,7 +133,7 @@ def writer(f, dialect='excel', **kwargs):
 class DictReader(csv.DictReader):
     """
     >>> from io import StringIO
-
+    >>>
     >>> f = StringIO()
     >>> bool(f.write('a,ñ,b\\n'))
     True
@@ -190,7 +190,7 @@ class DictReader(csv.DictReader):
 class DictWriter(csv.DictWriter):
     """
     >>> from io import StringIO
-
+    >>>
     >>> f = StringIO()
     >>> w = DictWriter(f, ['a', 'ñ', 'b'], restval='î')
     >>> w.writeheader()

@@ -281,7 +281,7 @@ def read_any(filepath, reader, mode='r', *args, **kwargs):
     Args:
         filepath (str): The file path or file like object.
         reader (func): The processing function.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         kwargs (dict): Keyword arguments that are passed to the reader.
 
     Kwargs:
@@ -526,7 +526,7 @@ def read_csv(filepath, mode='r', **kwargs):
 
     Args:
         filepath (str): The csv file path or file like object.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         kwargs (dict): Keyword arguments that are passed to the csv reader.
 
     Kwargs:
@@ -606,7 +606,7 @@ def read_tsv(filepath, mode='r', **kwargs):
 
     Args:
         filepath (str): The tsv file path or file like object.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         kwargs (dict): Keyword arguments that are passed to the csv reader.
 
     Kwargs:
@@ -648,7 +648,7 @@ def read_fixed_fmt(filepath, widths=None, mode='r', **kwargs):
     Args:
         filepath (str): The fixed width formatted file path or file like object.
         widths (List[int]): The zero-based 'start' position of each column.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         kwargs (dict): Keyword arguments that are passed to the csv reader.
 
     Kwargs:
@@ -863,7 +863,7 @@ def read_json(filepath, mode='r', path='item', newline=False):
 
     Args:
         filepath (str): The json file path or file like object.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         path (Optional[str]): Path to the content you wish to read
             (default: 'item', i.e., the root list). Note: `path` must refer to
             a list.
@@ -932,7 +932,7 @@ def read_geojson(filepath, key='id', mode='r', **kwargs):
     Args:
         filepath (str): The geojson file path or file like object.
         key (str): GeoJSON Feature ID (default: 'id').
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
 
     Kwargs:
         lat_first (bool): Latitude listed as first coordinate (default: False).
@@ -993,7 +993,7 @@ def read_yaml(filepath, mode='r', **kwargs):
 
     Args:
         filepath (str): The yaml file path or file like object.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
 
     Kwargs:
         encoding (str): File encoding.
@@ -1031,7 +1031,7 @@ def read_html(filepath, table=0, mode='r', **kwargs):
     Args:
         filepath (str): The html file path or file like object.
         table (int): Zero indexed table to open (default: 0)
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         kwargs (dict): Keyword arguments
 
     Kwargs:
@@ -1204,13 +1204,14 @@ def detect_encoding(f, verbose=False):
     Args:
         f (obj): The file like object to detect.
         verbose (Optional[bool]): The file open mode (default: False).
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
 
     Returns:
         dict: The encoding result
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
+        >>>
         >>> with open(filepath, 'rb') as f:
         ...     result = detect_encoding(f)
         ...     result == {'confidence': 0.99, 'encoding': 'utf-8'}

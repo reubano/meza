@@ -18,11 +18,9 @@ Attributes:
 from __future__ import (
     absolute_import, division, print_function, unicode_literals)
 
-import sys
 import logging
 
 from datetime import datetime as dt
-from builtins import *
 
 __version__ = '0.29.4'
 __title__ = 'meza'
@@ -37,10 +35,4 @@ CURRENCIES = ('$', '£', '€')
 ENCODING = 'utf-8'
 DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
 
-if sys.version_info.major >= 3:
-    import csv
-else:
-    from . import unicsv as csv
-
 logging.basicConfig()
-csv = csv

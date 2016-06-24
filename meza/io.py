@@ -49,7 +49,7 @@ from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
     XL_CELL_ERROR, xldate_as_tuple)
 
-from . import fntools as ft, process as pr, csv, dbf, ENCODING
+from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING
 
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
 DATA_DIR = p.join(PARENT_DIR, 'data', 'test')

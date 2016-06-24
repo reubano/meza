@@ -30,7 +30,7 @@ import yaml
 import json
 
 from os import path as p
-from io import StringIO, TextIOBase
+from io import StringIO, TextIOBase, open
 from datetime import time
 from mmap import mmap
 from collections import deque

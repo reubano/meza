@@ -22,7 +22,7 @@ import logging
 
 from datetime import datetime as dt
 
-__version__ = '0.29.4'
+__version__ = '0.29.5'
 __title__ = 'meza'
 __package_name__ = 'meza'
 __author__ = 'Reuben Cummings'

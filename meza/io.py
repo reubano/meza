@@ -30,7 +30,7 @@ import yaml
 import json
 
 from os import path as p
-from io import StringIO, TextIOBase
+from io import StringIO, TextIOBase, open
 from datetime import time
 from mmap import mmap
 from collections import deque
@@ -49,7 +49,7 @@ from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
     XL_CELL_ERROR, xldate_as_tuple)
 
-from . import fntools as ft, process as pr, csv, dbf, ENCODING
+from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING
 
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
 DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
@@ -168,25 +168,56 @@ def patch_http_response_read(func):
 client.HTTPResponse.read = patch_http_response_read(client.HTTPResponse.read)
 
 
-def remove_bom(row, bom):
-    try:
-        for k, v in row.items():
-            try:
-                if v and bom in v:
-                    row[k] = v.lstrip(bom)
-                    break
-                elif k and bom in k:
-                    row[k.lstrip(bom)] = row[k]
-                    del row[k]
-                    break
-            except TypeError:
-                pass
-    except AttributeError:
+def _remove_bom_from_dict(row, bom):
+    for k, v in row.items():
         try:
-            if bom in row[0]:
-                row = [row[0].lstrip(bom)] + row[1:]
+            if all([k, v, bom in k, bom in v]):
+                yield (k.lstrip(bom), v.lstrip(bom))
+            elif v and bom in v:
+                yield (k, v.lstrip(bom))
+            elif k and bom in k:
+                yield (k.lstrip(bom), v)
+            else:
+                yield (k, v)
         except TypeError:
-            pass
+            yield (k, v)
+
+
+def _remove_bom_from_list(row, bom):
+    for pos, col in enumerate(row):
+        try:
+            if not pos and bom in col:
+                yield col.lstrip(bom)
+            else:
+                yield col
+        except TypeError:
+            yield col
+
+
+def _remove_bom_from_scalar(row, bom):
+    try:
+        return row.lstrip(bom)
+    except AttributeError:
+        return row
+
+
+def is_listlike(item):
+    if hasattr(item, 'keys'):
+        listlike = False
+    else:
+        listlike = {'append', 'next', '__reversed__'}.intersection(dir(item))
+
+    return listlike
+
+
+def remove_bom(row, bom):
+    if is_listlike(row):
+        row = list(_remove_bom_from_list(row, bom))
+    else:
+        try:
+            row = dict(_remove_bom_from_dict(row, bom))
+        except AttributeError:
+            row = _remove_bom_from_scalar(row, bom)
 
     return row
 
@@ -250,7 +281,7 @@ def read_any(filepath, reader, mode='r', *args, **kwargs):
     Args:
         filepath (str): The file path or file like object.
         reader (func): The processing function.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         kwargs (dict): Keyword arguments that are passed to the reader.
 
     Kwargs:
@@ -495,7 +526,7 @@ def read_csv(filepath, mode='r', **kwargs):
 
     Args:
         filepath (str): The csv file path or file like object.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         kwargs (dict): Keyword arguments that are passed to the csv reader.
 
     Kwargs:
@@ -575,7 +606,7 @@ def read_tsv(filepath, mode='r', **kwargs):
 
     Args:
         filepath (str): The tsv file path or file like object.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         kwargs (dict): Keyword arguments that are passed to the csv reader.
 
     Kwargs:
@@ -617,7 +648,7 @@ def read_fixed_fmt(filepath, widths=None, mode='r', **kwargs):
     Args:
         filepath (str): The fixed width formatted file path or file like object.
         widths (List[int]): The zero-based 'start' position of each column.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         kwargs (dict): Keyword arguments that are passed to the csv reader.
 
     Kwargs:
@@ -832,7 +863,7 @@ def read_json(filepath, mode='r', path='item', newline=False):
 
     Args:
         filepath (str): The json file path or file like object.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         path (Optional[str]): Path to the content you wish to read
             (default: 'item', i.e., the root list). Note: `path` must refer to
             a list.
@@ -901,7 +932,7 @@ def read_geojson(filepath, key='id', mode='r', **kwargs):
     Args:
         filepath (str): The geojson file path or file like object.
         key (str): GeoJSON Feature ID (default: 'id').
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
 
     Kwargs:
         lat_first (bool): Latitude listed as first coordinate (default: False).
@@ -962,7 +993,7 @@ def read_yaml(filepath, mode='r', **kwargs):
 
     Args:
         filepath (str): The yaml file path or file like object.
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
 
     Kwargs:
         encoding (str): File encoding.
@@ -1000,7 +1031,7 @@ def read_html(filepath, table=0, mode='r', **kwargs):
     Args:
         filepath (str): The html file path or file like object.
         table (int): Zero indexed table to open (default: 0)
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
         kwargs (dict): Keyword arguments
 
     Kwargs:
@@ -1141,8 +1172,9 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
 
     Examples:
         >>> from tempfile import TemporaryFile
-        >>> hash_file(TemporaryFile())
-        'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+        >>> resp = 'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+        >>> hash_file(TemporaryFile()) == resp
+        True
     """
     def reader(f, hasher, **kwargs):
         if chunksize:
@@ -1172,13 +1204,14 @@ def detect_encoding(f, verbose=False):
     Args:
         f (obj): The file like object to detect.
         verbose (Optional[bool]): The file open mode (default: False).
-        mode (Optional[str]): The file open mode (default: 'rU').
+        mode (Optional[str]): The file open mode (default: 'r').
 
     Returns:
         dict: The encoding result
 
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
+        >>>
         >>> with open(filepath, 'rb') as f:
         ...     result = detect_encoding(f)
         ...     result == {'confidence': 0.99, 'encoding': 'utf-8'}

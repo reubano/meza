@@ -33,7 +33,7 @@ from array import array
 from builtins import *
 from six.moves import filterfalse, zip_longest
 from dateutil.parser import parse
-from . import fntools as ft, csv, ENCODING, DEFAULT_DATETIME
+from . import fntools as ft, unicsv as csv, ENCODING, DEFAULT_DATETIME
 from ._compat import get_native_str
 
 try:

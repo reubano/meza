@@ -21,6 +21,6 @@ _install () {
 
 _install wheel
 
-for package in "$1"; do
+for package in "$@"; do
   _install $package
 done

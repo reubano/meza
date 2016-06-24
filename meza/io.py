@@ -168,25 +168,56 @@ def patch_http_response_read(func):
 client.HTTPResponse.read = patch_http_response_read(client.HTTPResponse.read)
 
 
-def remove_bom(row, bom):
-    try:
-        for k, v in row.items():
-            try:
-                if v and bom in v:
-                    row[k] = v.lstrip(bom)
-                    break
-                elif k and bom in k:
-                    row[k.lstrip(bom)] = row[k]
-                    del row[k]
-                    break
-            except TypeError:
-                pass
-    except AttributeError:
+def _remove_bom_from_dict(row, bom):
+    for k, v in row.items():
         try:
-            if bom in row[0]:
-                row = [row[0].lstrip(bom)] + row[1:]
+            if all([k, v, bom in k, bom in v]):
+                yield (k.lstrip(bom), v.lstrip(bom))
+            elif v and bom in v:
+                yield (k, v.lstrip(bom))
+            elif k and bom in k:
+                yield (k.lstrip(bom), v)
+            else:
+                yield (k, v)
         except TypeError:
-            pass
+            yield (k, v)
+
+
+def _remove_bom_from_list(row, bom):
+    for pos, col in enumerate(row):
+        try:
+            if not pos and bom in col:
+                yield col.lstrip(bom)
+            else:
+                yield col
+        except TypeError:
+            yield col
+
+
+def _remove_bom_from_scalar(row, bom):
+    try:
+        return row.lstrip(bom)
+    except AttributeError:
+        return row
+
+
+def is_listlike(item):
+    if hasattr(item, 'keys'):
+        listlike = False
+    else:
+        listlike = {'append', 'next', '__reversed__'}.intersection(dir(item))
+
+    return listlike
+
+
+def remove_bom(row, bom):
+    if is_listlike(row):
+        row = list(_remove_bom_from_list(row, bom))
+    else:
+        try:
+            row = dict(_remove_bom_from_dict(row, bom))
+        except AttributeError:
+            row = _remove_bom_from_scalar(row, bom)
 
     return row
 
@@ -1141,8 +1172,9 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
 
     Examples:
         >>> from tempfile import TemporaryFile
-        >>> hash_file(TemporaryFile())
-        'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+        >>> resp = 'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+        >>> hash_file(TemporaryFile()) == resp
+        True
     """
     def reader(f, hasher, **kwargs):
         if chunksize:

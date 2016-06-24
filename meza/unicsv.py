@@ -15,13 +15,14 @@ from __future__ import (
 
 import sys
 import csv
+import codecs
 
-if sys.version_info.major == 2:
-    import codecs
+try:
     import cStringIO
-    PY2 = True
-else:
-    PY2 = False
+    PY2, PY3 = True, False
+except ImportError:
+    import io as cStringIO
+    PY2, PY3 = False, True
 
 from . import ENCODING
 from ._compat import encode, decode
@@ -41,12 +42,16 @@ def encode_all(f=None, **kwargs):
     """
     names = kwargs.pop('fieldnames', None)
     encoding = kwargs.pop('encoding', None) if f else False
-    decoded = codecs.iterdecode(f, encoding) if encoding else f
-    ekwargs = {encode(k): encode(v) for k, v in kwargs.items()}
+
+    if PY2:
+        decoded = codecs.iterdecode(f, encoding) if encoding else f
+        ekwargs = {encode(k): encode(v) for k, v in kwargs.items()}
+    else:
+        decoded, ekwargs = f, kwargs
 
     res = {
-        'f': codecs.iterencode(decoded, ENCODING) if f else None,
-        'fieldnames': [encode(x) for x in names] if names else None,
+        'f': codecs.iterencode(decoded, ENCODING) if f and PY2 else decoded,
+        'fieldnames': [encode(x) for x in names] if names and PY2 else names,
         'drkwargs': use_keys_from(ekwargs, READER_KEYS),
         'dwkwargs': use_keys_from(ekwargs, WRITER_KEYS),
         'fmtparams': use_keys_from(ekwargs, FMTKEYS)}
@@ -70,16 +75,18 @@ class UnicodeWriter(object):
         self.f = f
 
     def writerow(self, row):
-        self.writer.writerow([encode(s) for s in row])
+        encoded = [encode(r) for r in row] if PY2 else row
+        self.writer.writerow(encoded)
         data = self.queue.getvalue()
-        self.f.write(decode(data))
+        decoded = decode(data) if PY2 else data.lstrip('\x00')
+        self.f.write(decoded)
         self.queue.truncate(0)
 
     def writerows(self, rows):
         [self.writerow(row) for row in rows]
 
 
-def py2_reader(f, dialect='excel', **kwargs):
+def reader(f, dialect='excel', **kwargs):
     """
     >>> from io import StringIO
 
@@ -91,25 +98,26 @@ def py2_reader(f, dialect='excel', **kwargs):
     >>> bool(f.seek(0))
     False
     >>> kwargs = {'delimiter': ' ', 'quotechar': '|'}
-    >>> unireader = py2_reader(f, **kwargs)
-    >>> unireader.next() == ['Şpâm', 'Şpâm', 'Şpâm', 'Bâkëd Bëâñs']
+    >>> unireader = reader(f, **kwargs)
+    >>> next(unireader) == ['Şpâm', 'Şpâm', 'Şpâm', 'Bâkëd Bëâñs']
     True
-    >>> unireader.next() == ['Şpâm', 'Łôvëly Şpâḿ', 'Ŵôndërful Şpâm']
+    >>> next(unireader) == ['Şpâm', 'Łôvëly Şpâḿ', 'Ŵôndërful Şpâm']
     True
     """
     res = encode_all(f, **kwargs)
 
     for row in csv.reader(res['f'], dialect, **res['fmtparams']):
-        yield [decode(r) for r in row]
+        decoded = [decode(r) for r in row] if PY2 else row
+        yield decoded
 
 
-def py2_writer(f, dialect='excel', **kwargs):
+def writer(f, dialect='excel', **kwargs):
     """
     >>> from io import StringIO
 
     >>> f = StringIO()
     >>> kwargs = {'delimiter': ' ', 'quotechar': '|'}
-    >>> uniwriter = py2_writer(f, **kwargs)
+    >>> uniwriter = writer(f, **kwargs)
     >>> uniwriter.writerow(['Şpâm'] * 5 + ['Bâkëd Bëâñs'])
     >>> uniwriter.writerow(['Şpâm', 'Łôvëly Şpâḿ', 'Ŵôndërful Şpâm'])
     >>> text = f.getvalue().split('\\r\\n')
@@ -122,7 +130,7 @@ def py2_writer(f, dialect='excel', **kwargs):
     return UnicodeWriter(f, dialect, **res['fmtparams'])
 
 
-class Py2DictReader(csv.DictReader):
+class DictReader(csv.DictReader):
     """
     >>> from io import StringIO
 
@@ -135,12 +143,12 @@ class Py2DictReader(csv.DictReader):
     True
     >>> bool(f.seek(0))
     False
-    >>> r = Py2DictReader(f, fieldnames=['a', 'ñ'], restkey='r')
-    >>> r.next() == {'a': 'a', 'ñ':'ñ', 'r': ['b']}
+    >>> r = DictReader(f, fieldnames=['a', 'ñ'], restkey='r')
+    >>> next(r) == {'a': 'a', 'ñ':'ñ', 'r': ['b']}
     True
-    >>> r.next() == {'a': '1', 'ñ':'2', 'r': ['ø']}
+    >>> next(r) == {'a': '1', 'ñ':'2', 'r': ['ø']}
     True
-    >>> r.next() == {'a': 'é', 'ñ':'2', 'r': ['î']}
+    >>> next(r) == {'a': 'é', 'ñ':'2', 'r': ['î']}
     True
 
     >>> f = StringIO()
@@ -152,10 +160,10 @@ class Py2DictReader(csv.DictReader):
     True
     >>> bool(f.seek(0))
     False
-    >>> r = Py2DictReader(f, restval='Løndøn')
-    >>> r.next() == {'name': 'Câry Grâñt', 'place': 'høllywøød'}
+    >>> r = DictReader(f, restval='Løndøn')
+    >>> next(r) == {'name': 'Câry Grâñt', 'place': 'høllywøød'}
     True
-    >>> r.next() == {'name': 'Nâthâñ Brillstøñé', 'place': 'Løndøn'}
+    >>> next(r) == {'name': 'Nâthâñ Brillstøñé', 'place': 'Løndøn'}
     True
     """
     def __init__(self, f, fieldnames=None, **kwargs):
@@ -165,20 +173,26 @@ class Py2DictReader(csv.DictReader):
         self.restkey = res['drkwargs'].get('restkey')
 
     def next(self):
-        row = csv.DictReader.next(self)
+        try:
+            row = csv.DictReader.next(self)
+        except AttributeError:
+            row = csv.DictReader.__next__(self)
 
-        if self.restkey:
+        if self.restkey and PY2:
             row[self.restkey] = [decode(x) for x in row[self.restkey]]
 
-        return {decode(k): decode(v) for k, v in row.items()}
+        if PY2:
+            row = {decode(k): decode(v) for k, v in row.items()}
+
+        return row
 
 
-class Py2DictWriter(csv.DictWriter):
+class DictWriter(csv.DictWriter):
     """
     >>> from io import StringIO
 
     >>> f = StringIO()
-    >>> w = Py2DictWriter(f, ['a', 'ñ', 'b'], restval='î')
+    >>> w = DictWriter(f, ['a', 'ñ', 'b'], restval='î')
     >>> w.writeheader()
     >>> w.writerows([{'a':'1', 'ñ':'2', 'b':'ø'}, {'a':'é', 'ñ':'2'}])
     >>> text = f.getvalue().split('\\r\\n')
@@ -190,7 +204,7 @@ class Py2DictWriter(csv.DictWriter):
     True
 
     >>> f = StringIO()
-    >>> w = Py2DictWriter(f, ['name', 'place'])
+    >>> w = DictWriter(f, ['name', 'place'])
     >>> w.writeheader()
     >>> w.writerow({'name': 'Câry Grâñt', 'place': 'høllywøød'})
     >>> w.writerow({'name': 'Nâthâñ Brillstøñé', 'place': 'Løndøn'})
@@ -207,32 +221,3 @@ class Py2DictWriter(csv.DictWriter):
         args = (self, f, fieldnames)
         csv.DictWriter.__init__(*args, **res['dwkwargs'])
         self.writer = UnicodeWriter(f, **res['fmtparams'])
-
-
-def py3_reader(*args, **kwargs):
-    ckwargs = use_keys_from(kwargs, READER_KEYS)
-    return csv.reader(*args, **ckwargs)
-
-
-def py3_writer(*args, **kwargs):
-    ckwargs = use_keys_from(kwargs, WRITER_KEYS)
-    return csv.writer(*args, **ckwargs)
-
-
-class Py3DictReader(csv.DictReader):
-    def __init__(self, *args, **kwargs):
-        ckwargs = use_keys_from(kwargs, READER_KEYS)
-        super(DictReader, self).__init__(*args, **ckwargs)
-
-
-class Py3DictWriter(csv.DictWriter):
-    def __init__(self, *args, **kwargs):
-        ckwargs = use_keys_from(kwargs, WRITER_KEYS)
-        super(DictWriter, self).__init__(*args, **ckwargs)
-
-if PY2:
-    reader, writer = py2_reader, py2_writer
-    DictReader, DictWriter = Py2DictReader, Py2DictWriter
-else:
-    reader, writer = py3_reader, py3_writer
-    DictReader, DictWriter = Py3DictReader, Py3DictWriter

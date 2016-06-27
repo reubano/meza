@@ -10,6 +10,7 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals)
 
 import nose.tools as nt
+import itertools as it
 import requests
 import responses
 import pygogo as gogo
@@ -19,6 +20,8 @@ from json import loads
 from tempfile import TemporaryFile
 from io import StringIO
 from decimal import Decimal
+from six.moves.urllib.request import urlopen
+from contextlib import closing
 
 from builtins import *
 from meza import io, convert as cv
@@ -254,6 +257,30 @@ class TestInput:
 
         with nt.assert_raises(KeyError):
             io.get_reader('')
+
+
+class TestUrlopen:
+    """Unit tests for reading files with urlopen"""
+    def __init__(self):
+        self.cls_initialized = False
+        self.utf8_row = {'a': '4', 'b': '5', 'c': 'ʤ'}
+        self.latin_row = {'a': '4', 'b': '5', 'c': '©'}
+
+    def test_urlopen_utf8(self):
+        filepath = p.join(io.DATA_DIR, 'utf8.csv')
+
+        with closing(urlopen('file://%s' % filepath)) as f:
+            records = io.read_csv(f)
+            row = next(it.islice(records, 1, 2))
+            nt.assert_equal(self.utf8_row, row)
+
+    def test_urlopen_latin1(self):
+        filepath = p.join(io.DATA_DIR, 'latin1.csv')
+
+        with closing(urlopen('file://%s' % filepath)) as f:
+            records = io.read_csv(f, encoding='latin-1')
+            row = next(it.islice(records, 1, 2))
+            nt.assert_equal(self.latin_row, row)
 
 
 class TestGeoJSON:

@@ -314,6 +314,9 @@ def read_any(filepath, reader, mode='r', *args, **kwargs):
     encoding = kwargs.pop('encoding', None if 'b' in mode else ENCODING)
 
     if hasattr(filepath, 'read'):
+        if encoding:
+            kwargs['encoding'] = encoding
+
         for r in _read_any(filepath, reader, args, **kwargs):
             yield remove_bom(r, BOM)
     else:

@@ -12,6 +12,7 @@ from __future__ import (
 import nose.tools as nt
 import requests
 import responses
+import pygogo as gogo
 
 from os import path as p
 from json import loads
@@ -21,6 +22,8 @@ from decimal import Decimal
 
 from builtins import *
 from meza import io, convert as cv
+
+logger = gogo.Gogo(__name__, monolog=True).logger
 
 
 def setup_module():

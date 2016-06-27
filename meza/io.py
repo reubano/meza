@@ -25,9 +25,9 @@ import itertools as it
 import sys
 import hashlib
 import sqlite3
-import logging
 import yaml
 import json
+import pygogo as gogo
 
 from os import path as p
 from io import StringIO, TextIOBase, open
@@ -51,6 +51,7 @@ from xlrd import (
 
 from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING
 
+logger = gogo.Gogo(__name__, monolog=True).logger
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
 DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
 BOM = '\ufeff'
@@ -246,10 +247,10 @@ def _read_any(f, reader, args, pos=0, **kwargs):
         if 'NoneType' in str(err):
             raise
         else:
-            logging.warning('Bytes or the wrong encoding was used to open file')
+            logger.warning('Bytes or the wrong encoding was used to open file')
 
         if recursed or not hasattr(f, 'seek'):
-            logging.error('Unable to detect proper file encoding')
+            logger.error('Unable to detect proper file encoding')
             raise
 
         f.seek(0)
@@ -260,7 +261,7 @@ def _read_any(f, reader, args, pos=0, **kwargs):
         except UnicodeDecodeError:
             msg = 'Incorrectly encoded file, reopening with bytes to detect'
             msg += ' encoding'
-            logging.warning(msg)
+            logger.warning(msg)
             f.close()
 
             with open(f.name, 'rb') as new_f:
@@ -268,7 +269,7 @@ def _read_any(f, reader, args, pos=0, **kwargs):
         else:
             f.close()
 
-        logging.debug('Reopening file with encoding: %s.', encoding)
+        logger.debug('Reopening file with encoding: %s.', encoding)
         with open(f.name, 'r', encoding=encoding) as enc_f:
             kwargs['recursed'] = True
             for r in _read_any(enc_f, reader, args, pos, **kwargs):
@@ -409,7 +410,7 @@ def read_mdb(filepath, table=None, **kwargs):
     try:
         check_call(args)
     except OSError:
-        logging.error(
+        logger.error(
             'You must install [mdbtools]'
             '(http://sourceforge.net/projects/mdbtools/) in order to use '
             'this function')
@@ -588,7 +589,7 @@ def read_csv(filepath, mode='r', **kwargs):
             except AttributeError:
                 msg = 'Non seekable files must have either a specified or'
                 msg += 'custom header.'
-                logging.error(msg)
+                logger.error(msg)
                 raise
 
             list(it.islice(f, first_row))

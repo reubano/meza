@@ -236,9 +236,7 @@ def get_encoding(filepath):
     return encoding
 
 
-def _read_any(f, reader, args, pos=0, **kwargs):
-    recursed = kwargs.pop('recursed', False)
-
+def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
     try:
         for num, r in enumerate(reader(f, *args, **kwargs)):
             if num >= pos:
@@ -275,9 +273,8 @@ def _read_any(f, reader, args, pos=0, **kwargs):
         try:
             logger.debug('Decoding file with encoding: %s.', encoding)
             decoded_f = iterdecode(new_f, encoding)
-            kwargs['recursed'] = True
 
-            for r in _read_any(decoded_f, reader, args, pos, **kwargs):
+            for r in _read_any(decoded_f, reader, args, pos, True, **kwargs):
                 yield r
         finally:
             new_f.close()

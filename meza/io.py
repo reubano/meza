@@ -38,6 +38,7 @@ from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 from http import client
 from csv import Error as csvError
 from functools import partial
+from codecs import iterdecode
 
 from builtins import *
 from six.moves import zip_longest
@@ -263,17 +264,20 @@ def _read_any(f, reader, args, pos=0, **kwargs):
             msg += ' encoding'
             logger.warning(msg)
             f.close()
-
-            with open(f.name, 'rb') as new_f:
-                encoding = detect_encoding(new_f)['encoding']
+            new_f = open(f.name, 'rb')
+            encoding = detect_encoding(new_f)['encoding']
         else:
-            f.close()
+            new_f = f
 
-        logger.debug('Reopening file with encoding: %s.', encoding)
-        with open(f.name, 'r', encoding=encoding) as enc_f:
+        try:
+            logger.debug('Decoding file with encoding: %s.', encoding)
+            decoded_f = iterdecode(new_f, encoding)
             kwargs['recursed'] = True
-            for r in _read_any(enc_f, reader, args, pos, **kwargs):
+
+            for r in _read_any(decoded_f, reader, args, pos, **kwargs):
                 yield r
+        finally:
+            new_f.close()
 
 
 def read_any(filepath, reader, mode='r', *args, **kwargs):
@@ -573,7 +577,7 @@ def read_csv(filepath, mode='r', **kwargs):
 
         # position file pointer at the first row
         list(it.islice(f, first_row))
-        first_line = StringIO(str(f.readline()))
+        first_line = StringIO(str(next(f)))
         names = next(csv.reader(first_line, **kwargs))
 
         if has_header or custom_header:

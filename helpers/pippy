@@ -12,15 +12,21 @@ _install () {
     if [ $package == 'wheel' ]; then
       pip install wheel
     else
-      pip install --download="$PIP_CACHE_DIR" $package
-      pip wheel --wheel-dir="$PIP_WHEEL_DIR" --no-index --find-links="$PIP_CACHE_DIR" $package
-      pip install --use-wheel --no-index --find-links="$PIP_FIND_LINKS" $package
+      pip download --src="$PIP_CACHE_DIR" $package
+      pip wheel --wheel-dir="$PIP_WHEEL_DIR" --no-index \
+        --find-links="$PIP_CACHE_DIR" $package
+      pip install --use-wheel --no-index \
+        --find-links="$PIP_FIND_LINKS" $package
     fi
   fi
 }
 
-_install wheel
+if [ "$1" == "-e" ]; then
+  pip install $@
+else
+  _install wheel
 
-for package in "$@"; do
-  _install $package
-done
+  for package in "$@"; do
+    _install $package
+  done
+fi

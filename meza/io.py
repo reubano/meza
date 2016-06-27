@@ -248,7 +248,10 @@ def _read_any(f, reader, args, pos=0, **kwargs):
         if 'NoneType' in str(err):
             raise
         else:
-            logger.warning('Bytes or the wrong encoding was used to open file')
+            encoding = kwargs.get('encoding')
+            extra = (' (%s)' % encoding) if encoding else ''
+            msg = 'Bytes or the wrong encoding%s was used to open file' % extra
+            logger.warning(msg)
 
         if recursed or not hasattr(f, 'seek'):
             logger.error('Unable to detect proper file encoding')

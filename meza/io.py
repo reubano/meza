@@ -236,6 +236,26 @@ def get_encoding(filepath):
     return encoding
 
 
+def get_file_encoding(f, encoding=None):
+    if encoding:
+        new_f, new_encoding = f, encoding
+    else:
+        try:
+            # See if we have bytes to avoid reopening the file
+            new_encoding = detect_encoding(f)['encoding']
+        except UnicodeDecodeError:
+            msg = 'Incorrectly encoded file, reopening with bytes to detect'
+            msg += ' encoding'
+            logger.warning(msg)
+            f.close()
+            new_f = open(f.name, 'rb')
+            new_encoding = detect_encoding(new_f)['encoding']
+        else:
+            new_f = f
+
+    return new_f, new_encoding
+
+
 def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
     try:
         for num, r in enumerate(reader(f, *args, **kwargs)):
@@ -264,27 +284,11 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
             raise
 
         f.seek(0)
-
-        if encoding:
-            new_f = f
-        else:
-            try:
-                # See if we have bytes to avoid reopening the file
-                encoding = detect_encoding(f)['encoding']
-            except UnicodeDecodeError:
-                msg = 'Incorrectly encoded file, reopening with bytes to detect'
-                msg += ' encoding'
-                logger.warning(msg)
-                f.close()
-                new_f = open(f.name, 'rb')
-                encoding = detect_encoding(new_f)['encoding']
-            else:
-                new_f = f
-
+        new_f, new_encoding = get_file_encoding(f, encoding)
         logger.debug('Decoding file with encoding: %s', encoding)
 
         try:
-            decoded_f = iterdecode(new_f, encoding)
+            decoded_f = iterdecode(new_f, new_encoding)
 
             for r in _read_any(decoded_f, reader, args, pos, True, **kwargs):
                 yield r

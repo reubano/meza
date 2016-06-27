@@ -243,13 +243,21 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
                 yield r
                 pos += 1
     except (UnicodeDecodeError, csvError, TypeError) as err:
+        encoding = kwargs.get('encoding')
+
         if 'NoneType' in str(err):
             raise
+        elif 'BufferedReader' in str(type(f)):
+            # TODO: need to account for other file-like objects, this one is
+            # what py3 urlopen returns
+            logger.warning('File was opened in bytes mode')
         else:
-            encoding = kwargs.get('encoding')
+            # Since the encoding could be wrong, set it None so that we can
+            # detect the correct one.
             extra = (' (%s)' % encoding) if encoding else ''
             msg = 'Bytes or the wrong encoding%s was used to open file' % extra
             logger.warning(msg)
+            encoding = None
 
         if recursed or not hasattr(f, 'seek'):
             logger.error('Unable to detect proper file encoding')
@@ -257,21 +265,25 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
 
         f.seek(0)
 
-        try:
-            # See if we have bytes to avoid reopening the file
-            encoding = detect_encoding(f)['encoding']
-        except UnicodeDecodeError:
-            msg = 'Incorrectly encoded file, reopening with bytes to detect'
-            msg += ' encoding'
-            logger.warning(msg)
-            f.close()
-            new_f = open(f.name, 'rb')
-            encoding = detect_encoding(new_f)['encoding']
-        else:
+        if encoding:
             new_f = f
+        else:
+            try:
+                # See if we have bytes to avoid reopening the file
+                encoding = detect_encoding(f)['encoding']
+            except UnicodeDecodeError:
+                msg = 'Incorrectly encoded file, reopening with bytes to detect'
+                msg += ' encoding'
+                logger.warning(msg)
+                f.close()
+                new_f = open(f.name, 'rb')
+                encoding = detect_encoding(new_f)['encoding']
+            else:
+                new_f = f
+
+        logger.debug('Decoding file with encoding: %s', encoding)
 
         try:
-            logger.debug('Decoding file with encoding: %s.', encoding)
             decoded_f = iterdecode(new_f, encoding)
 
             for r in _read_any(decoded_f, reader, args, pos, True, **kwargs):
@@ -311,15 +323,17 @@ def read_any(filepath, reader, mode='r', *args, **kwargs):
         ...     'Some Date', 'Sparse Data', 'Some Value', 'Unicode Test', '']
         True
     """
-    encoding = kwargs.pop('encoding', None if 'b' in mode else ENCODING)
-
     if hasattr(filepath, 'read'):
+        encoding = kwargs.pop('encoding', ENCODING)
+
         if encoding:
             kwargs['encoding'] = encoding
 
         for r in _read_any(filepath, reader, args, **kwargs):
             yield remove_bom(r, BOM)
     else:
+        encoding = kwargs.pop('encoding', None if 'b' in mode else ENCODING)
+
         with open(filepath, mode, encoding=encoding) as f:
             for r in _read_any(f, reader, args, **kwargs):
                 yield remove_bom(r, BOM)

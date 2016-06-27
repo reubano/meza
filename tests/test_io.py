@@ -269,7 +269,8 @@ class TestUrlopen:
     def test_urlopen_utf8(self):
         filepath = p.join(io.DATA_DIR, 'utf8.csv')
 
-        with closing(urlopen('file://%s' % filepath)) as f:
+        with closing(urlopen('file://%s' % filepath)) as response:
+            f = response.fp
             records = io.read_csv(f)
             row = next(it.islice(records, 1, 2))
             nt.assert_equal(self.utf8_row, row)
@@ -277,7 +278,8 @@ class TestUrlopen:
     def test_urlopen_latin1(self):
         filepath = p.join(io.DATA_DIR, 'latin1.csv')
 
-        with closing(urlopen('file://%s' % filepath)) as f:
+        with closing(urlopen('file://%s' % filepath)) as response:
+            f = response.fp
             records = io.read_csv(f, encoding='latin-1')
             row = next(it.islice(records, 1, 2))
             nt.assert_equal(self.latin_row, row)

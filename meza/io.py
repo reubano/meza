@@ -25,9 +25,9 @@ import itertools as it
 import sys
 import hashlib
 import sqlite3
-import logging
 import yaml
 import json
+import pygogo as gogo
 
 from os import path as p
 from io import StringIO, TextIOBase, open
@@ -38,6 +38,7 @@ from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 from http import client
 from csv import Error as csvError
 from functools import partial
+from codecs import iterdecode
 
 from builtins import *
 from six.moves import zip_longest
@@ -51,6 +52,7 @@ from xlrd import (
 
 from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING
 
+logger = gogo.Gogo(__name__, monolog=True).logger
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
 DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
 BOM = '\ufeff'
@@ -234,45 +236,64 @@ def get_encoding(filepath):
     return encoding
 
 
-def _read_any(f, reader, args, pos=0, **kwargs):
-    recursed = kwargs.pop('recursed', False)
+def get_file_encoding(f, encoding=None):
+    if encoding:
+        new_f, new_encoding = f, encoding
+    else:
+        try:
+            # See if we have bytes to avoid reopening the file
+            new_encoding = detect_encoding(f)['encoding']
+        except UnicodeDecodeError:
+            msg = 'Incorrectly encoded file, reopening with bytes to detect'
+            msg += ' encoding'
+            logger.warning(msg)
+            f.close()
+            new_f = open(f.name, 'rb')
+            new_encoding = detect_encoding(new_f)['encoding']
+        else:
+            new_f = f
 
+    return new_f, new_encoding
+
+
+def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
     try:
         for num, r in enumerate(reader(f, *args, **kwargs)):
             if num >= pos:
                 yield r
                 pos += 1
     except (UnicodeDecodeError, csvError, TypeError) as err:
+        encoding = kwargs.get('encoding')
+
         if 'NoneType' in str(err):
             raise
+        elif 'BufferedReader' in str(type(f)):
+            # TODO: need to account for other file-like objects, this one is
+            # what py3 urlopen returns
+            logger.warning('File was opened in bytes mode')
         else:
-            logging.warning('Bytes or the wrong encoding was used to open file')
+            # Since the encoding could be wrong, set it None so that we can
+            # detect the correct one.
+            extra = (' (%s)' % encoding) if encoding else ''
+            msg = 'Bytes or the wrong encoding%s was used to open file' % extra
+            logger.warning(msg)
+            encoding = None
 
         if recursed or not hasattr(f, 'seek'):
-            logging.error('Unable to detect proper file encoding')
+            logger.error('Unable to detect proper file encoding')
             raise
 
         f.seek(0)
+        new_f, new_encoding = get_file_encoding(f, encoding)
+        logger.debug('Decoding file with encoding: %s', encoding)
 
         try:
-            # See if we have bytes to avoid reopening the file
-            encoding = detect_encoding(f)['encoding']
-        except UnicodeDecodeError:
-            msg = 'Incorrectly encoded file, reopening with bytes to detect'
-            msg += ' encoding'
-            logging.warning(msg)
-            f.close()
+            decoded_f = iterdecode(new_f, new_encoding)
 
-            with open(f.name, 'rb') as new_f:
-                encoding = detect_encoding(new_f)['encoding']
-        else:
-            f.close()
-
-        logging.debug('Reopening file with encoding: %s.', encoding)
-        with open(f.name, 'r', encoding=encoding) as enc_f:
-            kwargs['recursed'] = True
-            for r in _read_any(enc_f, reader, args, pos, **kwargs):
+            for r in _read_any(decoded_f, reader, args, pos, True, **kwargs):
                 yield r
+        finally:
+            new_f.close()
 
 
 def read_any(filepath, reader, mode='r', *args, **kwargs):
@@ -306,12 +327,17 @@ def read_any(filepath, reader, mode='r', *args, **kwargs):
         ...     'Some Date', 'Sparse Data', 'Some Value', 'Unicode Test', '']
         True
     """
-    encoding = kwargs.pop('encoding', None if 'b' in mode else ENCODING)
-
     if hasattr(filepath, 'read'):
+        encoding = kwargs.pop('encoding', ENCODING)
+
+        if encoding:
+            kwargs['encoding'] = encoding
+
         for r in _read_any(filepath, reader, args, **kwargs):
             yield remove_bom(r, BOM)
     else:
+        encoding = kwargs.pop('encoding', None if 'b' in mode else ENCODING)
+
         with open(filepath, mode, encoding=encoding) as f:
             for r in _read_any(f, reader, args, **kwargs):
                 yield remove_bom(r, BOM)
@@ -409,7 +435,7 @@ def read_mdb(filepath, table=None, **kwargs):
     try:
         check_call(args)
     except OSError:
-        logging.error(
+        logger.error(
             'You must install [mdbtools]'
             '(http://sourceforge.net/projects/mdbtools/) in order to use '
             'this function')
@@ -572,7 +598,7 @@ def read_csv(filepath, mode='r', **kwargs):
 
         # position file pointer at the first row
         list(it.islice(f, first_row))
-        first_line = StringIO(str(f.readline()))
+        first_line = StringIO(str(next(f)))
         names = next(csv.reader(first_line, **kwargs))
 
         if has_header or custom_header:
@@ -588,7 +614,7 @@ def read_csv(filepath, mode='r', **kwargs):
             except AttributeError:
                 msg = 'Non seekable files must have either a specified or'
                 msg += 'custom header.'
-                logging.error(msg)
+                logger.error(msg)
                 raise
 
             list(it.islice(f, first_row))

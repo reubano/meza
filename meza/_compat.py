@@ -78,6 +78,8 @@ def encode(content, encoding=ENCODING, parse_ints=False):
 
 
 def get_native_str(text):
+    """Encode py2-unicode into bytes (py2-str) but leave py3 text as is
+    """
     # dtype bug https://github.com/numpy/numpy/issues/2407
     if sys.version_info.major < 3:
         try:

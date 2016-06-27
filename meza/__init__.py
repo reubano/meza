@@ -18,11 +18,9 @@ Attributes:
 from __future__ import (
     absolute_import, division, print_function, unicode_literals)
 
-import logging
-
 from datetime import datetime as dt
 
-__version__ = '0.29.5'
+__version__ = '0.29.6'
 __title__ = 'meza'
 __package_name__ = 'meza'
 __author__ = 'Reuben Cummings'
@@ -34,5 +32,3 @@ __copyright__ = 'Copyright 2015 Reuben Cummings'
 CURRENCIES = ('$', '£', '€')
 ENCODING = 'utf-8'
 DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
-
-logging.basicConfig()

@@ -19,7 +19,7 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals)
 
 import itertools as it
-import logging
+import pygogo as gogo
 
 from os import path as p
 from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_DOWN
@@ -45,6 +45,8 @@ try:
     import pandas as pd
 except ImportError:
     pd = None
+
+logger = gogo.Gogo(__name__, monolog=True).logger
 
 
 def ctype2ext(content_type=None):
@@ -684,7 +686,7 @@ def records2array(records, types, native=False, silent=False):
                 "It looks like you don't have numpy installed. This function"
                 " will return a native array instead.")
 
-            logging.warning(msg)
+            logger.warning(msg)
 
         header = [array(get_native_str('u'), t['id']) for t in types]
         data = (zip_longest(*([r.get(i) for i in ids] for r in records)))
@@ -762,7 +764,7 @@ def records2df(records, types, native=False, silent=False):
                 "It looks like you don't have pandas installed. This function"
                 " will return a native array instead.")
 
-            logging.warning(msg)
+            logger.warning(msg)
 
         df = records2array(records, types, native=True, silent=silent)
 

@@ -30,7 +30,7 @@ from __future__ import (
 
 import itertools as it
 import operator
-import logging
+import pygogo as gogo
 
 from functools import partial, reduce
 from collections import defaultdict
@@ -111,7 +111,7 @@ ARRAY_NULL_TYPE = {
     'd': 0.0,
     'u': ''}
 
-logging.basicConfig()
+logger = gogo.Gogo(__name__, monolog=True).logger
 
 
 class Objectify(object):

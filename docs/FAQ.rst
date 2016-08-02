@@ -47,7 +47,7 @@ PyPy
 Convenience
 ~~~~~~~~~~~
 
-The ``records`` data is structure is compatible with other libraries such as
+The ``records`` data structure is compatible with other libraries such as
 ``sqlachemy``'s bulk insert:
 
 .. code-block:: python

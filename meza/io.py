@@ -20,13 +20,13 @@ Examples:
 from __future__ import (
     absolute_import, division, print_function, unicode_literals)
 
-import xlrd
 import itertools as it
 import sys
 import hashlib
 import sqlite3
 import yaml
 import json
+import xlrd
 import pygogo as gogo
 
 from os import path as p
@@ -48,7 +48,7 @@ from xlrd.xldate import xldate_as_datetime as xl2dt
 from chardet.universaldetector import UniversalDetector
 from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
-    XL_CELL_ERROR, xldate_as_tuple)
+    XL_CELL_ERROR)
 
 from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING
 
@@ -767,7 +767,7 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
     time_format = kwargs.get('time_format', '%H:%M:%S')
 
     def time_func(value):
-        args = xldate_as_tuple(value, mode)[3:]
+        args = xlrd.xldate_as_tuple(value, mode)[3:]
         return time(*args).strftime(time_format)
 
     switch = {

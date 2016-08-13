@@ -20,13 +20,13 @@ Examples:
 from __future__ import (
     absolute_import, division, print_function, unicode_literals)
 
-import xlrd
 import itertools as it
 import sys
 import hashlib
 import sqlite3
 import yaml
 import json
+import xlrd
 import pygogo as gogo
 
 from os import path as p

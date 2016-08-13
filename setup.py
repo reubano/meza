@@ -12,13 +12,17 @@ try:
 except ImportError:
     from distutils.core import setup, find_packages
 
+from os import path as p
+
+PARENT_DIR = p.abspath(p.dirname(__file__))
+
 sys.dont_write_bytecode = True
 py2_requirements = set(pkutils.parse_requirements('py2-requirements.txt'))
 py3_requirements = set(pkutils.parse_requirements('requirements.txt'))
 dev_requirements = set(pkutils.parse_requirements('dev-requirements.txt'))
 readme = pkutils.read('README.rst')
 # changes = pkutils.read('CHANGES.rst').replace('.. :changelog:', '')
-module = pkutils.parse_module('meza/__init__.py')
+module = pkutils.parse_module(p.join(PARENT_DIR, 'meza', '__init__.py'))
 license = module.__license__
 version = module.__version__
 project = module.__title__

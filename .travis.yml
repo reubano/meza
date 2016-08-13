@@ -33,10 +33,10 @@ before_install:
   - pip install -U pip
   - pip install wheel
   - |
-      if [ "$TRAVIS_PYTHON_VERSION" = "pypy" ]; then
+      if [ "$TRAVIS_PYTHON_VERSION" == "pypy" ]; then
         export PYPY_VERSION="5.1.1"
         export PYPY_EXEC="pypy-$PYPY_VERSION"
-      elif [ "$TRAVIS_PYTHON_VERSION" = "pypy3" ]; then
+      elif [ "$TRAVIS_PYTHON_VERSION" == "pypy3" ]; then
         export PYPY_VERSION="2.4.0"
         export PYPY_EXEC="pypy3-$PYPY_VERSION"
         export PYPY_PATH="${PYPY_PATH}3"

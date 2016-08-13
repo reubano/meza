@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import (
-    absolute_import, division, print_function, with_statement)
+from __future__ import absolute_import, division, print_function
 
 import sys
 import pkutils
@@ -12,13 +11,17 @@ try:
 except ImportError:
     from distutils.core import setup, find_packages
 
+from os import path as p
+
+PARENT_DIR = p.abspath(p.dirname(__file__))
+
 sys.dont_write_bytecode = True
 py2_requirements = set(pkutils.parse_requirements('py2-requirements.txt'))
 py3_requirements = set(pkutils.parse_requirements('requirements.txt'))
 dev_requirements = set(pkutils.parse_requirements('dev-requirements.txt'))
 readme = pkutils.read('README.rst')
 # changes = pkutils.read('CHANGES.rst').replace('.. :changelog:', '')
-module = pkutils.parse_module('meza/__init__.py')
+module = pkutils.parse_module(p.join(PARENT_DIR, 'meza', '__init__.py'))
 license = module.__license__
 version = module.__version__
 project = module.__title__
@@ -26,9 +29,8 @@ description = module.__description__
 user = 'reubano'
 
 # Conditional sdist dependencies:
-bdist = 'bdist_wheel' in sys.argv
 py2 = sys.version_info.major == 2
-requirements = py2_requirements if py2 and not bdist else py3_requirements
+requirements = py2_requirements if py2 else py3_requirements
 
 # Conditional bdist_wheel dependencies:
 extras_require = py2_requirements.difference(py3_requirements)

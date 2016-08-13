@@ -28,6 +28,7 @@ Attributes:
 from __future__ import (
     absolute_import, division, print_function, unicode_literals)
 
+import sys
 import itertools as it
 import operator
 import pygogo as gogo
@@ -110,6 +111,11 @@ ARRAY_NULL_TYPE = {
     'f': 0.0,
     'd': 0.0,
     'u': ''}
+
+try:
+    MAXINT = sys.maxint
+except AttributeError:
+    MAXINT = sys.maxsize
 
 logger = gogo.Gogo(__name__, monolog=True).logger
 
@@ -605,7 +611,7 @@ def chunk(content, chunksize=None, start=0, stop=None):
         else:
             generator = iter([content.read()])
     elif callable(content):  # it's an r.iter_content
-        chunksize = chunksize or pow(2, 34)
+        chunksize = chunksize or MAXINT
 
         if start or stop:
             i = it.islice(content(), start, stop)

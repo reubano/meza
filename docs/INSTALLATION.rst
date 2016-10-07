@@ -33,9 +33,9 @@ Or, if you only have ``virtualenv`` installed:
 	source ~/.venvs/meza/bin/activate
 	pip install meza
 
-Otherwise, you can install globally::
+Otherwise, you can install locally::
 
-    pip install meza
+    pip install --user meza
 
 .. _virtualenv: https://virtualenv.pypa.io/en/latest/index.html
 .. _virtualenvwrapper: https://virtualenvwrapper.readthedocs.org/en/latest/

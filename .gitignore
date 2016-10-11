@@ -8,6 +8,7 @@ examples/.ipynb_checkpoints/*
 
 # Packages
 *.egg
+.eggs
 *.egg-info
 dist
 build

@@ -725,7 +725,7 @@ def pivot(records, data, column, op=sum, **kwargs):
         yield merge(group_)
 
 
-def normalize(records, data, column, rows):
+def normalize(records, data='', column='', rows=None):
     """Yields normalized records from a spreadsheet-style pivot table.
 
     Args:
@@ -753,6 +753,8 @@ def normalize(records, data, column, rows):
         ...     'species': 'setosa'}
         True
     """
+    rows = rows or []
+
     for r in records:
         filtered = [x for x in iteritems(r) if x[0] not in rows]
 

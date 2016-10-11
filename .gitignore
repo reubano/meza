@@ -1,11 +1,14 @@
 *.py[cod]
 .cookiecutter
+.ipynb_checkpoints/*
+examples/.ipynb_checkpoints/*
 
 # C extensions
 *.so
 
 # Packages
 *.egg
+.eggs
 *.egg-info
 dist
 build

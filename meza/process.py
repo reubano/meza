@@ -40,7 +40,7 @@ from . import convert as cv, fntools as ft, typetools as tt, ENCODING
 sort = lambda records, key: iter(sorted(records, key=itemgetter(key)))
 
 
-def type_cast(records, types, warn=False):
+def type_cast(records, types=None, warn=False, **kwargs):
     """Casts record entries based on field types.
 
     Args:
@@ -104,7 +104,7 @@ def type_cast(records, types, warn=False):
         'null': lambda x, warn=None: None,
         'bool': cv.to_bool,
     }
-
+    types = types or []
     field_types = {t['id']: t['type'] for t in types}
 
     for row in records:
@@ -725,7 +725,7 @@ def pivot(records, data, column, op=sum, **kwargs):
         yield merge(group_)
 
 
-def normalize(records, data, column, rows):
+def normalize(records, data='', column='', rows=None):
     """Yields normalized records from a spreadsheet-style pivot table.
 
     Args:
@@ -753,6 +753,8 @@ def normalize(records, data, column, rows):
         ...     'species': 'setosa'}
         True
     """
+    rows = rows or []
+
     for r in records:
         filtered = [x for x in iteritems(r) if x[0] not in rows]
 

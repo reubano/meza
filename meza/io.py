@@ -1161,7 +1161,11 @@ def write(filepath, content, mode='wb+', **kwargs):
             try:
                 f.write(text)
             except (TypeError, UnicodeEncodeError):
-                text = bytes(text, encoding)
+                try:
+                    text = bytes(text, encoding)
+                except TypeError:
+                    text = text.decode(encoding)
+
                 f.write(text)
 
             progress += chunksize or len(text)

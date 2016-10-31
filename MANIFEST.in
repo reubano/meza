@@ -4,6 +4,5 @@ recursive-include helpers *
 recursive-include docs *
 recursive-include examples *
 include LICENSE
-include CONTRIBUTING.rst
-include README.rst
+include *.rst
 include *requirements.txt

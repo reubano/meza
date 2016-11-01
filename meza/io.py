@@ -810,6 +810,7 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
             yield (i, switch.get(type_, lambda v: v)(value))
 
 
+# pylint: disable=unused-argument
 def get_header(names, dedupe=False, sanitize=False, **kwargs):
     """Generates a header row"""
     stripped = (name for name in names if name.strip())

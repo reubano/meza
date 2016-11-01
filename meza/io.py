@@ -280,8 +280,9 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
                 pos += 1
     except (UnicodeDecodeError, csvError, TypeError) as err:
         encoding = kwargs.get('encoding')
+        logger.debug(err)
 
-        if 'NoneType' in str(err):
+        if 'NoneType' in str(err) or 'unicode argument expected' in str(err):
             raise
         elif 'BufferedReader' in str(type(f)):
             # TODO: need to account for other file-like objects, this one is
@@ -1167,6 +1168,12 @@ def write(filepath, content, mode='wb+', **kwargs):
         11
         >>> write(StringIO(), StringIO('Hello World'))
         11
+        >>> content = IterStringIO(iter('Internationalization'))
+        >>> write(StringIO(), content, encoding='ascii')
+        20
+        >>> content = IterStringIO(iter('Iñtërnâtiônàližætiøn'))
+        >>> write(StringIO(), content, encoding='utf-8')
+        28
     """
     def writer(f, content, **kwargs):
         """File writer"""
@@ -1181,13 +1188,13 @@ def write(filepath, content, mode='wb+', **kwargs):
 
             try:
                 f.write(text)
-            except (TypeError, UnicodeEncodeError):
+            except UnicodeEncodeError:
+                f.write(text.encode(encoding))
+            except TypeError:
                 try:
-                    text = bytes(text, encoding)
-                except TypeError:
-                    text = text.decode(encoding)
-
-                f.write(text)
+                    f.write(text.decode(encoding))
+                except AttributeError:
+                    f.write(bytes(text, encoding))
 
             progress += chunksize or len(text)
 

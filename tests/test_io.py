@@ -390,7 +390,7 @@ class TestOutput:
         content1 = StringIO('Iñtërnâtiônàližætiøn')
         nt.assert_equal(20, io.write(StringIO(), content1))
         content1.seek(0)
-        nt.assert_equal(28, io.write(TemporaryFile(), content1))
+        nt.assert_equal(20, io.write(TemporaryFile(), content1))
 
         content2 = io.IterStringIO(iter('Hello World'))
         nt.assert_equal(12, io.write(TemporaryFile(), content2, chunksize=2))

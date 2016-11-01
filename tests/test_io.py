@@ -14,7 +14,7 @@ import itertools as it
 from os import path as p
 from json import loads
 from tempfile import TemporaryFile
-from io import StringIO
+from io import StringIO, open
 from decimal import Decimal
 from six.moves.urllib.request import urlopen  # pylint: disable=import-error
 from contextlib import closing
@@ -206,10 +206,6 @@ class TestInput:
         records = io.read_xls(filepath, sanitize=True, sheet=0)
         nt.assert_equal(self.sheet0, next(records))
 
-        with open(filepath, 'r+b') as f:
-            records = io.read_xls(f, sanitize=True, sheet=0)
-            nt.assert_equal(self.sheet0, next(records))
-
         records = io.read_xls(filepath, sanitize=True, sheet=1)
         nt.assert_equal(self.sheet1, next(records))
 
@@ -222,13 +218,6 @@ class TestInput:
 
     def test_csv(self):
         """Test for reading csv files"""
-        filepath = p.join(io.DATA_DIR, 'test.csv')
-        header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
-
-        with open(filepath, 'r', encoding='utf-8') as f:
-            records = io._read_csv(f, header)  # pylint: disable=W0212
-            nt.assert_equal(self.sheet0_alt, next(records))
-
         filepath = p.join(io.DATA_DIR, 'no_header_row.csv')
         records = io.read_csv(filepath, has_header=False)
         expected = {'column_1': '1', 'column_2': '2', 'column_3': '3'}
@@ -280,6 +269,45 @@ class TestInput:
 
         with nt.assert_raises(KeyError):
             io.get_reader('')
+
+    def test_opened_files(self):
+        """Test for reading open files"""
+        filepath = p.join(io.DATA_DIR, 'test.csv')
+        header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
+
+        with open(filepath, encoding='utf-8') as f:
+            records = io._read_csv(f, header)  # pylint: disable=W0212
+            nt.assert_equal(self.sheet0_alt, next(records))
+
+        f = open(filepath, encoding='utf-8')
+
+        try:
+            records = io.read_csv(f, sanitize=True)
+            nt.assert_equal(self.sheet0_alt, next(records))
+        finally:
+            f.close()
+
+        f = open(filepath, 'rU', newline=None)
+
+        try:
+            records = io.read_csv(f, sanitize=True)
+            nt.assert_equal(self.sheet0_alt, next(records))
+        finally:
+            f.close()
+
+        filepath = p.join(io.DATA_DIR, 'test.xlsx')
+
+        with open(filepath, 'r+b') as f:
+            records = io.read_xls(f, sanitize=True, sheet=0)
+            nt.assert_equal(self.sheet0, next(records))
+
+        f = open(filepath, 'r+b')
+
+        try:
+            records = io.read_xls(f, sanitize=True, sheet=0)
+            nt.assert_equal(self.sheet0, next(records))
+        finally:
+            f.close()
 
 
 class TestUrlopen:

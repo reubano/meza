@@ -20,7 +20,7 @@ from __future__ import (
 
 from datetime import datetime as dt
 
-__version__ = '0.31.2'
+__version__ = '0.31.3'
 __title__ = 'meza'
 __package_name__ = 'meza'
 __author__ = 'Reuben Cummings'

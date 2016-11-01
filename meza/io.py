@@ -279,14 +279,12 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
                 yield line
                 pos += 1
     except (UnicodeDecodeError, csvError, TypeError) as err:
-        encoding = kwargs.get('encoding')
+        encoding = kwargs.pop('encoding', None)
         logger.debug(err)
 
         if 'NoneType' in str(err) or 'unicode argument expected' in str(err):
             raise
-        elif 'BufferedReader' in str(type(f)):
-            # TODO: need to account for other file-like objects, this one is
-            # what py3 urlopen returns
+        elif hasattr(f, 'mode') and 'b' in f.mode:
             logger.warning('File was opened in bytes mode')
         else:
             # Since the encoding could be wrong, set it None so that we can
@@ -345,12 +343,15 @@ def read_any(filepath, reader, mode='r', *args, **kwargs):
         True
     """
     if hasattr(filepath, 'read'):
-        kwargs.setdefault('encoding', ENCODING)
+        if hasattr(filepath, 'mode') and 'b' in filepath.mode:
+            kwargs.setdefault('encoding', ENCODING)
+        else:
+            kwargs.pop('encoding', None)
 
         for line in _read_any(filepath, reader, args, **kwargs):
             yield remove_bom(line, BOM)
     else:
-        encoding = kwargs.pop('encoding', None if 'b' in mode else ENCODING)
+        encoding = None if 'b' in mode else kwargs.pop('encoding', ENCODING)
 
         with open(filepath, mode, encoding=encoding) as f:
             for line in _read_any(f, reader, args, **kwargs):
@@ -810,6 +811,7 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
             yield (i, switch.get(type_, lambda v: v)(value))
 
 
+# pylint: disable=unused-argument
 def get_header(names, dedupe=False, sanitize=False, **kwargs):
     """Generates a header row"""
     stripped = (name for name in names if name.strip())
@@ -1164,15 +1166,16 @@ def write(filepath, content, mode='wb+', **kwargs):
 
     Examples:
         >>> from tempfile import TemporaryFile
+        >>>
         >>> write(TemporaryFile(), StringIO('Hello World'))
         11
         >>> write(StringIO(), StringIO('Hello World'))
         11
         >>> content = IterStringIO(iter('Internationalization'))
-        >>> write(StringIO(), content, encoding='ascii')
+        >>> write(StringIO(), content)
         20
         >>> content = IterStringIO(iter('Iñtërnâtiônàližætiøn'))
-        >>> write(StringIO(), content, encoding='utf-8')
+        >>> write(StringIO(), content)
         28
     """
     def writer(f, content, **kwargs):

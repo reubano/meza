@@ -371,8 +371,8 @@ class TestGeoJSON:
             nt.assert_equal(record['lon'], record['lon'])
             nt.assert_equal(record['lat'], record['lat'])
 
-    def test_geojson_with_id(self):
-        """Test for reading GeoJSON files with an ID"""
+    def test_geojson_with_key(self):
+        """Test for reading GeoJSON files with a key"""
         for filepath in self.filepaths:
             records = io.read_geojson(filepath)
             f = cv.records2geojson(records, key='id')

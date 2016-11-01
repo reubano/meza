@@ -1166,6 +1166,7 @@ def write(filepath, content, mode='wb+', **kwargs):
 
     Examples:
         >>> from tempfile import TemporaryFile
+        >>>
         >>> write(TemporaryFile(), StringIO('Hello World'))
         11
         >>> write(StringIO(), StringIO('Hello World'))

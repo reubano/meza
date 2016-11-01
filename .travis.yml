@@ -1,17 +1,20 @@
 sudo: false
 language: python
 python:
-  - "2.7"
-  - "3.4"
-  - "3.5"
-  - "pypy"
-  - "pypy3"
+  - 2.7
+  - 3.4
+  - 3.5
+  - pypy
+  - pypy3
 
 cache:
   directories:
     - ~/.cache/pip
 
 env:
+  matrix:
+    - OPTIONAL=true
+    - OPTIONAL=false
   global:
     - PIP_WHEEL_DIR=$HOME/.cache/pip/wheels
     - PIP_FIND_LINKS=file://$HOME/.cache/pip/wheels
@@ -20,6 +23,13 @@ env:
     - PYENV_ROOT=$HOME/.pyenv
     - PYPY_VENV=$HOME/virtualenvs/pypy
     - PYPY_PATH=$PYENV_ROOT/versions/pypy
+
+matrix:
+  exclude:
+  - python: pypy
+    env: OPTIONAL=true
+  - python: pypy3
+    env: OPTIONAL=true
 
 notifications:
   email:
@@ -57,18 +67,18 @@ before_install:
       fi
 
 install:
+  - pip install -r dev-requirements.txt
   - |
-      if [[ $TRAVIS_PYTHON_VERSION == *"3"* ]]; then
+      if [[ "$TRAVIS_PYTHON_VERSION" == *"3"* ]]; then
         pip install -r requirements.txt
       else
         pip install -r py2-requirements.txt
       fi
   - |
-      if [[ "$TRAVIS_PYTHON_VERSION" != "pypy"* ]]; then
+      if [[ "$OPTIONAL" == "true" ]]; then
         pip wheel -r optional-requirements.txt
         pip install -r optional-requirements.txt
       fi
-  - pip install -r dev-requirements.txt
 
 script:
   - manage lint

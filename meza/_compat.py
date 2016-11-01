@@ -25,8 +25,8 @@ import sys
 
 from . import ENCODING
 
-decoder = lambda encoding: codecs.getincrementaldecoder(encoding)()
-encoder = lambda encoding: codecs.getincrementalencoder(encoding)()
+DECODER = lambda encoding: codecs.getincrementaldecoder(encoding)()
+ENCODER = lambda encoding: codecs.getincrementalencoder(encoding)()
 
 
 def decode(content, encoding=ENCODING):
@@ -43,7 +43,7 @@ def decode(content, encoding=ENCODING):
         >>> from datetime import datetime as dt, date, time
     """
     try:
-        decoded = decoder(encoding).decode(content)
+        decoded = DECODER(encoding).decode(content)
     except (TypeError, UnicodeDecodeError):
         decoded = content
 
@@ -55,7 +55,7 @@ def encode(content, encoding=ENCODING, parse_ints=False):
     """
     if hasattr(content, 'encode'):
         try:
-            encoded = encoder(encoding).encode(content)
+            encoded = ENCODER(encoding).encode(content)
         except UnicodeDecodeError:
             encoded = content
     elif parse_ints:
@@ -67,9 +67,10 @@ def encode(content, encoding=ENCODING, parse_ints=False):
             try:
                 encoded = content.to_bytes(length, byteorder='big')
             except AttributeError:
+                # Backport py3 to_bytes for py2
                 # http://stackoverflow.com/a/20793663/408556
-                h = '%x' % content
-                zeros = '0' * (len(h) % 2) + h
+                _hex = '%x' % content
+                zeros = '0' * (len(_hex) % 2) + _hex
                 encoded = zeros.zfill(length * 2).decode('hex')
     else:
         encoded = content

@@ -13,7 +13,6 @@ a py3 futurized codebase.
 from __future__ import (
     absolute_import, division, print_function, unicode_literals)
 
-import sys
 import csv
 import codecs
 
@@ -33,6 +32,9 @@ WRITER_KEYS = FMTKEYS.union(['restval', 'extrasaction', 'dialect'])
 
 
 def use_keys_from(src, template):
+    """
+    Create a new dictionary using whitelisted keys
+    """
     return {k: v for k, v in src.items() if k in template}
 
 
@@ -75,6 +77,11 @@ class UnicodeWriter(object):
         self.f = f
 
     def writerow(self, row):
+        """Writes a dictionary row
+
+        Args:
+            row (Iter[scalar]): Sequence of content to write.
+        """
         encoded = [encode(r) for r in row] if PY2 else row
         self.writer.writerow(encoded)
         data = self.queue.getvalue()
@@ -83,6 +90,11 @@ class UnicodeWriter(object):
         self.queue.truncate(0)
 
     def writerows(self, rows):
+        """Writes dictionary rows
+
+        Args:
+            rows (Iter[Iter[scalar]]): Sequence of rows to write.
+        """
         [self.writerow(row) for row in rows]
 
 
@@ -173,6 +185,9 @@ class DictReader(csv.DictReader):
         self.restkey = res['drkwargs'].get('restkey')
 
     def next(self):
+        """
+        Return the upcoming row
+        """
         try:
             row = csv.DictReader.next(self)
         except AttributeError:

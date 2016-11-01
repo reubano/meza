@@ -10,39 +10,44 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals)
 
 import itertools as it
-import requests
-import responses
-import nose.tools as nt
-import pygogo as gogo
 
 from os import path as p
 from json import loads
 from tempfile import TemporaryFile
 from io import StringIO
 from decimal import Decimal
-from six.moves.urllib.request import urlopen
+from six.moves.urllib.request import urlopen  # pylint: disable=import-error
 from contextlib import closing
-
 from builtins import *
+
+import requests
+import responses
+import nose.tools as nt
+import pygogo as gogo
+
 from meza import io, convert as cv
 
-logger = gogo.Gogo(__name__, monolog=True).logger
+__INITIALIZED__ = False
+
+logger = gogo.Gogo(__name__, monolog=True).logger  # pylint: disable=C0103
 
 
 def setup_module():
     """site initialization"""
-    global initialized
-    initialized = True
+    global __INITIALIZED__  # pylint: disable=global-statement
+    __INITIALIZED__ = True
     print('Site Module Setup\n')
 
 
 class TestIterStringIO:
+    """Unit tests for IterStringIO"""
     def __init__(self):
         self.phrase = io.IterStringIO(iter('Hello World'))
         self.text = io.IterStringIO('line one\nline two\nline three\n')
         self.ints = io.IterStringIO('0123456789', 5)
 
     def test_lines(self):
+        """Test for reading lines"""
         nt.assert_equal(bytearray(b'Hello'), self.phrase.read(5))
         self.phrase.write(iter('ly person'))
         nt.assert_equal(bytearray(b' Worldly'), self.phrase.read(8))
@@ -64,6 +69,7 @@ class TestIterStringIO:
         nt.assert_equal(bytearray(b'line three'), lines[2])
 
     def test_seeking(self):
+        """Test for seeking a file"""
         nt.assert_equal(bytearray(b'01234'), self.ints.read(5))
         self.ints.seek(0)
         nt.assert_equal(bytearray(b'0'), self.ints.read(1))
@@ -93,7 +99,7 @@ class TestIterStringIO:
 
 
 class TestUnicodeReader:
-    """Unit tests for file IO"""
+    """Unit tests for unicode support"""
     def __init__(self):
         self.cls_initialized = False
         self.row1 = {'a': '1', 'b': '2', 'c': '3'}
@@ -101,42 +107,53 @@ class TestUnicodeReader:
         self.row3 = {'a': '4', 'b': '5', 'c': 'ʤ'}
 
     def test_utf8(self):
+        """Test for reading utf-8 files"""
         filepath = p.join(io.DATA_DIR, 'utf8.csv')
         records = io.read_csv(filepath, sanitize=True)
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row3, next(records))
 
     def test_latin1(self):
+        """Test for reading latin-1 files"""
         filepath = p.join(io.DATA_DIR, 'latin1.csv')
         records = io.read_csv(filepath, encoding='latin-1')
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row2, next(records))
 
     def test_bytes_encoding_detection(self):
+        """Test for properly detecting the encoding of a file opened in bytes
+        mode
+        """
         filepath = p.join(io.DATA_DIR, 'latin1.csv')
         records = io.read_csv(filepath, mode='rb')
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row2, next(records))
 
     def test_wrong_encoding_detection(self):
+        """Test for properly detecting the encoding of a file opened with the
+        wrong encoding
+        """
         filepath = p.join(io.DATA_DIR, 'latin1.csv')
         records = io.read_csv(filepath, encoding='ascii')
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row2, next(records))
 
     def test_utf16_big(self):
+        """Test for reading utf-16BE files"""
         filepath = p.join(io.DATA_DIR, 'utf16_big.csv')
         records = io.read_csv(filepath, encoding='utf-16-be')
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row3, next(records))
 
     def test_utf16_little(self):
+        """Test for reading utf-16LE files"""
         filepath = p.join(io.DATA_DIR, 'utf16_little.csv')
         records = io.read_csv(filepath, encoding='utf-16-le')
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row3, next(records))
 
     def test_kwargs(self):
+        """Test for passing kwargs while reading csv files"""
         filepath = p.join(io.DATA_DIR, 'utf8.csv')
         kwargs = {'delimiter': ','}
         records = io.read_csv(filepath, **kwargs)
@@ -144,6 +161,7 @@ class TestUnicodeReader:
 
 
 class TestInput:
+    """Unit tests for reading files"""
     def __init__(self):
         self.cls_initialized = False
         self.sheet0 = {
@@ -167,7 +185,8 @@ class TestInput:
             'text': 'Chicago Tribune',
             'time': '00:00:00'}
 
-    def test_newline_json(self):
+    def test_newline_json(self):  # pylint: disable=R0201
+        """Test for reading newline delimited JSON files"""
         expected = {
             'sepal_width': '3.5', 'petal_width': '0.2', 'species':
             'Iris-setosa', 'sepal_length': '5.1', 'petal_length': '1.4'}
@@ -182,6 +201,7 @@ class TestInput:
         nt.assert_equal({'a': 2, 'b': 3}, next(records))
 
     def test_xls(self):
+        """Test for reading excel files"""
         filepath = p.join(io.DATA_DIR, 'test.xlsx')
         records = io.read_xls(filepath, sanitize=True, sheet=0)
         nt.assert_equal(self.sheet0, next(records))
@@ -201,11 +221,12 @@ class TestInput:
         nt.assert_equal(self.sheet1, next(records))
 
     def test_csv(self):
+        """Test for reading csv files"""
         filepath = p.join(io.DATA_DIR, 'test.csv')
         header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
 
         with open(filepath, 'r', encoding='utf-8') as f:
-            records = io._read_csv(f, header)
+            records = io._read_csv(f, header)  # pylint: disable=W0212
             nt.assert_equal(self.sheet0_alt, next(records))
 
         filepath = p.join(io.DATA_DIR, 'no_header_row.csv')
@@ -231,7 +252,8 @@ class TestInput:
 
         nt.assert_equal(expected, next(records))
 
-    def test_dbf(self):
+    def test_dbf(self):  # pylint: disable=R0201
+        """Test for reading dbf files"""
         filepath = p.join(io.DATA_DIR, 'test.dbf')
 
         with open(filepath, 'rb') as f:
@@ -252,7 +274,8 @@ class TestInput:
 
             nt.assert_equal(expected, next(records))
 
-    def test_get_reader(self):
+    def test_get_reader(self):  # pylint: disable=R0201
+        """Test for reading a file via the reader selector"""
         nt.assert_true(callable(io.get_reader('csv')))
 
         with nt.assert_raises(KeyError):
@@ -267,6 +290,7 @@ class TestUrlopen:
         self.latin_row = {'a': '4', 'b': '5', 'c': '©'}
 
     def test_urlopen_utf8(self):
+        """Test for reading utf-8 files"""
         filepath = p.join(io.DATA_DIR, 'utf8.csv')
 
         with closing(urlopen('file://%s' % filepath)) as response:
@@ -276,6 +300,7 @@ class TestUrlopen:
             nt.assert_equal(self.utf8_row, row)
 
     def test_urlopen_latin1(self):
+        """Test for reading latin-1 files"""
         filepath = p.join(io.DATA_DIR, 'latin1.csv')
 
         with closing(urlopen('file://%s' % filepath)) as response:
@@ -286,6 +311,7 @@ class TestUrlopen:
 
 
 class TestGeoJSON:
+    """Unit tests for reading GeoJSON"""
     def __init__(self):
         self.cls_initialized = False
         self.bbox = [
@@ -297,6 +323,7 @@ class TestGeoJSON:
         self.filepaths = [p.join(io.DATA_DIR, '%s.geojson' % n) for n in names]
 
     def test_geojson(self):
+        """Test for reading GeoJSON files"""
         expected = {
             'id': 6635402,
             'iso3': 'ABW',
@@ -317,6 +344,7 @@ class TestGeoJSON:
             nt.assert_equal(record['lat'], record['lat'])
 
     def test_geojson_with_id(self):
+        """Test for reading GeoJSON files with an ID"""
         for filepath in self.filepaths:
             records = io.read_geojson(filepath)
             f = cv.records2geojson(records, key='id')
@@ -342,6 +370,7 @@ class TestGeoJSON:
                     nt.assert_equal(2, len(geometry['coordinates'][0][0]))
 
     def test_geojson_with_crs(self):
+        """Test for reading GeoJSON files with CRS"""
         records = io.read_geojson(self.filepath)
         f = cv.records2geojson(records, crs='EPSG:4269')
         geojson = loads(f.read())
@@ -352,18 +381,21 @@ class TestGeoJSON:
 
 
 class TestOutput:
-    @responses.activate
-    def test_write(self):
+    """Unit tests for writing files"""
+    @responses.activate  # pylint: disable=E1101
+    def test_write(self):  # pylint: disable=R0201
+        """Test for writing to a file"""
         url = 'http://google.com'
         body = '<!doctype html><html itemtype="http://schema.org/page">'
-        content = StringIO('Iñtërnâtiônàližætiøn')
-        nt.assert_equal(20, io.write(StringIO(), content))
-        content.seek(0)
-        nt.assert_equal(28, io.write(TemporaryFile(), content))
+        content1 = StringIO('Iñtërnâtiônàližætiøn')
+        nt.assert_equal(20, io.write(StringIO(), content1))
+        content1.seek(0)
+        nt.assert_equal(28, io.write(TemporaryFile(), content1))
 
-        content = io.IterStringIO(iter('Hello World'))
-        nt.assert_equal(12, io.write(TemporaryFile(), content, chunksize=2))
+        content2 = io.IterStringIO(iter('Hello World'))
+        nt.assert_equal(12, io.write(TemporaryFile(), content2, chunksize=2))
 
+        # pylint: disable=E1101
         responses.add(responses.GET, url=url, body=body)
-        r = requests.get(url, stream=True)
+        r = requests.get(url, stream=True)  # pylint: disable=C0103
         nt.assert_equal(55, io.write(TemporaryFile(), r.iter_content))

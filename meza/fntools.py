@@ -32,6 +32,7 @@ import sys
 import itertools as it
 import operator
 import pygogo as gogo
+import time
 
 from functools import partial, reduce
 from collections import defaultdict
@@ -204,6 +205,23 @@ class CustomEncoder(JSONEncoder):
             encoded = super(CustomEncoder, self).default(obj)
 
         return encoded
+
+
+class SleepyDict(dict):
+    """A dict like object that sleeps for a specified amount of time before
+    returning a key or during truth value testing
+    """
+    def __init__(self, *args, **kwargs):
+        self.delay = kwargs.pop('delay', 0)
+        super(SleepyDict, self).__init__(*args, **kwargs)
+
+    def __len__(self):
+        time.sleep(self.delay)
+        return super(SleepyDict, self).__len__()
+
+    def get(self, key, default=None):
+        time.sleep(self.delay)
+        return super(SleepyDict, self).get(key, default)
 
 
 def underscorify(content):
@@ -1033,6 +1051,36 @@ def flatten(record, prefix=None):
                 yield flattened
     except AttributeError:
         yield (prefix, record)
+
+
+def remove_keys(record, *args):
+    """ Remove keys from a dict and return new dict
+
+    Args:
+        record (dict): The dict to remove keys from
+        args (List[str]): The keys to remove
+
+    Returns:
+        dict: New dict with specified keys removed
+
+    Examples:
+        >>> record = {'keep': 1, 'remove': 2}
+        >>> remove_keys(record, 'remove') == {'keep': 1}
+        True
+        >>> remove_keys(Objectify(record), 'remove') == {'keep': 1}
+        True
+    """
+    return {k: v for k, v in record.items() if k not in args}
+
+
+def listize(item):
+    if hasattr(item, 'keys'):
+        listlike = False
+    else:
+        attrs = {'append', '__next__', 'next', '__reversed__'}
+        listlike = attrs.intersection(dir(item))
+
+    return item if listlike else [item]
 
 
 def def_itemgetter(attr, default=None):

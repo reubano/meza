@@ -125,7 +125,7 @@ class Objectify(object):
     """Creates an object with dynamically set attributes. Useful
     for accessing the kwargs of a function as attributes.
     """
-    def __init__(self, kwargs, **defaults):
+    def __init__(self, kwargs, func=None, **defaults):
         """ Objectify constructor
 
         Args:
@@ -136,6 +136,10 @@ class Objectify(object):
             >>> kwargs = {'key_1': 1, 'key_2': 2}
             >>> defaults = {'key_2': 5, 'key_3': 3}
             >>> kw = Objectify(kwargs, **defaults)
+            >>> sorted(kw) == ['key_1', 'key_2', 'key_3']
+            True
+            >>> dict(kw) == {'key_1': 1, 'key_2': 2, 'key_3': 3}
+            True
             >>> kw.key_1
             1
             >>> kw.key_2
@@ -143,18 +147,31 @@ class Objectify(object):
             >>> kw.key_3
             3
             >>> kw.key_4
+            >>> kw.get('key_1')
+            1
         """
         defaults.update(kwargs)
-        self.__dict__.update(defaults)
+        self.data = defaults
+        self.func = func
+        self.keys = self.data.keys
+        self.values = self.data.values
+        self.items = self.data.items
+        self.get = self.data.get
+        self.__setitem__ = self.__setattr__ = self.data.__setitem__
+        self.__delitem__ = self.__delattr__ = self.data.__delitem__
 
-    def __iter__(self):
-        return iter(self.__dict__.values())
+    def __repr__(self):
+        return repr(self.data)
+
+    def __getitem__(self, name):
+        return self.data.__getitem__(name)
 
     def __getattr__(self, name):
-        return None
+        attr = self.get(name)
+        return self.func(attr) if self.func else attr
 
-    def items(self):
-        return iter(self.__dict__.items())
+    def __iter__(self):
+        return iter(self.data)
 
 
 class Andand(object):

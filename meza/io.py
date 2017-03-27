@@ -1029,6 +1029,7 @@ def read_geojson(filepath, key='id', mode='r', **kwargs):
                     'type': feature['geometry']['type']}
 
                 args = (record, coords, properties)
+
                 for rec in gen_records(type_, *args, **kwargs):
                     yield rec
 

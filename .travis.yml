@@ -68,7 +68,9 @@ before_install:
         pyenv global "$PYENV_VERSION"
         pyenv virtualenv "$PYENV_VERSION" "$PYPY_EXEC"
         pyenv activate "$PYPY_EXEC"
+        python --version
         curl https://bootstrap.pypa.io/get-pip.py | python
+        pip --version
       fi
 
 install:

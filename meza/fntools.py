@@ -32,6 +32,7 @@ import sys
 import itertools as it
 import operator
 import pygogo as gogo
+import time
 
 from functools import partial, reduce
 from collections import defaultdict
@@ -124,7 +125,7 @@ class Objectify(object):
     """Creates an object with dynamically set attributes. Useful
     for accessing the kwargs of a function as attributes.
     """
-    def __init__(self, kwargs, **defaults):
+    def __init__(self, kwargs, func=None, **defaults):
         """ Objectify constructor
 
         Args:
@@ -135,6 +136,10 @@ class Objectify(object):
             >>> kwargs = {'key_1': 1, 'key_2': 2}
             >>> defaults = {'key_2': 5, 'key_3': 3}
             >>> kw = Objectify(kwargs, **defaults)
+            >>> sorted(kw) == ['key_1', 'key_2', 'key_3']
+            True
+            >>> dict(kw) == {'key_1': 1, 'key_2': 2, 'key_3': 3}
+            True
             >>> kw.key_1
             1
             >>> kw.key_2
@@ -142,18 +147,31 @@ class Objectify(object):
             >>> kw.key_3
             3
             >>> kw.key_4
+            >>> kw.get('key_1')
+            1
         """
         defaults.update(kwargs)
-        self.__dict__.update(defaults)
+        self.data = defaults
+        self.func = func
+        self.keys = self.data.keys
+        self.values = self.data.values
+        self.items = self.data.items
+        self.get = self.data.get
+        self.__setitem__ = self.__setattr__ = self.data.__setitem__
+        self.__delitem__ = self.__delattr__ = self.data.__delitem__
 
-    def __iter__(self):
-        return iter(self.__dict__.values())
+    def __repr__(self):
+        return repr(self.data)
+
+    def __getitem__(self, name):
+        return self.data.__getitem__(name)
 
     def __getattr__(self, name):
-        return None
+        attr = self.get(name)
+        return self.func(attr) if self.func else attr
 
-    def items(self):
-        return iter(self.__dict__.items())
+    def __iter__(self):
+        return iter(self.data)
 
 
 class Andand(object):
@@ -204,6 +222,23 @@ class CustomEncoder(JSONEncoder):
             encoded = super(CustomEncoder, self).default(obj)
 
         return encoded
+
+
+class SleepyDict(dict):
+    """A dict like object that sleeps for a specified amount of time before
+    returning a key or during truth value testing
+    """
+    def __init__(self, *args, **kwargs):
+        self.delay = kwargs.pop('delay', 0)
+        super(SleepyDict, self).__init__(*args, **kwargs)
+
+    def __len__(self):
+        time.sleep(self.delay)
+        return super(SleepyDict, self).__len__()
+
+    def get(self, key, default=None):
+        time.sleep(self.delay)
+        return super(SleepyDict, self).get(key, default)
 
 
 def underscorify(content):
@@ -1033,6 +1068,36 @@ def flatten(record, prefix=None):
                 yield flattened
     except AttributeError:
         yield (prefix, record)
+
+
+def remove_keys(record, *args):
+    """ Remove keys from a dict and return new dict
+
+    Args:
+        record (dict): The dict to remove keys from
+        args (List[str]): The keys to remove
+
+    Returns:
+        dict: New dict with specified keys removed
+
+    Examples:
+        >>> record = {'keep': 1, 'remove': 2}
+        >>> remove_keys(record, 'remove') == {'keep': 1}
+        True
+        >>> remove_keys(Objectify(record), 'remove') == {'keep': 1}
+        True
+    """
+    return {k: v for k, v in record.items() if k not in args}
+
+
+def listize(item):
+    if hasattr(item, 'keys'):
+        listlike = False
+    else:
+        attrs = {'append', '__next__', 'next', '__reversed__'}
+        listlike = attrs.intersection(dir(item))
+
+    return item if listlike else [item]
 
 
 def def_itemgetter(attr, default=None):

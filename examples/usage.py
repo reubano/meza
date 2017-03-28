@@ -181,7 +181,7 @@ Text processing
 
 GeoJSON
 
-    # First create a geojson fi
+    # First create a geojson file
     >>> f = StringIO(
     ...     '{"type": "FeatureCollection","features": ['
     ...     '{"type": "Feature", "id": 11, "geometry": '

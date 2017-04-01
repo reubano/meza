@@ -173,6 +173,9 @@ class Objectify(object):
     def __iter__(self):
         return iter(self.data)
 
+    def iteritems(self):
+        return iter(self.items())
+
 
 class Andand(object):
     """A Ruby inspired null soaking object

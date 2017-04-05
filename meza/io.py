@@ -69,28 +69,33 @@ class IterStringIO(TextIOBase):
     http://stackoverflow.com/a/32020108/408556
     """
     # pylint: disable=super-init-not-called
-    def __init__(self, iterable=None, bufsize=4096):
+    def __init__(self, iterable=None, bufsize=4096, decode=False, **kwargs):
         """ IterStringIO constructor
 
         Args:
-            iterable (Seq[str]): Iterable of strings
+            iterable (Seq[str]): Iterable of strings or bytes
             bufsize (Int): Buffer size for seeking
+            decode (bool): Decode the text into a string (default: False)
 
         Examples:
             >>> StringIO(iter('Hello World')).read(5)  # doctest: +ELLIPSIS
             Traceback (most recent call last):
             TypeError:...
             >>> IterStringIO(iter('Hello World')).read(5)
-            bytearray(b'Hello')
+            b'Hello'
             >>> i = IterStringIO(iter('one\\ntwo\\n'))
             >>> list(next(i.lines)) == [b'o', b'n', b'e']
+            True
+            >>> decoded = IterStringIO(iter('Hello World'), decode=True)
+            >>> decoded.read(5) == 'Hello'
             True
         """
         iterable = iterable if iterable else []
         chained = chain(iterable)
         self.iter = encode(chained)
+        self.decode = decode
         self.bufsize = bufsize
-        self.last = deque([], self.bufsize)
+        self.last = deque(bytearray(), self.bufsize)
         self.pos = 0
 
     def __next__(self):
@@ -109,14 +114,16 @@ class IterStringIO(TextIOBase):
 
     def _read(self, iterable, num=None, newline=True):
         """Helper method used to read content"""
-        byte = ft.byte(it.islice(iterable, num) if num else iterable)
+        content = it.islice(iterable, num) if num else iterable
+
+        byte = ft.byte(content)
         self.last.extend(byte)
         self.pos += num or len(byte)
 
         if newline:
             self.last.append('\n')
 
-        return byte
+        return byte.decode(ENCODING) if self.decode else bytes(byte)
 
     def write(self, iterable):
         """Write the content"""

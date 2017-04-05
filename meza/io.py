@@ -64,7 +64,7 @@ chain = lambda iterable: it.chain.from_iterable(iterable or [])
 
 
 class IterStringIO(TextIOBase):
-    """A lazy StringIO that writes a generator of strings and reads bytearrays.
+    """A lazy StringIO that reads a generator of strings.
 
     http://stackoverflow.com/a/32020108/408556
     """

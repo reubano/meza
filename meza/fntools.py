@@ -608,13 +608,7 @@ def byte(content):
         # it's a unicode or encoded iterable like ['H', 'e', 'l', 'l', 'o'],
         # ['I', 'ñ', 't', 'ë', 'r', 'n', 'â', 't', 'i', 'ô', 'n'],
         # or [b'I', b'\xc3\xb1', b't', b'\xc3\xab', b'r']
-        bytes_ = b''
-
-        for c in content:
-            try:
-                bytes_ += encode(c)
-            except TypeError:
-                bytes_ += encode(c, parse_ints=True)
+        bytes_ = b''.join(map(encode, content))
 
     return bytearray(bytes_)
 

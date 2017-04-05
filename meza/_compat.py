@@ -53,12 +53,7 @@ def decode(content, encoding=ENCODING):
 def encode(content, encoding=ENCODING, parse_ints=False):
     """Encode unicode (or ints) into bytes (py2-str)
     """
-    if hasattr(content, 'encode'):
-        try:
-            encoded = ENCODER(encoding).encode(content)
-        except UnicodeDecodeError:
-            encoded = content
-    elif parse_ints:
+    if parse_ints:
         try:
             length = (content.bit_length() // 8) + 1
         except AttributeError:
@@ -72,6 +67,13 @@ def encode(content, encoding=ENCODING, parse_ints=False):
                 _hex = '%x' % content
                 zeros = '0' * (len(_hex) % 2) + _hex
                 encoded = zeros.zfill(length * 2).decode('hex')
+    elif hasattr(content, 'encode'):
+        try:
+            encoded = ENCODER(encoding).encode(content)
+        except TypeError:
+            encoded = encode(content, encoding, parse_ints=True)
+        except UnicodeDecodeError:
+            encoded = content
     else:
         encoded = content
 

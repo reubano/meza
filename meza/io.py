@@ -206,6 +206,7 @@ class Reencoder(StreamReader):
             True
 
         """
+        self.fileno = f.fileno
         first_line = next(f)
         bytes_mode = hasattr(first_line, 'decode')
         decode = kwargs.get('decode')

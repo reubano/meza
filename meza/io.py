@@ -188,7 +188,8 @@ class Reencoder(StreamReader):
             >>>
             >>> with open(eff, 'rb') as f:
             ...     reenc = Reencoder(f, encoding)
-            ...     reenc.readline(keepends=False).decode('utf-8') == '\ufeffa,b,c'
+            ...     first = reenc.readline(keepends=False)
+            ...     first.decode('utf-8') == '\ufeffa,b,c'
             ...     reenc.read().decode('utf-8').split('\\n')[1] == '4,5,ʤ'
             True
             True

@@ -705,7 +705,7 @@ def pivot(records, data, column, op=sum, **kwargs):
     """
     records = iter(records)
     first = next(records)
-    chained = list(it.chain([first], records))
+    chained = it.chain([first], records)
 
     keys = set(first.keys())
     rows = kwargs.get('rows', keys.difference([data, column]))

@@ -204,7 +204,6 @@ class Reencoder(StreamReader):
             True
             True
             True
-
         """
         self.fileno = f.fileno
         first_line = next(f)

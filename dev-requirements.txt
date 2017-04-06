@@ -8,6 +8,6 @@ twine>=1.6.5,<2.0.0
 pkutils>=0.13.6,<0.14.0
 manage.py>=0.2.10,<0.3.0
 pip>=9.0.1
-virtualenv>=15.0.2
+virtualenv>=15.1.0
 setuptools>=23.0.0
 wheel>=0.27.0

@@ -59,7 +59,7 @@ class DBF2(DBF):
         try:
             kwargs['recfactory'] = dict
             return super(DBF2, self).__init__(filepath, **kwargs)
-        except AttributeError:
+        except (AttributeError, TypeError):
             filename = filepath.name
 
         defaults = {

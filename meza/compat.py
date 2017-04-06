@@ -13,13 +13,11 @@ Examples:
 
         >>> from meza.compat import encode
         >>>
-        >>> encode('some text')
-        b'some text'
+        >>> encode('some text') == b'some text'
+        True
 """
 from __future__ import (
     absolute_import, division, print_function, unicode_literals)
-
-from builtins import *
 
 import codecs
 import sys
@@ -28,6 +26,7 @@ from . import ENCODING
 
 DECODER = lambda encoding: codecs.getincrementaldecoder(encoding)()
 ENCODER = lambda encoding: codecs.getincrementalencoder(encoding)()
+BYTE_TYPE = bytes if sys.version_info.major > 2 else str
 
 
 def decode(content, encoding=ENCODING):
@@ -62,8 +61,8 @@ def encode(content, encoding=ENCODING):
         content (scalar): A string or int
 
     Examples:
-        >>> encode('Hello World!')
-        b'Hello World!'
+        >>> encode('Hello World!') == b'Hello World!'
+        True
         >>> content = 'Iñtërnâtiônàližætiøn!'
         >>> encode(content) == content.encode('utf-8')
         True

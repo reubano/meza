@@ -52,6 +52,7 @@ from xlrd.xldate import xldate_as_datetime as xl2dt
 from io import StringIO, TextIOBase, open
 
 from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING, BOM
+from .compat import BYTE_TYPE
 
 logger = gogo.Gogo(__name__, monolog=True).logger  # pylint: disable=C0103
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
@@ -208,7 +209,7 @@ class Reencoder(StreamReader):
         """
         self.fileno = f.fileno
         first_line = next(f)
-        bytes_mode = hasattr(first_line, 'decode')
+        bytes_mode = isinstance(first_line, BYTE_TYPE)
         decode = kwargs.get('decode')
         rencode = not decode
 
@@ -482,7 +483,7 @@ def _read_csv(f, header=None, has_header=True, **kwargs):
     elif not (header or has_header):
         raise ValueError('Either `header` or `has_header` must be specified.')
 
-    header = (list(it.repeat(0, first_col)) + header) if first_col else header
+    header = (list(it.repeat('', first_col)) + header) if first_col else header
     reader = csv.DictReader(f, header, **kwargs)
 
     # Remove empty keys

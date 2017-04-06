@@ -258,4 +258,6 @@ class Test:
         ]
 
         result = list(pr.pivot(records, 'D', 'C', dropna=False))
-        nt.assert_equal(expected, result)
+        expected_set = set(tuple(sorted(r.items())) for r in expected)
+        result_set = set(tuple(sorted(r.items())) for r in result)
+        nt.assert_equal(expected_set, result_set)

@@ -20,7 +20,7 @@ from __future__ import (
 
 from datetime import datetime as dt
 
-__version__ = '0.33.0'
+__version__ = '0.34.0'
 __title__ = 'meza'
 __package_name__ = 'meza'
 __author__ = 'Reuben Cummings'
@@ -32,3 +32,4 @@ __copyright__ = 'Copyright 2015 Reuben Cummings'
 CURRENCIES = ('$', '£', '€')
 ENCODING = 'utf-8'
 DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
+BOM = '\ufeff'

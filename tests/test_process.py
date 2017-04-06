@@ -236,3 +236,26 @@ class Test:
         rules = [{'fields': ['name'], 'pattern': 'o'}]
         result = next(pr.grep(records, rules, inverse=True))['name']
         nt.assert_equal('bill', result)
+
+    def test_pivot(self):
+        records = [
+            {'A': 'foo', 'B': 'one', 'C': 'small', 'D': 1},
+            {'A': 'foo', 'B': 'one', 'C': 'large', 'D': 2},
+            {'A': 'foo', 'B': 'one', 'C': 'large', 'D': 2},
+            {'A': 'foo', 'B': 'two', 'C': 'small', 'D': 3},
+            {'A': 'foo', 'B': 'two', 'C': 'small', 'D': 3},
+            {'A': 'bar', 'B': 'one', 'C': 'large', 'D': 4},
+            {'A': 'bar', 'B': 'one', 'C': 'small', 'D': 5},
+            {'A': 'bar', 'B': 'two', 'C': 'small', 'D': 6},
+            {'A': 'bar', 'B': 'two', 'C': 'large', 'D': 7},
+        ]
+
+        expected = [
+            {'A': 'bar', 'B': 'one', 'large': 4, 'small': 5},
+            {'A': 'foo', 'B': 'one', 'large': 4, 'small': 1},
+            {'A': 'bar', 'B': 'two', 'large': 7, 'small': 6},
+            {'A': 'foo', 'B': 'two', 'large': None, 'small': 6},
+        ]
+
+        result = list(pr.pivot(records, 'D', 'C', dropna=False))
+        nt.assert_equal(expected, result)

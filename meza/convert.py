@@ -33,8 +33,8 @@ from array import array
 from builtins import *
 from six.moves import filterfalse, zip_longest
 from dateutil.parser import parse
-from . import fntools as ft, unicsv as csv, ENCODING, DEFAULT_DATETIME
-from ._compat import get_native_str
+from . import fntools as ft, unicsv as csv, ENCODING, DEFAULT_DATETIME, BOM
+from .compat import get_native_str
 
 try:
     import numpy as np
@@ -805,7 +805,7 @@ def records2csv(records, encoding=ENCODING, bom=False, skip_header=False):
     irecords = iter(records)
 
     if bom:
-        f.write('\ufeff'.encode(encoding))  # BOM for Windows
+        f.write(BOM.encode(encoding))
 
     row = next(irecords)
     w = csv.DictWriter(f, list(row.keys()))

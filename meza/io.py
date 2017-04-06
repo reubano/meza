@@ -34,7 +34,7 @@ from subprocess import check_output, check_call, Popen, PIPE, CalledProcessError
 from http import client
 from csv import Error as csvError
 from functools import partial
-from codecs import iterdecode
+from codecs import iterdecode, iterencode, StreamReader
 from builtins import *
 
 import yaml
@@ -51,12 +51,11 @@ from xlrd import (
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from io import StringIO, TextIOBase, open
 
-from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING
+from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING, BOM
 
 logger = gogo.Gogo(__name__, monolog=True).logger  # pylint: disable=C0103
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
 DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
-BOM = '\ufeff'
 
 # pylint: disable=C0103
 encode = lambda iterable: (s.encode(ENCODING) for s in iterable)
@@ -64,33 +63,38 @@ chain = lambda iterable: it.chain.from_iterable(iterable or [])
 
 
 class IterStringIO(TextIOBase):
-    """A lazy StringIO that writes a generator of strings and reads bytearrays.
+    """A lazy StringIO that reads a generator of strings.
 
     http://stackoverflow.com/a/32020108/408556
     """
     # pylint: disable=super-init-not-called
-    def __init__(self, iterable=None, bufsize=4096):
+    def __init__(self, iterable=None, bufsize=4096, decode=False, **kwargs):
         """ IterStringIO constructor
 
         Args:
-            iterable (Seq[str]): Iterable of strings
+            iterable (Seq[str]): Iterable of strings or bytes
             bufsize (Int): Buffer size for seeking
+            decode (bool): Decode the text into a string (default: False)
 
         Examples:
             >>> StringIO(iter('Hello World')).read(5)  # doctest: +ELLIPSIS
             Traceback (most recent call last):
             TypeError:...
             >>> IterStringIO(iter('Hello World')).read(5)
-            bytearray(b'Hello')
+            b'Hello'
             >>> i = IterStringIO(iter('one\\ntwo\\n'))
             >>> list(next(i.lines)) == [b'o', b'n', b'e']
+            True
+            >>> decoded = IterStringIO(iter('Hello World'), decode=True)
+            >>> decoded.read(5) == 'Hello'
             True
         """
         iterable = iterable if iterable else []
         chained = chain(iterable)
         self.iter = encode(chained)
+        self.decode = decode
         self.bufsize = bufsize
-        self.last = deque([], self.bufsize)
+        self.last = deque(bytearray(), self.bufsize)
         self.pos = 0
 
     def __next__(self):
@@ -109,14 +113,16 @@ class IterStringIO(TextIOBase):
 
     def _read(self, iterable, num=None, newline=True):
         """Helper method used to read content"""
-        byte = ft.byte(it.islice(iterable, num) if num else iterable)
+        content = it.islice(iterable, num) if num else iterable
+
+        byte = ft.byte(content)
         self.last.extend(byte)
         self.pos += num or len(byte)
 
         if newline:
             self.last.append('\n')
 
-        return byte
+        return byte.decode(ENCODING) if self.decode else bytes(byte)
 
     def write(self, iterable):
         """Write the content"""
@@ -159,6 +165,89 @@ class IterStringIO(TextIOBase):
     def tell(self):
         """Get the current position within a file"""
         return self.pos
+
+
+class Reencoder(StreamReader):
+    """Recodes a file like object from one encoding to another.
+    """
+    def __init__(self, f, fromenc=ENCODING, toenc=ENCODING, **kwargs):
+        """ Reencoder constructor
+
+        Args:
+            f (obj): File-like object
+            fromenc (str): The input encoding.
+            toenc (str): The output encoding.
+
+        Kwargs:
+            remove_BOM (bool): Remove Byte Order Marker (default: True)
+            decode (bool): Decode the text into a string (default: False)
+
+        Examples:
+            >>> encoding = 'utf-16-be'
+            >>> eff = p.join(DATA_DIR, 'utf16_big.csv')
+            >>>
+            >>> with open(eff, 'rb') as f:
+            ...     reenc = Reencoder(f, encoding)
+            ...     reenc.readline(keepends=False).decode('utf-8') == '\ufeffa,b,c'
+            ...     reenc.read().decode('utf-8').split('\\n')[1] == '4,5,ʤ'
+            True
+            True
+            >>> with open(eff, 'rb') as f:
+            ...     reenc = Reencoder(f, encoding, decode=True)
+            ...     reenc.readline(keepends=False) == '\ufeffa,b,c'
+            True
+            >>> with open(eff, 'rU', encoding=encoding) as f:
+            ...     reenc = Reencoder(f, remove_BOM=True)
+            ...     reenc.readline(keepends=False) == b'a,b,c'
+            ...     reenc.readline() == b'1,2,3\\n'
+            ...     reenc.readline().decode('utf-8') == '4,5,ʤ'
+            True
+            True
+            True
+
+        """
+        first_line = next(f)
+        bytes_mode = hasattr(first_line, 'decode')
+        decode = kwargs.get('decode')
+        rencode = not decode
+
+        if kwargs.get('remove_BOM'):
+            strip = BOM.encode(fromenc) if bytes_mode else BOM
+            first_line = first_line.lstrip(strip)
+
+        chained = it.chain([first_line], f)
+
+        if bytes_mode:
+            decoded = iterdecode(chained, fromenc)
+            self.is_bytes = rencode
+        else:
+            decoded = chained
+            self.is_bytes = bytes_mode or rencode
+
+        self.stream = iterencode(decoded, toenc) if rencode else decoded
+
+    def __next__(self):
+        return next(self.stream)
+
+    def __iter__(self):
+        return self
+
+    def read(self, n=None, firstline=False):
+        stream = it.islice(self.stream, n) if n else self.stream
+        return b''.join(stream) if self.is_bytes else ''.join(stream)
+
+    def readline(self, n=None, keepends=True):
+        line = next(self.stream)
+        return line if keepends else line.rstrip()
+
+    def readlines(self, sizehint=None):
+        return list(self.stream)
+
+    def tell(self):
+        pass
+
+    def reset(self):
+        pass
 
 
 def patch_http_response_read(func):
@@ -1259,6 +1348,29 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
         print('File %s hash is %s.' % (filepath, file_hash))
 
     return file_hash
+
+
+def reencode(f, *args, **kwargs):
+    """Reencodes a file from one encoding to another
+
+    Kwargs:
+        f (obj): The file like object to convert.
+        encoding (str): The input encoding.
+        decoding (str): The output encoding.
+        remove_BOM (bool): Remove Byte Order Marker (default: True)
+
+    Returns:
+        obj: file like object of decoded strings
+
+    Examples:
+        >>> eff = p.join(DATA_DIR, 'utf16_big.csv')
+        >>>
+        >>> with open(eff, 'rb') as f:
+        ...     encoded = reencode(f, 'utf-16-be', remove_BOM=True)
+        ...     encoded.readline(keepends=False) == b'a,b,c'
+        True
+    """
+    return Reencoder(f, *args, **kwargs)
 
 
 def detect_encoding(f, verbose=False):

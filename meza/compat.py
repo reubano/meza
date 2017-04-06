@@ -3,7 +3,7 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-meza._compat
+meza.compat
 ~~~~~~~~~~~~
 
 Provides methods for py2/3 compatibility
@@ -11,9 +11,10 @@ Provides methods for py2/3 compatibility
 Examples:
     basic usage::
 
-        >>> from meza._compat import encode
-
+        >>> from meza.compat import encode
+        >>>
         >>> encode('some text')
+        b'some text'
 """
 from __future__ import (
     absolute_import, division, print_function, unicode_literals)
@@ -40,7 +41,11 @@ def decode(content, encoding=ENCODING):
         unicode
 
     Examples:
-        >>> from datetime import datetime as dt, date, time
+        >>> decode(b'Hello World!') == 'Hello World!'
+        True
+        >>> content = 'Iñtërnâtiônàližætiøn!'
+        >>> decode(content.encode('utf-8')) == content
+        True
     """
     try:
         decoded = DECODER(encoding).decode(content)
@@ -50,15 +55,22 @@ def decode(content, encoding=ENCODING):
     return decoded
 
 
-def encode(content, encoding=ENCODING, parse_ints=False):
-    """Encode unicode (or ints) into bytes (py2-str)
+def encode(content, encoding=ENCODING):
+    """Encodes unicode (or ints) into bytes (py2-str)
+
+    Args:
+        content (scalar): A string or int
+
+    Examples:
+        >>> encode('Hello World!')
+        b'Hello World!'
+        >>> content = 'Iñtërnâtiônàližætiøn!'
+        >>> encode(content) == content.encode('utf-8')
+        True
+        >>> len(encode(1024))
+        2
     """
-    if hasattr(content, 'encode'):
-        try:
-            encoded = ENCODER(encoding).encode(content)
-        except UnicodeDecodeError:
-            encoded = content
-    elif parse_ints:
+    if hasattr(content, 'real'):
         try:
             length = (content.bit_length() // 8) + 1
         except AttributeError:
@@ -72,6 +84,11 @@ def encode(content, encoding=ENCODING, parse_ints=False):
                 _hex = '%x' % content
                 zeros = '0' * (len(_hex) % 2) + _hex
                 encoded = zeros.zfill(length * 2).decode('hex')
+    elif hasattr(content, 'encode'):
+        try:
+            encoded = ENCODER(encoding).encode(content)
+        except UnicodeDecodeError:
+            encoded = content
     else:
         encoded = content
 

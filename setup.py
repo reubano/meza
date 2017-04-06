@@ -20,7 +20,7 @@ py2_requirements = set(pkutils.parse_requirements('py2-requirements.txt'))
 py3_requirements = set(pkutils.parse_requirements('requirements.txt'))
 dev_requirements = set(pkutils.parse_requirements('dev-requirements.txt'))
 readme = pkutils.read('README.rst')
-# changes = pkutils.read('CHANGES.rst').replace('.. :changelog:', '')
+changes = pkutils.read(p.join(PARENT_DIR, 'docs', 'CHANGES.rst'))
 module = pkutils.parse_module(p.join(PARENT_DIR, 'meza', '__init__.py'))
 license = module.__license__
 version = module.__version__
@@ -42,7 +42,7 @@ setup(
     name=project,
     version=version,
     description=description,
-    long_description=readme,
+    long_description='%s\n\n%s' % (readme, changes),
     author=module.__author__,
     author_email=module.__email__,
     url=pkutils.get_url(project, user),
@@ -73,6 +73,7 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: Implementation :: PyPy',
         'Environment :: Console',
         'Topic :: Software Development :: Libraries :: Python Modules',

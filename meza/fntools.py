@@ -44,7 +44,7 @@ from six.moves import filterfalse
 from slugify import slugify
 
 from . import CURRENCIES, ENCODING
-from ._compat import encode
+from .compat import encode
 
 DEF_TRUES = ('yes', 'y', 'true', 't')
 DEF_FALSES = ('no', 'n', 'false', 'f')
@@ -215,11 +215,13 @@ class CustomEncoder(JSONEncoder):
     def default(self, obj):
         if hasattr(obj, 'real'):
             encoded = float(obj)
+        elif hasattr(obj, 'to_dict'):
+            encoded = obj.to_dict()
         elif set(['quantize', 'year', 'hour']).intersection(dir(obj)):
             encoded = str(obj)
         elif hasattr(obj, 'union'):
             encoded = tuple(obj)
-        elif set(['next', 'union']).intersection(dir(obj)):
+        elif set(['next', 'append']).intersection(dir(obj)):
             encoded = list(obj)
         else:
             encoded = super(CustomEncoder, self).default(obj)
@@ -608,13 +610,7 @@ def byte(content):
         # it's a unicode or encoded iterable like ['H', 'e', 'l', 'l', 'o'],
         # ['I', 'ñ', 't', 'ë', 'r', 'n', 'â', 't', 'i', 'ô', 'n'],
         # or [b'I', b'\xc3\xb1', b't', b'\xc3\xab', b'r']
-        bytes_ = b''
-
-        for c in content:
-            try:
-                bytes_ += encode(c)
-            except TypeError:
-                bytes_ += encode(c, parse_ints=True)
+        bytes_ = b''.join(map(encode, content))
 
     return bytearray(bytes_)
 
@@ -678,7 +674,7 @@ def get_values(narray):
 
     Examples:
         >>> from array import array
-        >>> from ._compat import get_native_str
+        >>> from .compat import get_native_str
         >>>
         >>> u, i = get_native_str('u'), get_native_str('i')
         >>> narray_0 = array(i, [2, 3])

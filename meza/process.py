@@ -721,7 +721,6 @@ def pivot(records, data, column, op=sum, **kwargs):
             filtered = filter(filterer, iteritems(r))
             yield dict(it.chain([(r[column], r.get(data))], filtered))
 
-
     if dropna:
         raw = gen_raw(grouped)
     else:

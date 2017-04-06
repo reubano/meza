@@ -204,8 +204,8 @@ class Reencoder(StreamReader):
             True
             True
             True
-
         """
+        self.fileno = f.fileno
         first_line = next(f)
         bytes_mode = hasattr(first_line, 'decode')
         decode = kwargs.get('decode')
@@ -219,10 +219,10 @@ class Reencoder(StreamReader):
 
         if bytes_mode:
             decoded = iterdecode(chained, fromenc)
-            self.is_bytes = rencode
+            self.binary = rencode
         else:
             decoded = chained
-            self.is_bytes = bytes_mode or rencode
+            self.binary = bytes_mode or rencode
 
         self.stream = iterencode(decoded, toenc) if rencode else decoded
 
@@ -234,7 +234,7 @@ class Reencoder(StreamReader):
 
     def read(self, n=None, firstline=False):
         stream = it.islice(self.stream, n) if n else self.stream
-        return b''.join(stream) if self.is_bytes else ''.join(stream)
+        return b''.join(stream) if self.binary else ''.join(stream)
 
     def readline(self, n=None, keepends=True):
         line = next(self.stream)

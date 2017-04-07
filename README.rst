@@ -29,7 +29,7 @@ With meza, you can
 Requirements
 ------------
 
-meza has been tested and is known to work on Python 2.7, 3.4, and 3.5;
+meza has been tested and is known to work on Python 2.7, 3.4, 3.5, and 3.6;
 PyPy2 5.1.1; and PyPy3 5.5.0.
 
 Optional Dependencies

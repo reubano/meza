@@ -54,7 +54,8 @@ from io import StringIO, TextIOBase, open
 from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING, BOM
 from .compat import BYTE_TYPE
 
-logger = gogo.Gogo(__name__, monolog=True).logger  # pylint: disable=C0103
+# pylint: disable=C0103
+logger = gogo.Gogo(__name__, monolog=True, verbose=True).logger
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
 DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
 
@@ -1295,7 +1296,7 @@ def write(filepath, content, mode='wb+', **kwargs):
 
             if length:
                 bars = min(int(bar_len * progress / length), bar_len)
-                print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
+                logger.debug('\r[%s%s]', '=' * bars, ' ' * (bar_len - bars))
                 sys.stdout.flush()
 
         yield progress
@@ -1347,7 +1348,7 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
     file_hash = next(read_any(filepath, reader, 'rb', *args))
 
     if verbose:
-        print('File %s hash is %s.' % (filepath, file_hash))
+        logger.debug('File %s hash is %s.', filepath, file_hash)
 
     return file_hash
 
@@ -1407,7 +1408,7 @@ def detect_encoding(f, verbose=False):
     f.seek(pos)
 
     if verbose:
-        print('result', detector.result)
+        logger.debug('result %s', detector.result)
 
     return detector.result
 

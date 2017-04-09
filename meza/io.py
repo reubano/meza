@@ -649,8 +649,10 @@ def read_sqlite(filepath, table=None):
     cursor = con.cursor()
     cursor.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
 
-    tbl = table or cursor.fetchone()[0]
-    cursor.execute('SELECT * FROM %s' % tbl)
+    if not table or table not in set(cursor.fetchall()):
+        table = cursor.fetchone()[0]
+
+    cursor.execute('SELECT * FROM {}'.format(table))
     return map(dict, cursor)
 
 

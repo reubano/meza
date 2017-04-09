@@ -179,7 +179,7 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
                 yield result
                 break
         else:
-            raise TypeError("Couldn't guess type of '%s'" % value)
+            raise TypeError("Couldn't guess type of '{}'".format(value))
 
 
 def is_date(content):

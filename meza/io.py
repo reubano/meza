@@ -381,9 +381,9 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
         else:
             # Since the encoding could be wrong, set it None so that we can
             # detect the correct one.
-            extra = (' (%s)' % encoding) if encoding else ''
-            msg = 'Bytes or the wrong encoding%s was used to open file' % extra
-            logger.warning(msg)
+            extra = (' ({})'.format(encoding)) if encoding else ''
+            msg = 'Bytes or the wrong encoding%s was used to open file'
+            logger.warning(msg, extra)
             encoding = None
 
         if recursed or not hasattr(f, 'seek'):
@@ -549,7 +549,7 @@ def read_mdb(filepath, table=None, **kwargs):
         yield
         return
     except CalledProcessError:
-        raise TypeError('%s is not readable by mdbtools' % filepath)
+        raise TypeError('{} is not readable by mdbtools'.format(filepath))
 
     sanitize = kwargs.pop('sanitize', None)
     dedupe = kwargs.pop('dedupe', False)
@@ -1452,7 +1452,8 @@ def get_reader(extension):
     try:
         return switch[extension.lstrip('.').lower()]
     except IndexError:
-        raise TypeError('Reader for extension `%s` not found!' % extension)
+        msg = 'Reader for extension `{}` not found!'
+        raise TypeError(msg.format(extension))
 
 
 def read(filepath, ext=None, **kwargs):

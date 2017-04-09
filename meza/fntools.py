@@ -770,7 +770,7 @@ def afterish(content, separator=','):
     elif numeric:
         after = -1
     else:
-        raise ValueError('Not able to coerce %s to a number' % content)
+        raise ValueError('Not able to coerce {} to a number'.format(content))
 
     return after
 
@@ -812,7 +812,7 @@ def get_separators(content):
     else:
         print('after_comma', after_comma)
         print('after_decimal', after_decimal)
-        raise ValueError('Invalid number format for `%s`.' % content)
+        raise ValueError('Invalid number format for `{}`.'.format(content))
 
     return {'thousand_sep': thousand_sep, 'decimal_sep': decimal_sep}
 
@@ -1079,7 +1079,7 @@ def flatten(record, prefix=None):
     """
     try:
         for key, value in record.items():
-            newkey = '%s_%s' % (prefix, key) if prefix else key
+            newkey = '{}_{}'.format(prefix, key) if prefix else key
 
             for flattened in flatten(value, newkey):
                 yield flattened

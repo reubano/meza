@@ -336,7 +336,7 @@ class TestUrlopen:
         """Test for reading utf-8 files"""
         filepath = p.join(io.DATA_DIR, 'utf8.csv')
 
-        with closing(urlopen('file://%s' % filepath)) as response:
+        with closing(urlopen('file://{}'.format(filepath))) as response:
             f = response.fp
             records = io.read_csv(f)
             row = next(it.islice(records, 1, 2))
@@ -346,7 +346,7 @@ class TestUrlopen:
         """Test for reading latin-1 files"""
         filepath = p.join(io.DATA_DIR, 'latin1.csv')
 
-        with closing(urlopen('file://%s' % filepath)) as response:
+        with closing(urlopen('file://{}'.format(filepath))) as response:
             f = response.fp
             records = io.read_csv(f, encoding='latin-1')
             row = next(it.islice(records, 1, 2))
@@ -355,7 +355,7 @@ class TestUrlopen:
     # def test_urlopen_remote(self):
     #     """Test for reading remote web files"""
     #     filepath = 'https://opendata.co.ke...'
-    #     response = urlopen('file://%s' % filepath)
+    #     response = urlopen('file://{}'.format(filepath))
     #     records = io.read_csv(response.fp)
     #     nt.assert_equal({}, next(records))
 
@@ -370,7 +370,8 @@ class TestGeoJSON:
 
         self.filepath = p.join(io.DATA_DIR, 'test.geojson')
         names = ['test', 'line', 'polygon']
-        self.filepaths = [p.join(io.DATA_DIR, '%s.geojson' % n) for n in names]
+        fname = '{}.geojson'
+        self.filepaths = [p.join(io.DATA_DIR, fname.format(n)) for n in names]
 
     def test_geojson(self):
         """Test for reading GeoJSON files"""

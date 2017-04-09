@@ -31,13 +31,14 @@ from __future__ import (
 import sys
 import itertools as it
 import operator
-import pygogo as gogo
 import time
 
 from functools import partial, reduce
 from collections import defaultdict
 from json import JSONEncoder
 from os import path as p
+
+import pygogo as gogo
 
 from builtins import *
 from six.moves import filterfalse
@@ -810,8 +811,8 @@ def get_separators(content):
     elif after_comma in {-1, 0, 1, 2} and after_decimal in {-1, 0, 3}:
         thousand_sep, decimal_sep = '.', ','
     else:
-        print('after_comma', after_comma)
-        print('after_decimal', after_decimal)
+        logger.debug('after_comma: %s', after_comma)
+        logger.debug('after_decimal: %s', after_decimal)
         raise ValueError('Invalid number format for `{}`.'.format(content))
 
     return {'thousand_sep': thousand_sep, 'decimal_sep': decimal_sep}

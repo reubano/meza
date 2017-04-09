@@ -77,8 +77,8 @@ def ctype2ext(content_type=None):
     switch[xlsx_type] = 'xlsx'
 
     if ctype not in switch:
-        msg = 'Content-Type {} not found in dictionary. Using default value.'
-        print(msg.format(ctype))
+        msg = 'Content-Type %s not found in dictionary. Using default value.'
+        logger.warning(msg, ctype)
 
     return switch.get(ctype, 'csv')
 
@@ -498,7 +498,6 @@ def to_filepath(filepath, **kwargs):
         >>> to_filepath('file.csv') == 'file.csv'
         True
         >>> to_filepath('.', resource_id='rid') == './rid.csv'
-        Content-Type None not found in dictionary. Using default value.
         True
     """
     isdir = p.isdir(filepath)

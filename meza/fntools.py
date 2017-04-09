@@ -142,13 +142,18 @@ class Objectify(object):
             True
             >>> kw.key_1
             1
-            >>> kw.key_2
+            >>> kw['key_2']
             2
-            >>> kw.key_3
+            >>> kw.get('key_3')
             3
             >>> kw.key_4
-            >>> kw.get('key_1')
-            1
+            >>> kw.get('key_4')
+            >>> kw['key_4'] = 4
+            >>> kw.key_4 == kw.get('key_4') == kw['key_4'] == 4
+            True
+            >>> kw.key_4 = 5
+            >>> kw.key_4 == kw.get('key_4') == kw['key_4'] == 5
+            True
         """
         defaults.update(kwargs)
         self.data = defaults
@@ -157,18 +162,31 @@ class Objectify(object):
         self.values = self.data.values
         self.items = self.data.items
         self.get = self.data.get
-        self.__setitem__ = self.__setattr__ = self.data.__setitem__
-        self.__delitem__ = self.__delattr__ = self.data.__delitem__
 
     def __repr__(self):
         return repr(self.data)
 
-    def __getitem__(self, name):
-        return self.data.__getitem__(name)
+    def __getitem__(self, key):
+        return self.data.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        return self.data.__setitem__(key, value)
+
+    def __setattr__(self, key, value):
+        if key not in {'data', 'func', 'keys', 'values', 'items', 'get'}:
+            self.data.__setitem__(key, value)
+
+        return super(Objectify, self).__setattr__(key, value)
 
     def __getattr__(self, name):
         attr = self.get(name)
         return self.func(attr) if self.func else attr
+
+    def __delitem__(self, key):
+        return self.data.__delitem__(key)
+
+    def __delattr__(self, key):
+        return self.__delitem__(key)
 
     def __iter__(self):
         return iter(self.data)

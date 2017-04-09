@@ -16,7 +16,8 @@ BASEDIR = p.dirname(__file__)
 
 def upload_():
     """Upload distribution files"""
-    check_call('twine upload %s' % p.join(BASEDIR, 'dist', '*'), shell=True)
+    files = p.join(BASEDIR, 'dist', '*')
+    check_call('twine upload {}'.format(files).split(' '))
 
 
 def sdist_():
@@ -65,7 +66,7 @@ def pipme():
 def require():
     """Create requirements.txt"""
     cmd = 'pip freeze -l | grep -vxFf dev-requirements.txt > requirements.txt'
-    exit(call(cmd, shell=True))
+    exit(call(cmd.split(' ')))
 
 
 @manager.arg('where', 'w', help='test path', default=None)
@@ -93,7 +94,7 @@ def test(where=None, stop=None, **kwargs):
     opts += ' --processes=-1' if kwargs.get('parallel') else ''
     opts += ' --detailed-errors' if kwargs.get('verbose') else ''
     opts += ' --debug=nose.loader' if kwargs.get('debug') else ''
-    opts += 'w %s' % where if where else ''
+    opts += 'w {}'.format(where) if where else ''
 
     try:
         if kwargs.get('tox'):
@@ -101,15 +102,9 @@ def test(where=None, stop=None, **kwargs):
         elif kwargs.get('detox'):
             check_call('detox')
         else:
-            check_call(('nosetests %s' % opts).split(' '))
+            check_call(('nosetests {}'.format(opts)).split(' '))
     except CalledProcessError as e:
         exit(e.returncode)
-
-
-@manager.command
-def register():
-    """Register package with PyPI"""
-    exit(call('python %s register' % p.join(BASEDIR, 'setup.py'), shell=True))
 
 
 @manager.command

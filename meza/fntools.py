@@ -31,13 +31,14 @@ from __future__ import (
 import sys
 import itertools as it
 import operator
-import pygogo as gogo
 import time
 
 from functools import partial, reduce
 from collections import defaultdict
 from json import JSONEncoder
 from os import path as p
+
+import pygogo as gogo
 
 from builtins import *
 from six.moves import filterfalse
@@ -142,13 +143,18 @@ class Objectify(object):
             True
             >>> kw.key_1
             1
-            >>> kw.key_2
+            >>> kw['key_2']
             2
-            >>> kw.key_3
+            >>> kw.get('key_3')
             3
             >>> kw.key_4
-            >>> kw.get('key_1')
-            1
+            >>> kw.get('key_4')
+            >>> kw['key_4'] = 4
+            >>> kw.key_4 == kw.get('key_4') == kw['key_4'] == 4
+            True
+            >>> kw.key_4 = 5
+            >>> kw.key_4 == kw.get('key_4') == kw['key_4'] == 5
+            True
         """
         defaults.update(kwargs)
         self.data = defaults
@@ -157,18 +163,31 @@ class Objectify(object):
         self.values = self.data.values
         self.items = self.data.items
         self.get = self.data.get
-        self.__setitem__ = self.__setattr__ = self.data.__setitem__
-        self.__delitem__ = self.__delattr__ = self.data.__delitem__
 
     def __repr__(self):
         return repr(self.data)
 
-    def __getitem__(self, name):
-        return self.data.__getitem__(name)
+    def __getitem__(self, key):
+        return self.data.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        return self.data.__setitem__(key, value)
+
+    def __setattr__(self, key, value):
+        if key not in {'data', 'func', 'keys', 'values', 'items', 'get'}:
+            self.data.__setitem__(key, value)
+
+        return super(Objectify, self).__setattr__(key, value)
 
     def __getattr__(self, name):
         attr = self.get(name)
         return self.func(attr) if self.func else attr
+
+    def __delitem__(self, key):
+        return self.data.__delitem__(key)
+
+    def __delattr__(self, key):
+        return self.__delitem__(key)
 
     def __iter__(self):
         return iter(self.data)
@@ -752,7 +771,7 @@ def afterish(content, separator=','):
     elif numeric:
         after = -1
     else:
-        raise ValueError('Not able to coerce %s to a number' % content)
+        raise ValueError('Not able to coerce {} to a number'.format(content))
 
     return after
 
@@ -792,9 +811,9 @@ def get_separators(content):
     elif after_comma in {-1, 0, 1, 2} and after_decimal in {-1, 0, 3}:
         thousand_sep, decimal_sep = '.', ','
     else:
-        print('after_comma', after_comma)
-        print('after_decimal', after_decimal)
-        raise ValueError('Invalid number format for `%s`.' % content)
+        logger.debug('after_comma: %s', after_comma)
+        logger.debug('after_decimal: %s', after_decimal)
+        raise ValueError('Invalid number format for `{}`.'.format(content))
 
     return {'thousand_sep': thousand_sep, 'decimal_sep': decimal_sep}
 
@@ -1061,7 +1080,7 @@ def flatten(record, prefix=None):
     """
     try:
         for key, value in record.items():
-            newkey = '%s_%s' % (prefix, key) if prefix else key
+            newkey = '{}_{}'.format(prefix, key) if prefix else key
 
             for flattened in flatten(value, newkey):
                 yield flattened

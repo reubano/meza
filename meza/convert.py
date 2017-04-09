@@ -77,9 +77,8 @@ def ctype2ext(content_type=None):
     switch[xlsx_type] = 'xlsx'
 
     if ctype not in switch:
-        print(
-            'Content-Type %s not found in dictionary. Using default value.'
-            % ctype)
+        msg = 'Content-Type %s not found in dictionary. Using default value.'
+        logger.warning(msg, ctype)
 
     return switch.get(ctype, 'csv')
 
@@ -156,7 +155,7 @@ def to_bool(content, trues=None, falses=None, warn=False):
         except (TypeError, AttributeError):
             value = bool(content)
     elif warn:
-        raise ValueError('Invalid bool value: `%s`.' % content)
+        raise ValueError('Invalid bool value: `{}`.'.format(content))
     else:
         value = False
 
@@ -201,13 +200,13 @@ def to_int(content, thousand_sep=',', decimal_sep='.', warn=False):
         int
     """
     if warn and not ft.is_int(content):
-        raise ValueError('Invalid int value: `%s`.' % content)
+        raise ValueError('Invalid int value: `{}`.'.format(content))
 
     try:
         value = int(float(ft.strip(content, thousand_sep, decimal_sep)))
     except ValueError:
         if warn:
-            raise ValueError('Invalid int value: `%s`.' % content)
+            raise ValueError('Invalid int value: `{}`.'.format(content))
         else:
             value = 0
 
@@ -251,7 +250,7 @@ def to_float(content, thousand_sep=',', decimal_sep='.', warn=False):
     if ft.is_numeric(content):
         value = float(ft.strip(content, thousand_sep, decimal_sep))
     elif warn:
-        raise ValueError('Invalid float value: `%s`.' % content)
+        raise ValueError('Invalid float value: `{}`.'.format(content))
     else:
         value = 0.0
 
@@ -308,14 +307,14 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
     if ft.is_numeric(content):
         decimalized = Decimal(ft.strip(content, thousand_sep, decimal_sep))
     elif kwargs.get('warn'):
-        raise ValueError('Invalid numeric value: `%s`.' % content)
+        raise ValueError('Invalid numeric value: `{}`.'.format(content))
     else:
         decimalized = Decimal(0)
 
     roundup = kwargs.get('roundup', True)
     rounding = ROUND_HALF_UP if roundup else ROUND_HALF_DOWN
     places = int(kwargs.get('places', 2))
-    precision = '.%s1' % ''.join(it.repeat('0', places - 1))
+    precision = '.{}1'.format(''.join(it.repeat('0', places - 1)))
     return decimalized.quantize(Decimal(precision), rounding=rounding)
 
 
@@ -399,7 +398,7 @@ def to_datetime(content, dt_format=None, warn=False):
     value = next(results)[0]
 
     if warn and value == DEFAULT_DATETIME:
-        raise ValueError('Invalid datetime value: `%s`.' % content)
+        raise ValueError('Invalid datetime value: `{}`.'.format(content))
     else:
         datetime = value.strftime(dt_format) if dt_format else value
 
@@ -499,7 +498,6 @@ def to_filepath(filepath, **kwargs):
         >>> to_filepath('file.csv') == 'file.csv'
         True
         >>> to_filepath('.', resource_id='rid') == './rid.csv'
-        Content-Type None not found in dictionary. Using default value.
         True
     """
     isdir = p.isdir(filepath)
@@ -517,10 +515,10 @@ def to_filepath(filepath, **kwargs):
         filename = resource_id
 
     if isdir and filename.startswith('export?format='):
-        filename = '%s.%s' % (resource_id, filename.split('=')[1])
+        filename = '{}.{}'.format(resource_id, filename.split('=')[1])
     elif isdir and '.' not in filename:
         ctype = headers.get('content-type')
-        filename = '%s.%s' % (filename, ctype2ext(ctype))
+        filename = '{}.{}'.format(filename, ctype2ext(ctype))
 
     return p.join(filepath, filename) if isdir else filepath
 
@@ -955,7 +953,7 @@ def gen_subresults(records, kw):
             polygon = [[(r[kw.lon], r[kw.lat]) for r in g[1]] for g in groups]
             yield (polygon, first_row)
         else:
-            raise TypeError('Invalid type: %s' % type_)
+            raise TypeError('Invalid type: {}'.format(type_))
 
 
 def records2geojson(records, **kwargs):

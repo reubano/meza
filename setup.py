@@ -42,7 +42,7 @@ setup(
     name=project,
     version=version,
     description=description,
-    long_description='{}\n\n{}'.format(readme, changes),
+    long_description='%s\n\n%s' % (readme, changes),
     author=module.__author__,
     author_email=module.__email__,
     url=pkutils.get_url(project, user),

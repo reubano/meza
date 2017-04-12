@@ -168,7 +168,8 @@ class Objectify(object):
         return repr(self.data)
 
     def __getitem__(self, key):
-        return self.data.__getitem__(key)
+        value = self.get(key)
+        return self.func(value) if self.func else value
 
     def __setitem__(self, key, value):
         return self.data.__setitem__(key, value)
@@ -180,8 +181,7 @@ class Objectify(object):
         return super(Objectify, self).__setattr__(key, value)
 
     def __getattr__(self, name):
-        attr = self.get(name)
-        return self.func(attr) if self.func else attr
+        return self.__getitem__(name)
 
     def __delitem__(self, key):
         return self.data.__delitem__(key)

@@ -928,7 +928,7 @@ def cut(records, fields=None, exclude=False, prune=False):
 def get_suffix(cpos, pos, k=None, count=None, chunksize=None):
     """Determines the suffix based on a subchunk's position
     """
-    subchunks = count and count < (chunksize or 'inf')
+    subchunks = count and count < (chunksize or float('inf'))
 
     if subchunks and k is None:
         args = (cpos + 1, pos + 1)

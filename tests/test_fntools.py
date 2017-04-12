@@ -191,3 +191,10 @@ class TestIterStringIO:
         expected = [4, 4, 3, 3, 2, 1]
         nt.assert_equal(expected, list(ft.op_everseen(content, pad=True)))
         nt.assert_equal([4, 6, 8], list(ft.op_everseen(content, op='gt')))
+
+    def test_objectify(self):
+        kwargs = {'one': '1', 'two': '2'}
+        kw = ft.Objectify(kwargs, func=int)
+        nt.assert_equal(kw.one, 1)
+        nt.assert_equal(kw['two'], 2)
+        nt.assert_equal(dict(kw), {'one': 1, 'two': 2})

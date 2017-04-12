@@ -30,7 +30,7 @@ BYTE_TYPE = bytes if sys.version_info.major > 2 else str
 
 
 def decode(content, encoding=ENCODING):
-    """Decode bytes (py2-str) into unicode
+    """Decode bytes (py2-str) into unicode text
 
     Args:
         content (scalar): the content to analyze
@@ -45,10 +45,12 @@ def decode(content, encoding=ENCODING):
         >>> content = 'Iñtërnâtiônàližætiøn!'
         >>> decode(content.encode('utf-8')) == content
         True
+        >>> decode(content) == content
+        True
     """
     try:
         decoded = DECODER(encoding).decode(content)
-    except (TypeError, UnicodeDecodeError):
+    except (TypeError, UnicodeDecodeError, UnicodeEncodeError):
         decoded = content
 
     return decoded
@@ -68,6 +70,8 @@ def encode(content, encoding=ENCODING):
         True
         >>> len(encode(1024))
         2
+        >>> encode(content.encode('utf-8')) == content.encode('utf-8')
+        True
     """
     if hasattr(content, 'real'):
         try:

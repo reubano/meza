@@ -11,10 +11,12 @@ Provides methods for processing `records`, i.e., tabular data.
 Examples:
     basic usage::
 
-        from meza.process import type_cast
-
-        records = [{'some_value', '1'}, {'some_value', '2'}]
-        casted_records = next(type_cast(records, [{'some_value': 'int'}]))
+        >>> from meza.process import type_cast
+        >>>
+        >>> records = [{'some_value': '1'}, {'some_value': '2'}]
+        >>> types = [{'id': 'some_value', 'type': 'int'}]
+        >>> next(type_cast(records, types)) == {'some_value': 1}
+        True
 
 Attributes:
     CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
@@ -47,7 +49,7 @@ def type_cast(records, types=None, warn=False, **kwargs):
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `meza.io` read function.
 
-        types (Iter[dicts]): Field types (`guess_type_by_field` or
+        types (Iter[dict]): Field types (`guess_type_by_field` or
             `guess_type_by_value` output).
 
         warn (bool): Raise error if value can't be cast (default: False).

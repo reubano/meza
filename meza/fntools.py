@@ -11,10 +11,12 @@ Provides methods for functional manipulation of content
 Examples:
     basic usage::
 
-        from meza.fntools import underscorify
-
-        header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
-        list(underscorify(header))
+        >>> from meza.fntools import underscorify
+        >>>
+        >>> header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
+        >>> result = {'all_caps', 'illegal', 'lots_of_space'}
+        >>> set(underscorify(header)) == result
+        True
 
 Attributes:
     DEF_TRUES (tuple[str]): Values to be consider True

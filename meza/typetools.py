@@ -11,10 +11,10 @@ Provides methods for type guessing
 Examples:
     basic usage::
 
-        from meza.typetools import underscorify
-
-        header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
-        underscored = list(underscorify(header))
+        >>> from meza.typetools import is_date
+        >>>
+        >>> is_date('5/4/82 2pm')
+        True
 
 Attributes:
     NULL_YEAR (int): Year to be consider null

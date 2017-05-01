@@ -25,7 +25,7 @@ import responses
 import nose.tools as nt
 import pygogo as gogo
 
-from meza import io, convert as cv
+from meza import io, convert as cv, DATA_DIR
 
 __INITIALIZED__ = False
 

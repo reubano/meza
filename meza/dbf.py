@@ -11,9 +11,12 @@ Provides methods for reading dbf files
 Examples:
     basic usage::
 
-        from meza.dbf import DBF2
-
-        record = next(DBF2('test.dbf'))
+        >>> from meza.dbf import DBF2
+        >>> from meza import DATA_DIR
+        >>>
+        >>> path = p.join(DATA_DIR, 'test.dbf')
+        >>> next(iter(DBF2(path)))['INTPTLON10'] == '-092.9323194'
+        True
 
 
 Attributes:

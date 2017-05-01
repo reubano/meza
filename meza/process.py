@@ -11,10 +11,12 @@ Provides methods for processing `records`, i.e., tabular data.
 Examples:
     basic usage::
 
-        from meza.process import type_cast
-
-        records = [{'some_value', '1'}, {'some_value', '2'}]
-        casted_records = next(type_cast(records, [{'some_value': 'int'}]))
+        >>> from meza.process import type_cast
+        >>>
+        >>> records = [{'some_value': '1'}, {'some_value': '2'}]
+        >>> types = [{'id': 'some_value', 'type': 'int'}]
+        >>> next(type_cast(records, types)) == {'some_value': 1}
+        True
 
 Attributes:
     CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
@@ -47,7 +49,7 @@ def type_cast(records, types=None, warn=False, **kwargs):
         records (Iter[dict]): Rows of data whose keys are the field names.
             E.g., output from any `meza.io` read function.
 
-        types (Iter[dicts]): Field types (`guess_type_by_field` or
+        types (Iter[dict]): Field types (`guess_type_by_field` or
             `guess_type_by_value` output).
 
         warn (bool): Raise error if value can't be cast (default: False).
@@ -103,13 +105,16 @@ def type_cast(records, types=None, warn=False, **kwargs):
         'text': lambda v, warn=None: str(v) if v and v.strip() else '',
         'null': lambda x, warn=None: None,
         'bool': cv.to_bool,
+        'iden': lambda x, warn=None: x,
     }
+
     types = types or []
     field_types = {t['id']: t['type'] for t in types}
 
     for row in records:
         items = iteritems(row)
-        yield {k: switch.get(field_types[k])(v, warn=warn) for k, v in items}
+        tups = ((k, field_types.get(k, 'iden'), v) for k, v in items)
+        yield {k: switch.get(t)(v, warn=warn) for k, t, v in tups}
 
 
 def json_recode(records):
@@ -736,7 +741,7 @@ def pivot(records, data, column, op=sum, **kwargs):
         yield merge(_group)
 
 
-def normalize(records, data='', column='', rows=None):
+def normalize(records, data='', column='', rows=None, invert=False):
     """Yields normalized records from a spreadsheet-style pivot table.
 
     Args:
@@ -745,7 +750,8 @@ def normalize(records, data='', column='', rows=None):
 
         data (str): Field name to create for values of the normalized fields.
         column (str): Field name to create for keys of the normalized fields.
-        rows (Seq[str]): Fields to normalized .
+        rows (Seq[str]): Fields to normalized.
+        invert (bool): Treat `rows` as fields that shouldn't be normalized.
 
     Yields:
         dict: Record. A row of data whose keys are the field names.
@@ -764,12 +770,11 @@ def normalize(records, data='', column='', rows=None):
         ...     'species': 'setosa'}
         True
     """
-    rows = rows or []
-
     for r in records:
-        filtered = [x for x in iteritems(r) if x[0] not in rows]
+        nrows = set(r.keys()).difference(rows) if invert else rows
+        filtered = [x for x in iteritems(r) if x[0] not in nrows]
 
-        for row in rows:
+        for row in nrows:
             yield dict(it.chain([(column, row), (data, r.get(row))], filtered))
 
 

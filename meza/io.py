@@ -11,11 +11,13 @@ Provides methods for reading/writing/processing tabular formatted files
 Examples:
     basic usage::
 
-        from meza.io import read_csv
-
-        csv_records = read_csv('path/to/file.csv')
-        csv_header = next(csv_records).keys()
-        record = next(csv_records)
+        >>> from meza.io import read_csv
+        >>>
+        >>> path = p.join(DATA_DIR, 'test.csv')
+        >>> csv_records = read_csv(path)
+        >>> csv_header = next(csv_records).keys()
+        >>> next(csv_records)['Some Value'] == '100'
+        True
 """
 from __future__ import (
     absolute_import, division, print_function, unicode_literals)
@@ -51,13 +53,13 @@ from xlrd import (
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from io import StringIO, TextIOBase, open
 
-from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING, BOM
+from . import (
+    fntools as ft, process as pr, unicsv as csv, dbf, ENCODING, BOM, DATA_DIR)
+
 from .compat import BYTE_TYPE
 
 # pylint: disable=C0103
 logger = gogo.Gogo(__name__, monolog=True, verbose=True).logger
-PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
-DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
 
 # pylint: disable=C0103
 encode = lambda iterable: (s.encode(ENCODING) for s in iterable)

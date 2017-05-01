@@ -11,9 +11,10 @@ Provides methods for converting data structures
 Examples:
     basic usage::
 
-        from meza.convert import to_decimal
-
-        decimal = to_decimal('$123.45')
+        >>> from meza.convert import to_decimal
+        >>>
+        >>> to_decimal('$123.45')
+        Decimal('123.45')
 """
 from __future__ import (
     absolute_import, division, print_function, unicode_literals)

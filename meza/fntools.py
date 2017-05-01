@@ -11,10 +11,12 @@ Provides methods for functional manipulation of content
 Examples:
     basic usage::
 
-        from meza.fntools import underscorify
-
-        header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
-        list(underscorify(header))
+        >>> from meza.fntools import underscorify
+        >>>
+        >>> header = ['ALL CAPS', 'Illegal $%^', 'Lots of space']
+        >>> result = {'all_caps', 'illegal', 'lots_of_space'}
+        >>> set(underscorify(header)) == result
+        True
 
 Attributes:
     DEF_TRUES (tuple[str]): Values to be consider True
@@ -240,7 +242,7 @@ class CustomEncoder(JSONEncoder):
             encoded = str(obj)
         elif hasattr(obj, 'union'):
             encoded = tuple(obj)
-        elif set(['next', 'append']).intersection(dir(obj)):
+        elif set(['next', '__next__', 'append']).intersection(dir(obj)):
             encoded = list(obj)
         else:
             encoded = super(CustomEncoder, self).default(obj)
@@ -524,7 +526,7 @@ def is_bool(content, trues=None, falses=None):
     Args:
         content (scalar): the content to analyze
         trues (Seq[str]): Values to consider True.
-        falses (Seq[str]): Values to consider Frue.
+        falses (Seq[str]): Values to consider False.
 
     Examples:
         >>> is_bool(True)
@@ -635,7 +637,7 @@ def byte(content):
 
 
 def chunk(content, chunksize=None, start=0, stop=None):
-    """Groups data into fixed-sized chunks.
+    """Groups data into chunks each with (at most) `chunksize` items
     http://stackoverflow.com/a/22919323/408556
 
     Args:

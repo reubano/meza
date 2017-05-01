@@ -747,7 +747,7 @@ def normalize(records, data='', column='', rows=None):
 
         data (str): Field name to create for values of the normalized fields.
         column (str): Field name to create for keys of the normalized fields.
-        rows (Seq[str]): Fields to normalized .
+        rows (Seq[str]): Fields to normalized.
 
     Yields:
         dict: Record. A row of data whose keys are the field names.

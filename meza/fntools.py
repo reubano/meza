@@ -526,7 +526,7 @@ def is_bool(content, trues=None, falses=None):
     Args:
         content (scalar): the content to analyze
         trues (Seq[str]): Values to consider True.
-        falses (Seq[str]): Values to consider Frue.
+        falses (Seq[str]): Values to consider False.
 
     Examples:
         >>> is_bool(True)
@@ -637,7 +637,7 @@ def byte(content):
 
 
 def chunk(content, chunksize=None, start=0, stop=None):
-    """Groups data into fixed-sized chunks.
+    """Groups data into chunks each with (at most) `chunksize` items
     http://stackoverflow.com/a/22919323/408556
 
     Args:

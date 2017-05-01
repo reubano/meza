@@ -105,13 +105,16 @@ def type_cast(records, types=None, warn=False, **kwargs):
         'text': lambda v, warn=None: str(v) if v and v.strip() else '',
         'null': lambda x, warn=None: None,
         'bool': cv.to_bool,
+        'iden': lambda x, warn=None: x,
     }
+
     types = types or []
     field_types = {t['id']: t['type'] for t in types}
 
     for row in records:
         items = iteritems(row)
-        yield {k: switch.get(field_types[k])(v, warn=warn) for k, v in items}
+        tups = ((k, field_types.get(k, 'iden'), v) for k, v in items)
+        yield {k: switch.get(t)(v, warn=warn) for k, t, v in tups}
 
 
 def json_recode(records):

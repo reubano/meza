@@ -242,7 +242,7 @@ class CustomEncoder(JSONEncoder):
             encoded = str(obj)
         elif hasattr(obj, 'union'):
             encoded = tuple(obj)
-        elif set(['next', 'append']).intersection(dir(obj)):
+        elif set(['next', '__next__', 'append']).intersection(dir(obj)):
             encoded = list(obj)
         else:
             encoded = super(CustomEncoder, self).default(obj)

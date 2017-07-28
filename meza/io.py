@@ -335,7 +335,7 @@ def remove_bom(row, bom):
 def get_encoding(filepath):
     """
     Examples:
-        >>> get_encoding(p.join(DATA_DIR, 'utf16_big.csv')) == 'UTF-16BE'
+        >>> get_encoding(p.join(DATA_DIR, 'utf16_big.csv')) == 'UTF-16'
         True
     """
     with open(filepath, 'rb') as f:
@@ -1396,7 +1396,8 @@ def detect_encoding(f, verbose=False):
         >>>
         >>> with open(filepath, 'rb') as f:
         ...     result = detect_encoding(f)
-        ...     result == {'confidence': 0.99, 'encoding': 'utf-8'}
+        ...     result == {
+        ...         'confidence': 0.99, 'language': '', 'encoding': 'utf-8'}
         True
     """
     pos = f.tell()

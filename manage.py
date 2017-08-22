@@ -16,8 +16,7 @@ BASEDIR = p.dirname(__file__)
 
 def upload_():
     """Upload distribution files"""
-    files = p.join(BASEDIR, 'dist', '*')
-    check_call('twine upload {}'.format(files).split(' '))
+    check_call(['twine', 'upload', p.join(BASEDIR, 'dist', '*')])
 
 
 def sdist_():

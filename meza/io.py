@@ -1168,6 +1168,22 @@ def read_yaml(filepath, mode='r', **kwargs):
     return read_any(filepath, yaml.load, mode, **kwargs)
 
 
+def get_text(element):
+    if element and element.text:
+        text = element.text.strip()
+    else:
+        text = ''
+
+    if not text and element and element.string:
+        text = element.string.strip()
+
+    if not text and element and element.a:
+        text = element.a.text or element.a.href or ''
+        text = text.strip()
+
+    return text
+
+
 def read_html(filepath, table=0, mode='r', **kwargs):
     """Reads tables from an html file
 
@@ -1204,7 +1220,7 @@ def read_html(filepath, table=0, mode='r', **kwargs):
         ...     'march': '61',
         ...     'april': '1,244',
         ...     'may': '95',
-        ...     'june': '\xa010',
+        ...     'june': '10',
         ...     'july': '230',
         ...     'august': '684',
         ...     'september': '268',
@@ -1226,13 +1242,12 @@ def read_html(filepath, table=0, mode='r', **kwargs):
         tbl = soup.find_all('table')[table]
         rows = iter(tbl.find_all('tr'))
         first_row = next(rows)
-        ths = first_row.find_all('th')
-        names = (next(th.children).string for th in ths)
+        names = map(get_text, first_row.find_all('th'))
         uscored = ft.underscorify(names) if sanitize else names
         header = list(ft.dedupe(uscored) if dedupe else uscored)
 
         for tr in rows:  # pylint: disable=C0103
-            row = (td.string for td in tr.find_all('td'))
+            row = map(get_text, tr.find_all('td'))
             yield dict(zip(header, row))
             # yield {'r': list(row)}
 

@@ -941,20 +941,20 @@ def gen_subresults(records, kw):
     """
     for id_, group in it.groupby(records, ft.def_itemgetter(kw.key)):
         first_row = next(group)
-        type_ = first_row['type']
+        _type = first_row['type']
         sub_records = it.chain([first_row], group)
 
-        if type_ == 'Point':
+        if _type == 'Point':
             for row in sub_records:
                 yield ((row[kw.lon], row[kw.lat]), row)
-        elif type_ == 'LineString':
+        elif _type == 'LineString':
             yield ([(r[kw.lon], r[kw.lat]) for r in sub_records], first_row)
-        elif type_ == 'Polygon':
+        elif _type == 'Polygon':
             groups = it.groupby(sub_records, itemgetter('pos'))
             polygon = [[(r[kw.lon], r[kw.lat]) for r in g[1]] for g in groups]
             yield (polygon, first_row)
         else:
-            raise TypeError('Invalid type: {}'.format(type_))
+            raise TypeError('Invalid type: {}'.format(_type))
 
 
 def records2geojson(records, **kwargs):

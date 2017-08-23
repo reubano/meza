@@ -312,7 +312,7 @@ def get_ext(path):
     return file_format
 
 
-def get_dtype(type_, dialect='array'):
+def get_dtype(_type, dialect='array'):
     switch = {
         'numpy': NP_TYPE,
         'array': ARRAY_TYPE,
@@ -321,7 +321,7 @@ def get_dtype(type_, dialect='array'):
         'sqlite': SQLITE_TYPE}
 
     converter = switch[dialect]
-    return converter.get(type_, converter['text'])
+    return converter.get(_type, converter['text'])
 
 
 def dedupe(content):
@@ -393,12 +393,12 @@ def rreplace(content, needle, replace):
             yield list(rreplace(item, needle, replace))
 
 
-def find_type(type_, content, n=0):
+def find_type(_type, content, n=0):
     """ Searches content for the nth (zero based) occurrence of a given type
     and returns the corresponding key if successful.
 
     Args:
-        type_ (str): the type of element to find (i.e. 'numeric'
+        _type (str): the type of element to find (i.e. 'numeric'
             or 'string')
 
         content (Iter[str]): the content to search
@@ -415,7 +415,7 @@ def find_type(type_, content, n=0):
         2
     """
     switch = {'numeric': 'real', 'string': 'upper'}
-    func = lambda x: hasattr(x, switch[type_])
+    func = lambda x: hasattr(x, switch[_type])
 
     try:
         found = next(it.islice(filter(func, content), n, None))

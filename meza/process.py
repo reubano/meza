@@ -559,8 +559,8 @@ def group(records, keyfunc, tupled=True, aggregator=list, **kwargs):
         keyfunc (func): Either a fieldname or function which receives a record
             and selects which value to sort/group by.
 
-        aggregator (func): A post processing function to call on the resulting
-            groups (default: list).
+        aggregator (func): A post processing function to call on each resulting
+            group (default: list).
 
         tupled (bool): Return the key, group tuples (default: True)
 

@@ -823,10 +823,10 @@ def records2json(records, **kwargs):
             E.g., output from any `meza.io` read function.
 
     Kwargs:
-        indent (int): Number of spaces to indent (default: 2).
+        indent (int): Number of spaces to indent (default: None).
         newline (bool): Output newline delimited json (default: False)
         sort_keys (bool): Sort rows by keys (default: True).
-        ensure_ascii (bool): Sort response dict by keys (default: False).
+        ensure_ascii (bool): Ignore non-ASCII chars (default: False).
 
     See also:
         `meza.convert.records2geojson`
@@ -842,13 +842,15 @@ def records2json(records, **kwargs):
         ...     'species': 'Iris-versicolor',
         ...     'wikipedia_url': 'wikipedia.org/wiki/Iris_versicolor'}
         ...
-        >>> result = loads(records2json([record]).read())
-        >>> result[0] == record
+        >>> json_str = records2json([record]).read()
+        >>> loads(json_str)[0] == record
         True
-        >>> result = loads(records2json([record], newline=True).readline())
-        >>> result == record
+        >>> json_str = records2json([record], newline=True).readline()
+        >>> loads(json_str) == record
         True
     """
+    defaults = {'sort_keys': True, 'ensure_ascii': False}
+    [kwargs.setdefault(k, v) for k, v in defaults.items()]
     newline = kwargs.pop('newline', False)
     jd = partial(dumps, cls=ft.CustomEncoder, **kwargs)
     json = '\n'.join(map(jd, records)) if newline else jd(records)

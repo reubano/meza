@@ -823,10 +823,10 @@ def records2json(records, **kwargs):
             E.g., output from any `meza.io` read function.
 
     Kwargs:
-        indent (int): Number of spaces to indent (default: 2).
+        indent (int): Number of spaces to indent (default: None).
         newline (bool): Output newline delimited json (default: False)
         sort_keys (bool): Sort rows by keys (default: True).
-        ensure_ascii (bool): Sort response dict by keys (default: False).
+        ensure_ascii (bool): Ignore non-ASCII chars (default: False).
 
     See also:
         `meza.convert.records2geojson`
@@ -842,13 +842,15 @@ def records2json(records, **kwargs):
         ...     'species': 'Iris-versicolor',
         ...     'wikipedia_url': 'wikipedia.org/wiki/Iris_versicolor'}
         ...
-        >>> result = loads(records2json([record]).read())
-        >>> result[0] == record
+        >>> json_str = records2json([record]).read()
+        >>> loads(json_str)[0] == record
         True
-        >>> result = loads(records2json([record], newline=True).readline())
-        >>> result == record
+        >>> json_str = records2json([record], newline=True).readline()
+        >>> loads(json_str) == record
         True
     """
+    defaults = {'sort_keys': True, 'ensure_ascii': False}
+    [kwargs.setdefault(k, v) for k, v in defaults.items()]
     newline = kwargs.pop('newline', False)
     jd = partial(dumps, cls=ft.CustomEncoder, **kwargs)
     json = '\n'.join(map(jd, records)) if newline else jd(records)
@@ -941,20 +943,20 @@ def gen_subresults(records, kw):
     """
     for id_, group in it.groupby(records, ft.def_itemgetter(kw.key)):
         first_row = next(group)
-        type_ = first_row['type']
+        _type = first_row['type']
         sub_records = it.chain([first_row], group)
 
-        if type_ == 'Point':
+        if _type == 'Point':
             for row in sub_records:
                 yield ((row[kw.lon], row[kw.lat]), row)
-        elif type_ == 'LineString':
+        elif _type == 'LineString':
             yield ([(r[kw.lon], r[kw.lat]) for r in sub_records], first_row)
-        elif type_ == 'Polygon':
+        elif _type == 'Polygon':
             groups = it.groupby(sub_records, itemgetter('pos'))
             polygon = [[(r[kw.lon], r[kw.lat]) for r in g[1]] for g in groups]
             yield (polygon, first_row)
         else:
-            raise TypeError('Invalid type: {}'.format(type_))
+            raise TypeError('Invalid type: {}'.format(_type))
 
 
 def records2geojson(records, **kwargs):

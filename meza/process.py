@@ -245,20 +245,20 @@ def gen_types(tally):
         non_null = [t for t in types if t != 'null']
 
         if len(non_null) == 1:
-            type_ = non_null[0]
+            _type = non_null[0]
         else:
             for k, v in comp_types:
                 if k.issuperset(non_null):
-                    type_ = v
+                    _type = v
                     break
             else:
-                type_ = 'text'
+                _type = 'text'
 
-        return type_
+        return _type
 
     for field, tcount in iteritems(tally):
-        type_ = gct(tcount) if len(tcount) > 1 else next(iter(tcount))
-        yield {'id': field, 'type': type_}
+        _type = gct(tcount) if len(tcount) > 1 else next(iter(tcount))
+        yield {'id': field, 'type': _type}
 
 
 def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
@@ -559,8 +559,8 @@ def group(records, keyfunc, tupled=True, aggregator=list, **kwargs):
         keyfunc (func): Either a fieldname or function which receives a record
             and selects which value to sort/group by.
 
-        aggregator (func): A post processing function to call on the resulting
-            groups (default: list).
+        aggregator (func): A post processing function to call on each resulting
+            group (default: list).
 
         tupled (bool): Return the key, group tuples (default: True)
 

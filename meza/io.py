@@ -898,13 +898,13 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
         types = sheet.row_types(i)[first_col:]
         values = sheet.row_values(i)[first_col:]
 
-        for type_, value in zip(types, values):
-            if type_ == XL_CELL_DATE and value < 1:
-                type_ = 'time'
-            elif type_ == XL_CELL_DATE and not value.is_integer:
-                type_ = 'datetime'
+        for _type, value in zip(types, values):
+            if _type == XL_CELL_DATE and value < 1:
+                _type = 'time'
+            elif _type == XL_CELL_DATE and not value.is_integer:
+                _type = 'datetime'
 
-            yield (i, switch.get(type_, lambda v: v)(value))
+            yield (i, switch.get(_type, lambda v: v)(value))
 
 
 # pylint: disable=unused-argument
@@ -1049,25 +1049,25 @@ def get_point(coords, lat_first):
     return point
 
 
-def gen_records(type_, record, coords, properties, **kwargs):
+def gen_records(_type, record, coords, properties, **kwargs):
     """GeoJSON record generator"""
     lat_first = kwargs.get('lat_first')
 
-    if type_ == 'Point':
+    if _type == 'Point':
         record['lon'], record['lat'] = get_point(coords, lat_first)
         yield pr.merge([record, properties])
-    elif type_ == 'LineString':
+    elif _type == 'LineString':
         for point in coords:
             record['lon'], record['lat'] = get_point(point, lat_first)
             yield pr.merge([record, properties])
-    elif type_ == 'Polygon':
+    elif _type == 'Polygon':
         for pos, poly in enumerate(coords):
             for point in poly:
                 record['lon'], record['lat'] = get_point(point, lat_first)
                 record['pos'] = pos
                 yield pr.merge([record, properties])
     else:
-        raise TypeError('Invalid geometry type {}.'.format(type_))
+        raise TypeError('Invalid geometry type {}.'.format(_type))
 
 
 def read_geojson(filepath, key='id', mode='r', **kwargs):
@@ -1117,7 +1117,7 @@ def read_geojson(filepath, key='id', mode='r', **kwargs):
             raise TypeError('Only GeoJSON with features are supported.')
         else:
             for feature in features:
-                type_ = feature['geometry']['type']
+                _type = feature['geometry']['type']
                 properties = feature.get('properties') or {}
                 coords = feature['geometry']['coordinates']
                 record = {
@@ -1126,7 +1126,7 @@ def read_geojson(filepath, key='id', mode='r', **kwargs):
 
                 args = (record, coords, properties)
 
-                for rec in gen_records(type_, *args, **kwargs):
+                for rec in gen_records(_type, *args, **kwargs):
                     yield rec
 
     return read_any(filepath, reader, mode, **kwargs)
@@ -1168,6 +1168,22 @@ def read_yaml(filepath, mode='r', **kwargs):
     return read_any(filepath, yaml.load, mode, **kwargs)
 
 
+def get_text(element):
+    if element and element.text:
+        text = element.text.strip()
+    else:
+        text = ''
+
+    if not text and element and element.string:
+        text = element.string.strip()
+
+    if not text and element and element.a:
+        text = element.a.text or element.a.href or ''
+        text = text.strip()
+
+    return text
+
+
 def read_html(filepath, table=0, mode='r', **kwargs):
     """Reads tables from an html file
 
@@ -1204,7 +1220,7 @@ def read_html(filepath, table=0, mode='r', **kwargs):
         ...     'march': '61',
         ...     'april': '1,244',
         ...     'may': '95',
-        ...     'june': '\xa010',
+        ...     'june': '10',
         ...     'july': '230',
         ...     'august': '684',
         ...     'september': '268',
@@ -1226,13 +1242,12 @@ def read_html(filepath, table=0, mode='r', **kwargs):
         tbl = soup.find_all('table')[table]
         rows = iter(tbl.find_all('tr'))
         first_row = next(rows)
-        ths = first_row.find_all('th')
-        names = (next(th.children).string for th in ths)
+        names = map(get_text, first_row.find_all('th'))
         uscored = ft.underscorify(names) if sanitize else names
         header = list(ft.dedupe(uscored) if dedupe else uscored)
 
         for tr in rows:  # pylint: disable=C0103
-            row = (td.string for td in tr.find_all('td'))
+            row = map(get_text, tr.find_all('td'))
             yield dict(zip(header, row))
             # yield {'r': list(row)}
 

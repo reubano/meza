@@ -269,6 +269,16 @@ class TestInput:
 
             nt.assert_equal(expected, next(records))
 
+    def test_vertical_table(self):  # pylint: disable=R0201
+        """Test for reading a vertical html table"""
+        filepath = p.join(io.DATA_DIR, 'vertical_table.html')
+        records = io.read_html(filepath, vertical=True)
+        nt.assert_equal('See IBM products', next(records)['Products'])
+        records = io.read_html(filepath, vertical=True, table=2)
+
+        with nt.assert_raises(StopIteration):
+            next(records)
+
     def test_get_reader(self):  # pylint: disable=R0201
         """Test for reading a file via the reader selector"""
         nt.assert_true(callable(io.get_reader('csv')))

@@ -1184,6 +1184,33 @@ def get_text(element):
     return text
 
 
+def _find_table(soup, pos=0):
+    if pos:
+        try:
+            table = soup.find_all('table')[pos]
+        except IndexError:
+            table = None
+    else:
+        table = soup.table
+
+    return table
+
+
+def _gen_from_rows(rows, header, vertical=False):
+    if vertical:
+        # nested_tds = [('one', 'two'), ('uno', 'dos'), ('un', 'deux')]
+        nested_tds = (tr.find_all('td') for tr in rows)
+
+        # tds = ('one', 'uno', 'un')
+        for tds in zip(*nested_tds):
+            row = map(get_text, tds)
+            yield dict(zip(header, row))
+    else:
+        for tr in rows:  # pylint: disable=C0103
+            row = map(get_text, tr.find_all('td'))
+            yield dict(zip(header, row))
+
+
 def read_html(filepath, table=0, mode='r', **kwargs):
     """Reads tables from an html file
 
@@ -1203,6 +1230,8 @@ def read_html(filepath, table=0, mode='r', **kwargs):
             (default: False).
 
         dedupe (bool): Deduplicate field names (default: False).
+        vertical (bool): The table has headers in the left column (default:
+            False).
 
     Returns:
         Iterable: The parsed records
@@ -1239,17 +1268,33 @@ def read_html(filepath, table=0, mode='r', **kwargs):
 
         sanitize = kwargs.get('sanitize')
         dedupe = kwargs.get('dedupe')
-        tbl = soup.find_all('table')[table]
-        rows = iter(tbl.find_all('tr'))
-        first_row = next(rows)
-        names = map(get_text, first_row.find_all('th'))
-        uscored = ft.underscorify(names) if sanitize else names
-        header = list(ft.dedupe(uscored) if dedupe else uscored)
+        vertical = kwargs.get('vertical')
+        tbl = _find_table(soup, table)
 
-        for tr in rows:  # pylint: disable=C0103
-            row = map(get_text, tr.find_all('td'))
-            yield dict(zip(header, row))
-            # yield {'r': list(row)}
+        if tbl:
+            rows = iter(tbl.find_all('tr'))
+
+            for first_row in rows:
+                if first_row.find('th'):
+                    break
+
+            ths = first_row.find_all('th')
+
+            if vertical or len(ths) == 1:
+                # the headers are vertical instead of horizontal
+                vertical = True
+                rows = list(it.chain([first_row], rows))
+                names = (get_text(row.th) for row in rows)
+            else:
+                names = map(get_text, ths)
+
+            uscored = ft.underscorify(names) if sanitize else names
+            header = list(ft.dedupe(uscored) if dedupe else uscored)
+            records = _gen_from_rows(rows, header, vertical)
+        else:
+            records = iter([])
+
+        return records
 
     return read_any(filepath, reader, mode, **kwargs)
 

@@ -1,7 +1,7 @@
 chardet>=3.0.4,<4.0.0
 python-slugify>=0.0.7,<0.1.0
 python-dateutil>=2.4.2,<3.0.0
-requests>=2.10.0,<3.0.0
+requests>=2.0.0,<3.0.0
 xlrd>=0.9.3,<0.10.0
 dbfread==2.0.4
 ijson>=2.2,<3.0.0

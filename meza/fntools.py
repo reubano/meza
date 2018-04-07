@@ -117,7 +117,7 @@ ARRAY_NULL_TYPE = {
     'u': ''}
 
 try:
-    MAXINT = sys.maxint
+    MAXINT = sys.maxint  # pylint: disable=sys-max-int
 except AttributeError:
     MAXINT = sys.maxsize
 

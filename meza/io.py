@@ -512,7 +512,6 @@ def read_mdb(filepath, table=None, **kwargs):
 
         dedupe (bool): Deduplicate field names (default: False).
         ignorecase (bool): Treat file name as case insensitive (default: true).
-        quiet (bool): Supress output of MDB table names.
 
     Yields:
         dict: A row of data whose keys are the field names.
@@ -544,10 +543,7 @@ def read_mdb(filepath, table=None, **kwargs):
 
     # Check if 'mdb-tools' is installed on system
     try:
-        if quiet:
-            check_output(args)
-        else:
-            check_call(args)
+        check_output(args)
     except OSError:
         logger.error(
             'You must install [mdbtools]'

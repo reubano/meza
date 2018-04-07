@@ -56,11 +56,11 @@ setup(
         'docs': ['docs/*'],
         'examples': ['examples/*']
     },
-    install_requires='requirements',
+    install_requires=list(requirements),
     extras_require={'python_version<3.0': extras_require},
     setup_requires=setup_require,
     test_suite='nose.collector',
-    tests_require='dev_requirements',
+    tests_require=list(dev_requirements),
     license=license,
     zip_safe=False,
     keywords=[project] + description.split(' '),

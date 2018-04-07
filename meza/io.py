@@ -541,8 +541,9 @@ def read_mdb(filepath, table=None, **kwargs):
     """
     args = ['mdb-tables', '-1', filepath]
 
+    # Check if 'mdb-tools' is installed on system
     try:
-        check_call(args)
+        check_output(args)
     except OSError:
         logger.error(
             'You must install [mdbtools]'

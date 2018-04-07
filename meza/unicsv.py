@@ -184,6 +184,7 @@ class DictReader(csv.DictReader):
         csv.DictReader.__init__(*args, **res['drkwargs'])
         self.restkey = res['drkwargs'].get('restkey')
 
+    # pylint: disable=next-method-defined
     def next(self):
         """
         Return the upcoming row

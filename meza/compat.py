@@ -86,7 +86,7 @@ def encode(content, encoding=ENCODING):
                 # http://stackoverflow.com/a/20793663/408556
                 _hex = '%x' % content
                 zeros = '0' * (len(_hex) % 2) + _hex
-                encoded = zeros.zfill(length * 2).decode('hex')
+                encoded = codecs.decode(zeros.zfill(length * 2), 'hex')
     elif hasattr(content, 'encode'):
         try:
             encoded = ENCODER(encoding).encode(content)

@@ -1270,24 +1270,31 @@ def read_html(filepath, table=0, mode='r', **kwargs):
         sanitize = kwargs.get('sanitize')
         dedupe = kwargs.get('dedupe')
         vertical = kwargs.get('vertical')
+        first_row_as_header = kwargs.get('first_row_as_header')
         tbl = _find_table(soup, table)
 
         if tbl:
-            rows = iter(tbl.find_all('tr'))
+            rows = tbl.find_all('tr')
 
-            for first_row in rows:
+            for num, first_row in enumerate(rows):
                 if first_row.find('th'):
                     break
 
             ths = first_row.find_all('th')
 
+            if first_row_as_header and not ths:
+                ths = rows[0].find_all('td')
+
             if vertical or len(ths) == 1:
                 # the headers are vertical instead of horizontal
                 vertical = True
-                rows = list(it.chain([first_row], rows))
                 names = (get_text(row.th) for row in rows)
-            else:
+            elif ths:
+                rows = rows[1:]
                 names = map(get_text, ths)
+            else:
+                col_nums = range(len(first_row))
+                names = ['column_{}'.format(i) for i in col_nums]
 
             uscored = ft.underscorify(names) if sanitize else names
             header = list(ft.dedupe(uscored) if dedupe else uscored)

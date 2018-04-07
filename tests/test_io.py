@@ -279,6 +279,20 @@ class TestInput:
         with nt.assert_raises(StopIteration):
             next(records)
 
+    def test_excel_html_export(self):  # pylint: disable=R0201
+        """Test for reading an html table exported from excel"""
+        filepath = p.join(io.DATA_DIR, 'test.htm')
+        records = io.read_html(
+            filepath, sanitize=True, first_row_as_header=True)
+
+        expected = {
+            'sparse_data': 'Iñtërnâtiônàližætiøn',
+            'some_date': '05/04/82',
+            'some_value': '234',
+            'unicode_test': 'Ādam'}
+
+        nt.assert_equal(expected, next(records))
+
     def test_get_reader(self):  # pylint: disable=R0201
         """Test for reading a file via the reader selector"""
         nt.assert_true(callable(io.get_reader('csv')))

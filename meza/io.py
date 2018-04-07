@@ -540,19 +540,9 @@ def read_mdb(filepath, table=None, **kwargs):
         >>> (expected == first_row) if first_row else True
         True
     """
-
     args = ['mdb-tables', '-1', filepath]
 
-    sanitize = kwargs.pop('sanitize', None)
-    quiet = kwargs.pop('quiet', False)
-    dedupe = kwargs.pop('dedupe', False)
-    table = table or check_output(args).splitlines()[0]
-    pkwargs = {'stdout': PIPE, 'bufsize': 1, 'universal_newlines': True}
-
-    #
     # Check if 'mdb-tools' is installed on system
-    #
-
     try:
         if quiet:
             check_output(args)
@@ -568,6 +558,10 @@ def read_mdb(filepath, table=None, **kwargs):
     except CalledProcessError:
         raise TypeError('{} is not readable by mdbtools'.format(filepath))
 
+    sanitize = kwargs.pop('sanitize', None)
+    dedupe = kwargs.pop('dedupe', False)
+    table = table or check_output(args).splitlines()[0]
+    pkwargs = {'stdout': PIPE, 'bufsize': 1, 'universal_newlines': True}
 
     # http://stackoverflow.com/a/2813530/408556
     # http://stackoverflow.com/a/17698359/408556

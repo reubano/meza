@@ -260,7 +260,7 @@ class Reencoder(StreamReader):
     def __iter__(self):
         return self
 
-    def read(self, n=None, firstline=False):
+    def read(self, n=None):
         stream = it.islice(self.stream, n) if n else self.stream
         return b''.join(stream) if self.binary else ''.join(stream)
 

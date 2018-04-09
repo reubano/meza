@@ -119,8 +119,7 @@ def reader(f, dialect='excel', **kwargs):
     res = encode_all(f, **kwargs)
 
     for row in csv.reader(res['f'], dialect, **res['fmtparams']):
-        decoded = [decode(r) for r in row] if PY2 else row
-        yield decoded
+        yield [decode(r) for r in row] if PY2 else row
 
 
 def writer(f, dialect='excel', **kwargs):

@@ -199,7 +199,7 @@ class Reencoder(StreamReader):
             ...     reenc = Reencoder(f, encoding)
             ...     first = reenc.readline(keepends=False)
             ...     first.decode('utf-8') == '\ufeffa,b,c'
-            ...     reenc.read().decode('utf-8').split('\\n')[1] == '4,5,ʤ'
+            ...     reenc.readlines()[1].decode('utf-8') == '4,5,ʤ'
             True
             True
             >>> with open(eff, 'rb') as f:
@@ -1483,13 +1483,15 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
     return file_hash
 
 
-def reencode(f, *args, **kwargs):
+def reencode(f, fromenc=ENCODING, toenc=ENCODING, **kwargs):
     """Reencodes a file from one encoding to another
 
-    Kwargs:
+    Args:
         f (obj): The file like object to convert.
-        encoding (str): The input encoding.
-        decoding (str): The output encoding.
+
+    Kwargs:
+        fromenc (str): The input encoding.
+        toenc (str): The output encoding (default: ENCODING).
         remove_BOM (bool): Remove Byte Order Marker (default: True)
 
     Returns:
@@ -1503,7 +1505,7 @@ def reencode(f, *args, **kwargs):
         ...     encoded.readline(keepends=False) == b'a,b,c'
         True
     """
-    return Reencoder(f, *args, **kwargs)
+    return Reencoder(f, fromenc, toenc, **kwargs)
 
 
 def detect_encoding(f, verbose=False):

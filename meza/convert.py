@@ -741,7 +741,7 @@ def records2df(records, types, native=False, silent=False):
         ...     columns = df.columns.tolist()
         ...     columns == ['col_1', 'col_2']
         ...     df.col_1.tolist() == ['alpha', 'beta']
-        ...     [np.round(v, 1) if pd else round(v, 1) for v in df.col_2]
+        ...     [round(v, 1) for v in df.col_2]
         ... else:
         ...     True
         ...     True

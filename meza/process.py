@@ -491,6 +491,9 @@ def merge(records, **kwargs):
         True
         >>> merge(records)['amount'] == 400
         True
+        >>> records = [{'a': 1, 'b': 2}, {'b': 7, 'c': 9}, {'c': 3, 'd': 4}]
+        >>> merge(records) == {'a': 1, 'b': 7, 'c': 3, 'd': 4}
+        True
     """
     def reducer(x, y):
         _merge = partial(ft.combine, x, y, **kwargs)

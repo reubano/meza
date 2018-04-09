@@ -111,6 +111,7 @@ class TestUnicodeReader:
         self.row1 = {'a': '1', 'b': '2', 'c': '3'}
         self.row2 = {'a': '4', 'b': '5', 'c': '©'}
         self.row3 = {'a': '4', 'b': '5', 'c': 'ʤ'}
+        self.row4 = {'a': '4', 'b': '5', 'c': 'ñ'}
 
     def test_utf8(self):
         """Test for reading utf-8 files"""
@@ -119,28 +120,28 @@ class TestUnicodeReader:
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row3, next(records))
 
-    def test_latin1(self):
+    def test_latin(self):
         """Test for reading latin-1 files"""
         filepath = p.join(io.DATA_DIR, 'latin1.csv')
         records = io.read_csv(filepath, encoding='latin-1')
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row2, next(records))
 
-    def test_bytes_encoding_detection(self):
-        """Test for properly detecting the encoding of a file opened in bytes
-        mode
-        """
-        filepath = p.join(io.DATA_DIR, 'latin1.csv')
-        records = io.read_csv(filepath, mode='rb')
-        nt.assert_equal(self.row1, next(records))
-        nt.assert_equal(self.row2, next(records))
+    def test_windows(self):
+        """Test for reading windows-1252 files"""
+        filepath = p.join(io.DATA_DIR, 'windows1252.csv')
 
-    def test_wrong_encoding_detection(self):
-        """Test for properly detecting the encoding of a file opened with the
-        wrong encoding
-        """
-        filepath = p.join(io.DATA_DIR, 'latin1.csv')
-        records = io.read_csv(filepath, encoding='ascii')
+        # based on my testing, when excel for mac saves a csv file as
+        # 'Windows-1252', you have to open with 'mac-roman' in order
+        # to properly read it
+        records = io.read_csv(filepath, encoding='mac-roman')
+        nt.assert_equal(self.row1, next(records))
+        nt.assert_equal(self.row4, next(records))
+
+    def test_iso(self):
+        """Test for reading iso-8859-1 files"""
+        filepath = p.join(io.DATA_DIR, 'iso88591.csv')
+        records = io.read_csv(filepath, encoding='iso-8859-1')
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row2, next(records))
 
@@ -157,6 +158,34 @@ class TestUnicodeReader:
         records = io.read_csv(filepath, encoding='utf-16-le')
         nt.assert_equal(self.row1, next(records))
         nt.assert_equal(self.row3, next(records))
+
+    def test_bytes_encoding_detection_latin(self):
+        """Test for detecting the encoding of a latin-1 bytes file"""
+        filepath = p.join(io.DATA_DIR, 'latin1.csv')
+        records = io.read_csv(filepath, mode='rb')
+        nt.assert_equal(self.row1, next(records))
+        nt.assert_equal(self.row2, next(records))
+
+    def test_wrong_encoding_detection_latin(self):
+        """Test for detecting the encoding of a latin-1 file opened in ascii"""
+        filepath = p.join(io.DATA_DIR, 'latin1.csv')
+        records = io.read_csv(filepath, encoding='ascii')
+        nt.assert_equal(self.row1, next(records))
+        nt.assert_equal(self.row2, next(records))
+
+    def test_bytes_encoding_detection_windows(self):
+        """Test for detecting the encoding of a windows-1252 bytes file"""
+        filepath = p.join(io.DATA_DIR, 'windows1252.csv')
+        records = io.read_csv(filepath, mode='rb')
+        nt.assert_equal(self.row1, next(records))
+        nt.assert_equal(self.row4, next(records))
+
+    def test_wrong_encoding_detection_windows(self):
+        """Test for detecting the encoding of a windows file opened in ascii"""
+        filepath = p.join(io.DATA_DIR, 'windows1252.csv')
+        records = io.read_csv(filepath, encoding='ascii')
+        nt.assert_equal(self.row1, next(records))
+        nt.assert_equal(self.row4, next(records))
 
     def test_kwargs(self):
         """Test for passing kwargs while reading csv files"""
@@ -278,6 +307,20 @@ class TestInput:
 
         with nt.assert_raises(StopIteration):
             next(records)
+
+    def test_excel_html_export(self):  # pylint: disable=R0201
+        """Test for reading an html table exported from excel"""
+        filepath = p.join(io.DATA_DIR, 'test.htm')
+        records = io.read_html(
+            filepath, sanitize=True, first_row_as_header=True)
+
+        expected = {
+            'sparse_data': 'Iñtërnâtiônàližætiøn',
+            'some_date': '05/04/82',
+            'some_value': '234',
+            'unicode_test': 'Ādam'}
+
+        nt.assert_equal(expected, next(records))
 
     def test_get_reader(self):  # pylint: disable=R0201
         """Test for reading a file via the reader selector"""

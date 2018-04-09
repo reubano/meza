@@ -27,6 +27,7 @@ import sys
 import hashlib
 import sqlite3
 import json
+import os
 
 from os import path as p
 from datetime import time
@@ -64,6 +65,11 @@ logger = gogo.Gogo(__name__, monolog=True, verbose=True).logger
 # pylint: disable=C0103
 encode = lambda iterable: (s.encode(ENCODING) for s in iterable)
 chain = lambda iterable: it.chain.from_iterable(iterable or [])
+
+NEWLINES = {b'\n', b'\r', b'\r\n', '\n', '\r', '\r\n'}
+
+def groupby_line(iterable):
+    return it.groupby(iterable, lambda s: s not in NEWLINES)
 
 
 class IterStringIO(TextIOBase):
@@ -111,8 +117,7 @@ class IterStringIO(TextIOBase):
     def lines(self):
         """Read all the lines of content"""
         # TODO: what about a csv with embedded newlines?
-        newlines = {b'\n', b'\r', b'\r\n', '\n', '\r', '\r\n'}
-        groups = it.groupby(self.iter, lambda s: s not in newlines)
+        groups = groupby_line(self.iter)
         return (g for k, g in groups if k)
 
     def _read(self, iterable, num=None, newline=True):
@@ -194,7 +199,7 @@ class Reencoder(StreamReader):
             ...     reenc = Reencoder(f, encoding)
             ...     first = reenc.readline(keepends=False)
             ...     first.decode('utf-8') == '\ufeffa,b,c'
-            ...     reenc.read().decode('utf-8').split('\\n')[1] == '4,5,ʤ'
+            ...     reenc.readlines()[1].decode('utf-8') == '4,5,ʤ'
             True
             True
             >>> with open(eff, 'rb') as f:
@@ -225,11 +230,29 @@ class Reencoder(StreamReader):
         if bytes_mode:
             decoded = iterdecode(chained, fromenc)
             self.binary = rencode
+            proper_newline = first_line.endswith(os.linesep.encode(fromenc))
         else:
             decoded = chained
             self.binary = bytes_mode or rencode
+            proper_newline = first_line.endswith(os.linesep)
 
-        self.stream = iterencode(decoded, toenc) if rencode else decoded
+        stream = iterencode(decoded, toenc) if rencode else decoded
+
+        if proper_newline:
+            self.stream = stream
+        else:
+            # TODO: make sure the read methods are consistent with
+            #       proper_newline, e.g., `keepends`.
+            #
+            # TODO: since the newline isn't recognized, `stream` is contains
+            #       just one (very long) line. we pass in this line to iterate
+            #       over the chars
+            groups = groupby_line(next(stream))
+
+            if self.binary:
+                self.stream = (b''.join(g) for k, g in groups if k)
+            else:
+                self.stream = (''.join(g) for k, g in groups if k)
 
     def __next__(self):
         return next(self.stream)
@@ -237,7 +260,7 @@ class Reencoder(StreamReader):
     def __iter__(self):
         return self
 
-    def read(self, n=None, firstline=False):
+    def read(self, n=None):
         stream = it.islice(self.stream, n) if n else self.stream
         return b''.join(stream) if self.binary else ''.join(stream)
 
@@ -253,6 +276,10 @@ class Reencoder(StreamReader):
 
     def reset(self):
         pass
+
+
+class BytesError(ValueError):
+    pass
 
 
 def patch_http_response_read(func):
@@ -344,65 +371,87 @@ def get_encoding(filepath):
     return encoding
 
 
-def get_file_encoding(f, encoding=None):
+def get_file_encoding(f):
     """Detects a file's encoding"""
-    if encoding:
-        new_f, new_encoding = f, encoding
-    else:
-        try:
-            # See if we have bytes to avoid reopening the file
-            new_encoding = detect_encoding(f)['encoding']
-        except UnicodeDecodeError:
-            msg = 'Incorrectly encoded file, reopening with bytes to detect'
-            msg += ' encoding'
-            logger.warning(msg)
-            f.close()
-            new_f = open(f.name, 'rb')
-            new_encoding = detect_encoding(new_f)['encoding']
-        else:
-            new_f = f
+    try:
+        # See if we have bytes to avoid reopening the file
+        new_encoding = detect_encoding(f)['encoding']
+    except UnicodeDecodeError:
+        msg = 'Incorrectly encoded file, reopening with bytes to detect'
+        msg += ' encoding'
+        logger.warning(msg)
+        f.close()
+        new_encoding = get_encoding(f.name)
+    finally:
+        f.close()
 
-    return new_f, new_encoding
+    logger.debug('detected encoding: %s', new_encoding)
+    return new_encoding
 
 
 def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
     """Helper func to read a file or filepath"""
     try:
+        try:
+            binary_readable = 'b' in f.mode and set('+wax').isdisjoint(f.mode)
+        except AttributeError:
+            binary_readable = False
+
+        if binary_readable:
+            # only allow binary mode for writing files, not reading
+            raise BytesError('%s was opened in bytes mode' % f)
+
         for num, line in enumerate(reader(f, *args, **kwargs)):
             if num >= pos:
                 yield line
                 pos += 1
-    except (UnicodeDecodeError, csvError, TypeError) as err:
+    except (UnicodeDecodeError, csvError, TypeError, BytesError) as err:
         encoding = kwargs.pop('encoding', None)
-        logger.debug(err)
+
+        if not encoding and hasattr(f, 'encoding'):
+            encoding = f.encoding
+
+        logger.warning(err)
 
         if 'NoneType' in str(err) or 'unicode argument expected' in str(err):
             raise
-        elif hasattr(f, 'mode') and 'b' in f.mode:
-            logger.warning('File was opened in bytes mode')
-        else:
-            # Since the encoding could be wrong, set it None so that we can
-            # detect the correct one.
-            extra = (' ({})'.format(encoding)) if encoding else ''
-            msg = 'Bytes or the wrong encoding%s was used to open file'
-            logger.warning(msg, extra)
-            encoding = None
 
         if recursed or not hasattr(f, 'seek'):
             logger.error('Unable to detect proper file encoding')
             raise
 
-        f.seek(0)
-        new_f, new_encoding = get_file_encoding(f, encoding)
-        logger.debug('Decoding file with encoding: %s', encoding)
+        if type(err).__name__ is not 'BytesError':
+            # Set the encoding to None so that we can detect the correct one.
+            extra = (' ({})'.format(encoding)) if encoding else ''
+            logger.warning('%s was opened with the wrong encoding%s', f, extra)
+            encoding = None
 
-        try:
-            decoded_f = iterdecode(new_f, new_encoding)
+        if encoding:
+            new_encoding = encoding
+        else:
+            f.seek(0)
+            new_encoding = get_file_encoding(f)
 
-            for line in _read_any(decoded_f, reader, args, pos, True, **kwargs):
+        if new_encoding == 'Windows-1252' and os.name == 'posix':
+            if sys.platform == 'darwin':
+                # based on my testing, when excel for mac saves a csv file as
+                # 'Windows-1252', you have to open with 'mac-roman' in order
+                # to properly read it
+                new_encoding = 'mac-roman'
+            else:
+                new_encoding = 'mac-roman'
+
+            msg = 'Detected a `Windows-1252` encoded file on a %s machine.'
+            msg += ' Setting encoding to `%s` instead.'
+            logger.warning(msg, sys.platform, new_encoding)
+
+        logger.debug('Reopening %s with encoding: %s', f, new_encoding)
+
+        with open(f.name, encoding=new_encoding) as decoded_f:
+            rkwargs = pr.merge([kwargs, {'pos': pos, 'recursed': True}])
+
+            for line in _read_any(decoded_f, reader, args, **rkwargs):
                 yield line
-        finally:
-            new_f.close()
 
 
 def read_any(filepath, reader, mode='r', *args, **kwargs):
@@ -1270,24 +1319,31 @@ def read_html(filepath, table=0, mode='r', **kwargs):
         sanitize = kwargs.get('sanitize')
         dedupe = kwargs.get('dedupe')
         vertical = kwargs.get('vertical')
+        first_row_as_header = kwargs.get('first_row_as_header')
         tbl = _find_table(soup, table)
 
         if tbl:
-            rows = iter(tbl.find_all('tr'))
+            rows = tbl.find_all('tr')
 
-            for first_row in rows:
+            for num, first_row in enumerate(rows):
                 if first_row.find('th'):
                     break
 
             ths = first_row.find_all('th')
 
+            if first_row_as_header and not ths:
+                ths = rows[0].find_all('td')
+
             if vertical or len(ths) == 1:
                 # the headers are vertical instead of horizontal
                 vertical = True
-                rows = list(it.chain([first_row], rows))
                 names = (get_text(row.th) for row in rows)
-            else:
+            elif ths:
+                rows = rows[1:]
                 names = map(get_text, ths)
+            else:
+                col_nums = range(len(first_row))
+                names = ['column_{}'.format(i) for i in col_nums]
 
             uscored = ft.underscorify(names) if sanitize else names
             header = list(ft.dedupe(uscored) if dedupe else uscored)
@@ -1418,13 +1474,15 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
     return file_hash
 
 
-def reencode(f, *args, **kwargs):
+def reencode(f, fromenc=ENCODING, toenc=ENCODING, **kwargs):
     """Reencodes a file from one encoding to another
 
-    Kwargs:
+    Args:
         f (obj): The file like object to convert.
-        encoding (str): The input encoding.
-        decoding (str): The output encoding.
+
+    Kwargs:
+        fromenc (str): The input encoding.
+        toenc (str): The output encoding (default: ENCODING).
         remove_BOM (bool): Remove Byte Order Marker (default: True)
 
     Returns:
@@ -1438,7 +1496,7 @@ def reencode(f, *args, **kwargs):
         ...     encoded.readline(keepends=False) == b'a,b,c'
         True
     """
-    return Reencoder(f, *args, **kwargs)
+    return Reencoder(f, fromenc, toenc, **kwargs)
 
 
 def detect_encoding(f, verbose=False):

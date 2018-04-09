@@ -361,7 +361,7 @@ def mreplace(content, replacements):
         >>> mreplace('happy', replacements) == 'taffy'
         True
     """
-    func = lambda x, y: x.replace(y[0], y[1])
+    func = lambda x, y: x.replace(*y)
     return reduce(func, replacements, content)
 
 

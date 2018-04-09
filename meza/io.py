@@ -371,25 +371,22 @@ def get_encoding(filepath):
     return encoding
 
 
-def get_file_encoding(f, encoding=None):
+def get_file_encoding(f):
     """Detects a file's encoding"""
-    if encoding:
-        new_f, new_encoding = f, encoding
-    else:
-        try:
-            # See if we have bytes to avoid reopening the file
-            new_encoding = detect_encoding(f)['encoding']
-        except UnicodeDecodeError:
-            msg = 'Incorrectly encoded file, reopening with bytes to detect'
-            msg += ' encoding'
-            logger.warning(msg)
-            f.close()
-            new_f = open(f.name, 'rb')
-            new_encoding = detect_encoding(new_f)['encoding']
-        else:
-            new_f = f
+    try:
+        # See if we have bytes to avoid reopening the file
+        new_encoding = detect_encoding(f)['encoding']
+    except UnicodeDecodeError:
+        msg = 'Incorrectly encoded file, reopening with bytes to detect'
+        msg += ' encoding'
+        logger.warning(msg)
+        f.close()
+        new_encoding = get_encoding(f.name)
+    finally:
+        f.close()
 
-    return new_f, new_encoding
+    logger.debug('detected encoding: %s', new_encoding)
+    return new_encoding
 
 
 def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
@@ -410,7 +407,11 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
                 pos += 1
     except (UnicodeDecodeError, csvError, TypeError, BytesError) as err:
         encoding = kwargs.pop('encoding', None)
-        logger.debug(err)
+
+        if not encoding and hasattr(f, 'encoding'):
+            encoding = f.encoding
+
+        logger.warning(err)
 
         if 'NoneType' in str(err) or 'unicode argument expected' in str(err):
             raise
@@ -425,9 +426,11 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
             logger.warning('%s was opened with the wrong encoding%s', f, extra)
             encoding = None
 
-        f.seek(0)
-        new_f, new_encoding = get_file_encoding(f, encoding)
-        new_f.seek(0)
+        if encoding:
+            new_encoding = encoding
+        else:
+            f.seek(0)
+            new_encoding = get_file_encoding(f)
 
         if new_encoding == 'Windows-1252' and os.name == 'posix':
             if sys.platform == 'darwin':
@@ -442,25 +445,13 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
             msg += ' Setting encoding to `%s` instead.'
             logger.warning(msg, sys.platform, new_encoding)
 
-        try:
-            is_binary = 'b' in new_f.mode
-        except AttributeError:
-            is_binary = False
+        logger.debug('Reopening %s with encoding: %s', f, new_encoding)
 
-        try:
-            if is_binary:
-                logger.debug('Decoding file with encoding: %s', new_encoding)
-                decoded_f = reencode(new_f, new_encoding, decode=True)
-            else:
-                logger.debug('Reopening %s with encoding: %s', f, new_encoding)
-                new_f.close()
-                decoded_f = open(new_f.name, encoding=new_encoding)
+        with open(f.name, encoding=new_encoding) as decoded_f:
+            rkwargs = pr.merge([kwargs, {'pos': pos, 'recursed': True}])
 
-
-            for line in _read_any(decoded_f, reader, args, pos, True, **kwargs):
+            for line in _read_any(decoded_f, reader, args, **rkwargs):
                 yield line
-        finally:
-            new_f.close()
 
 
 def read_any(filepath, reader, mode='r', *args, **kwargs):

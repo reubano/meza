@@ -68,6 +68,7 @@ chain = lambda iterable: it.chain.from_iterable(iterable or [])
 
 NEWLINES = {b'\n', b'\r', b'\r\n', '\n', '\r', '\r\n'}
 
+
 def groupby_line(iterable):
     return it.groupby(iterable, lambda s: s not in NEWLINES)
 
@@ -371,10 +372,12 @@ def get_encoding(filepath):
     return encoding
 
 
-def get_file_encoding(f, encoding=None):
+def get_file_encoding(f):
     """Detects a file's encoding"""
-    if encoding:
-        new_f, new_encoding = f, encoding
+    try:
+        f.seek(0)
+    except AttributeError:
+        new_encoding = None
     else:
         try:
             # See if we have bytes to avoid reopening the file
@@ -384,23 +387,42 @@ def get_file_encoding(f, encoding=None):
             msg += ' encoding'
             logger.warning(msg)
             f.close()
-            new_f = open(f.name, 'rb')
-            new_encoding = detect_encoding(new_f)['encoding']
-        else:
-            new_f = f
+            new_encoding = get_encoding(f.name)
+    finally:
+        f.close()
 
-    return new_f, new_encoding
+    logger.debug('detected encoding: %s', new_encoding)
+    return new_encoding
+
+
+def sanitize_file_encoding(encoding):
+    if encoding == 'Windows-1252' and os.name == 'posix':
+        # based on my testing, when excel for mac saves a csv file as
+        # 'Windows-1252', you have to open with 'mac-roman' in order
+        # to properly read it
+        new_encoding = 'mac-roman'
+        msg = 'Detected a `Windows-1252` encoded file on a %s machine.'
+        msg += ' Setting encoding to `%s` instead.'
+        logger.warning(msg, sys.platform, new_encoding)
+    else:
+        new_encoding = encoding
+
+    return new_encoding
+
+
+def is_binary_readable(f):
+    try:
+        binary_readable = 'b' in f.mode and set('+wax').isdisjoint(f.mode)
+    except AttributeError:
+        binary_readable = False
+
+    return binary_readable
 
 
 def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
     """Helper func to read a file or filepath"""
     try:
-        try:
-            binary_readable = 'b' in f.mode and set('+wax').isdisjoint(f.mode)
-        except AttributeError:
-            binary_readable = False
-
-        if binary_readable:
+        if is_binary_readable(f):
             # only allow binary mode for writing files, not reading
             raise BytesError('%s was opened in bytes mode' % f)
 
@@ -408,59 +430,34 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
             if num >= pos:
                 yield line
                 pos += 1
-    except (UnicodeDecodeError, csvError, TypeError, BytesError) as err:
+    except (UnicodeDecodeError, csvError, BytesError) as err:
         encoding = kwargs.pop('encoding', None)
-        logger.debug(err)
 
-        if 'NoneType' in str(err) or 'unicode argument expected' in str(err):
-            raise
+        if not encoding and hasattr(f, 'encoding'):
+            encoding = f.encoding
 
-        if recursed or not hasattr(f, 'seek'):
-            logger.error('Unable to detect proper file encoding')
-            raise
+        logger.warning(err)
 
-        if type(err).__name__ != 'BytesError':
+        if not (recursed or type(err).__name__ == 'BytesError'):
             # Set the encoding to None so that we can detect the correct one.
             extra = (' ({})'.format(encoding)) if encoding else ''
             logger.warning('%s was opened with the wrong encoding%s', f, extra)
             encoding = None
 
-        f.seek(0)
-        new_f, new_encoding = get_file_encoding(f, encoding)
-        new_f.seek(0)
+        new_encoding = encoding or (None if recursed else get_file_encoding(f))
 
-        if new_encoding == 'Windows-1252' and os.name == 'posix':
-            if sys.platform == 'darwin':
-                # based on my testing, when excel for mac saves a csv file as
-                # 'Windows-1252', you have to open with 'mac-roman' in order
-                # to properly read it
-                new_encoding = 'mac-roman'
-            else:
-                new_encoding = 'mac-roman'
+        if recursed or not new_encoding:
+            logger.error('Unable to detect proper file encoding')
+            return
 
-            msg = 'Detected a `Windows-1252` encoded file on a %s machine.'
-            msg += ' Setting encoding to `%s` instead.'
-            logger.warning(msg, sys.platform, new_encoding)
+        new_encoding = sanitize_file_encoding(new_encoding)
+        logger.debug('Reopening %s with encoding: %s', f, new_encoding)
 
-        try:
-            is_binary = 'b' in new_f.mode
-        except AttributeError:
-            is_binary = False
+        with open(f.name, encoding=new_encoding) as decoded_f:
+            rkwargs = pr.merge([kwargs, {'pos': pos, 'recursed': True}])
 
-        try:
-            if is_binary:
-                logger.debug('Decoding file with encoding: %s', new_encoding)
-                decoded_f = reencode(new_f, new_encoding, decode=True)
-            else:
-                logger.debug('Reopening %s with encoding: %s', f, new_encoding)
-                new_f.close()
-                decoded_f = open(new_f.name, encoding=new_encoding)
-
-
-            for line in _read_any(decoded_f, reader, args, pos, True, **kwargs):
+            for line in _read_any(decoded_f, reader, args, **rkwargs):
                 yield line
-        finally:
-            new_f.close()
 
 
 def read_any(filepath, reader, mode='r', *args, **kwargs):

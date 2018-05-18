@@ -14,7 +14,7 @@ import itertools as it
 from os import path as p
 from json import loads
 from tempfile import TemporaryFile
-from io import StringIO, open
+from io import StringIO, BytesIO, open
 from decimal import Decimal
 from six.moves.urllib.request import urlopen  # pylint: disable=import-error
 from contextlib import closing
@@ -410,6 +410,35 @@ class TestUrlopen:
     #     response = urlopen('file://{}'.format(filepath))
     #     records = io.read_csv(response.fp)
     #     nt.assert_equal({}, next(records))
+
+
+class TestBytes:
+    """Unit tests for reading byte streams"""
+    def __init__(self):
+        self.cls_initialized = False
+
+        self.row1 = {'a': '1', 'b': '2', 'c': '3'}
+        self.row2 = {'a': '4', 'b': '5', 'c': 'ʤ'}
+
+        self.sheet0_alt = {
+            'sparse_data': 'Iñtërnâtiônàližætiøn',
+            'some_date': '05/04/82',
+            'some_value': '234',
+            'unicode_test': 'Ādam'}
+
+    def test_bytes_io(self):
+        """Test for reading BytesIO"""
+        with open(p.join(io.DATA_DIR, 'utf8.csv'), 'rb') as f:
+            b = BytesIO(f.read())
+            records = io.read_csv(b, sanitize=True)
+            nt.assert_equal(self.row1, next(records))
+            nt.assert_equal(self.row2, next(records))
+
+    def test_bytes(self):
+        """Test for reading bytes mode opened file"""
+        with open(p.join(io.DATA_DIR, 'test.csv'), 'rb') as f:
+            records = io.read_csv(f, sanitize=True)
+            nt.assert_equal(self.sheet0_alt, next(records))
 
 
 class TestGeoJSON:

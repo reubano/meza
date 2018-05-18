@@ -52,7 +52,7 @@ from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
     XL_CELL_ERROR)
 from xlrd.xldate import xldate_as_datetime as xl2dt
-from io import StringIO, TextIOBase, open
+from io import StringIO, TextIOBase, BytesIO, open
 
 from . import (
     fntools as ft, process as pr, unicsv as csv, dbf, ENCODING, BOM, DATA_DIR)
@@ -373,27 +373,40 @@ def get_encoding(filepath):
     return encoding
 
 
-def get_file_encoding(f):
+def get_file_encoding(f, encoding=None, bytes_error=False):
     """Detects a file's encoding"""
-    try:
-        f.seek(0)
-    except AttributeError:
-        new_encoding = None
-    else:
-        try:
-            # See if we have bytes to avoid reopening the file
-            new_encoding = detect_encoding(f)['encoding']
-        except UnicodeDecodeError:
-            msg = 'Incorrectly encoded file, reopening with bytes to detect'
-            msg += ' encoding'
-            logger.warning(msg)
-            f.close()
-            new_encoding = get_encoding(f.name)
-    finally:
-        f.close()
+    if not encoding and hasattr(f, 'encoding'):
+        encoding = f.encoding
 
-    logger.debug('detected encoding: %s', new_encoding)
-    return new_encoding
+    if not bytes_error:
+        # Set the encoding to None so that we can detect the correct one.
+        extra = (' ({})'.format(encoding)) if encoding else ''
+        logger.warning('%s was opened with the wrong encoding%s', f, extra)
+        encoding = None
+
+    if not encoding:
+        try:
+            f.seek(0)
+        except AttributeError:
+            pass
+        else:
+            try:
+                # See if we have bytes to avoid reopening the file
+                encoding = detect_encoding(f)['encoding']
+            except UnicodeDecodeError:
+                msg = 'Incorrectly encoded file, reopening with bytes to detect'
+                msg += ' encoding'
+                logger.warning(msg)
+                f.close()
+                encoding = get_encoding(f.name)
+        finally:
+            if hasattr(f, 'name'):  # otherwise we can't reopen it
+                f.close()
+
+    if encoding:
+        logger.debug('detected encoding: %s', encoding)
+
+    return encoding
 
 
 def sanitize_file_encoding(encoding):
@@ -411,54 +424,62 @@ def sanitize_file_encoding(encoding):
     return new_encoding
 
 
-def is_binary_readable(f):
+def is_binary(f):
     try:
-        binary_readable = 'b' in f.mode and set('+wax').isdisjoint(f.mode)
+        result = 'b' in f.mode
     except AttributeError:
-        binary_readable = False
+        result = isinstance(f, BytesIO)
 
-    return binary_readable
+    return result
+
+
+def reopen(f, encoding):
+    sanitized_encoding = sanitize_file_encoding(encoding)
+    logger.debug('Reopening %s with encoding: %s', f, sanitized_encoding)
+
+    try:
+        decoded_f = open(f.name, encoding=sanitized_encoding)
+    except AttributeError:
+        f.seek(0)
+        decoded_f = iterdecode(f, sanitized_encoding)
+
+    return decoded_f
 
 
 def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
     """Helper func to read a file or filepath"""
     try:
-        if is_binary_readable(f):
+        if is_binary(f) and reader.__name__ != 'writer':
             # only allow binary mode for writing files, not reading
-            raise BytesError('%s was opened in bytes mode' % f)
+            message = "%s was opened in bytes mode but isn't being written to"
+            raise BytesError(message % f)
 
         for num, line in enumerate(reader(f, *args, **kwargs)):
             if num >= pos:
                 yield line
                 pos += 1
     except (UnicodeDecodeError, csvError, BytesError) as err:
-        encoding = kwargs.pop('encoding', None)
-
-        if not encoding and hasattr(f, 'encoding'):
-            encoding = f.encoding
-
         logger.warning(err)
+        encoding = kwargs.pop('encoding', None)
+        bytes_error = type(err).__name__ == 'BytesError'
 
-        if not (recursed or type(err).__name__ == 'BytesError'):
-            # Set the encoding to None so that we can detect the correct one.
-            extra = (' ({})'.format(encoding)) if encoding else ''
-            logger.warning('%s was opened with the wrong encoding%s', f, extra)
-            encoding = None
+        if not recursed:
+            ekwargs = {'encoding': encoding, 'bytes_error': bytes_error}
+            encoding = get_file_encoding(f, **ekwargs)
 
-        new_encoding = encoding or (None if recursed else get_file_encoding(f))
-
-        if recursed or not new_encoding:
+        if recursed or not encoding:
             logger.error('Unable to detect proper file encoding')
             return
 
-        new_encoding = sanitize_file_encoding(new_encoding)
-        logger.debug('Reopening %s with encoding: %s', f, new_encoding)
+        decoded_f = reopen(f, encoding)
 
-        with open(f.name, encoding=new_encoding) as decoded_f:
+        try:
             rkwargs = pr.merge([kwargs, {'pos': pos, 'recursed': True}])
 
             for line in _read_any(decoded_f, reader, args, **rkwargs):
                 yield line
+        finally:
+            decoded_f.close()
 
 
 def read_any(filepath, reader, mode='r', *args, **kwargs):
@@ -493,7 +514,7 @@ def read_any(filepath, reader, mode='r', *args, **kwargs):
         True
     """
     if hasattr(filepath, 'read'):
-        if hasattr(filepath, 'mode') and 'b' in filepath.mode:
+        if is_binary(filepath):
             kwargs.setdefault('encoding', ENCODING)
         else:
             kwargs.pop('encoding', None)
@@ -1458,8 +1479,8 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
         >>> hash_file(TemporaryFile()) == resp
         True
     """
-    def reader(f, hasher, **kwargs):  # pylint: disable=W0613
-        """File reader"""
+    def writer(f, hasher, **kwargs):  # pylint: disable=W0613
+        """File writer"""
         if chunksize:
             while True:
                 data = f.read(chunksize)
@@ -1473,7 +1494,7 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
         yield hasher.hexdigest()
 
     args = [getattr(hashlib, algo)()]
-    file_hash = next(read_any(filepath, reader, 'rb', *args))
+    file_hash = next(read_any(filepath, writer, 'rb', *args))
 
     if verbose:
         logger.debug('File %s hash is %s.', filepath, file_hash)

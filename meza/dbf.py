@@ -68,8 +68,8 @@ class DBF2(DBF):
         defaults = {
             'ignorecase': True, 'parserclass': FieldParser, 'recfactory': dict}
 
-        [kwargs.setdefault(k, v) for k, v in defaults.items()]
-        [self.__setattr__(k, v) for k, v in kwargs.items()]
+        [kwargs.setdefault(k1, v1) for k1, v1 in defaults.items()]
+        [self.__setattr__(k2, v2) for k2, v2 in kwargs.items()]
         self.name = p.splitext(p.basename(filename))[0].lower()
         self.filename = ifind(filename) if self.ignorecase else filename
 

@@ -670,9 +670,9 @@ def records2array(records, types, native=False, silent=False):
     """
     numpy = np and not native
     dialect = 'numpy' if numpy else 'array'
-    _dtype = [ft.get_dtype(t['type'], dialect) for t in types]
-    dtype = [get_native_str(d) for d in _dtype]
-    ids = [t['id'] for t in types]
+    zipped = [(ft.get_dtype(t1['type'], dialect), t1['id']) for t1 in types]
+    _dtype, ids = list(zip(*zipped))
+    dtype = list(map(get_native_str, _dtype))
 
     if numpy:
         data = [tuple(r.get(id_) for id_ in ids) for r in records]
@@ -687,7 +687,7 @@ def records2array(records, types, native=False, silent=False):
 
             logger.warning(msg)
 
-        header = [array(get_native_str('u'), t['id']) for t in types]
+        header = [array(get_native_str('u'), t2['id']) for t2 in types]
         data = (zip_longest(*([r.get(i) for i in ids] for r in records)))
 
         # array.array can't have nulls, so convert to an appropriate equivalent
@@ -695,8 +695,8 @@ def records2array(records, types, native=False, silent=False):
         cleaned = (it.starmap(clean, zip(dtype, data)))
 
         values = [
-            [array(t, x) for x in d] if t in {'c', 'u'} else array(t, d)
-            for t, d in zip(dtype, cleaned)]
+            [array(d, x) for x in c] if d in {'c', 'u'} else array(d, c)
+            for d, c in zip(dtype, cleaned)]
 
         converted = [header] + values
 

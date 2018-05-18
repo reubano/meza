@@ -332,10 +332,9 @@ class TestInput:
     def test_opened_files(self):
         """Test for reading open files"""
         filepath = p.join(io.DATA_DIR, 'test.csv')
-        header = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
 
         with open(filepath, encoding='utf-8') as f:
-            records = io._read_csv(f, header)  # pylint: disable=W0212
+            records = io.read_csv(f, sanitize=True)  # pylint: disable=W0212
             nt.assert_equal(self.sheet0_alt, next(records))
 
         f = open(filepath, encoding='utf-8')

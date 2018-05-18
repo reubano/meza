@@ -76,7 +76,8 @@ def groupby_line(iterable):
 class IterStringIO(TextIOBase):
     """A lazy StringIO that reads a generator of strings.
 
-    http://stackoverflow.com/a/32020108/408556
+    https://stackoverflow.com/a/32020108/408556
+    https://stackoverflow.com/a/20260030/408556
     """
     # pylint: disable=super-init-not-called
     def __init__(self, iterable=None, bufsize=4096, decode=False, **kwargs):
@@ -286,7 +287,7 @@ class BytesError(ValueError):
 def patch_http_response_read(func):
     """Patches httplib to read poorly encoded chunked data.
 
-    http://stackoverflow.com/a/14206036/408556
+    https://stackoverflow.com/a/14206036/408556
     """
     def inner(*args):
         """inner"""
@@ -614,8 +615,8 @@ def read_mdb(filepath, table=None, **kwargs):
     table = table or check_output(args).splitlines()[0]
     pkwargs = {'stdout': PIPE, 'bufsize': 1, 'universal_newlines': True}
 
-    # http://stackoverflow.com/a/2813530/408556
-    # http://stackoverflow.com/a/17698359/408556
+    # https://stackoverflow.com/a/2813530/408556
+    # https://stackoverflow.com/a/17698359/408556
     with Popen(['mdb-export', filepath, table], **pkwargs).stdout as pipe:
         first_line = StringIO(str(pipe.readline()))
         names = next(csv.reader(first_line, **kwargs))
@@ -1433,7 +1434,7 @@ def write(filepath, content, mode='wb+', **kwargs):
 
 def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
     """Hashes a file path or file like object.
-    http://stackoverflow.com/a/1131255/408556
+    https://stackoverflow.com/a/1131255/408556
 
     Args:
         filepath (str): The file path or file like object to hash.

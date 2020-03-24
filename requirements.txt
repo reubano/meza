@@ -7,5 +7,5 @@ dbfread==2.0.4
 ijson>=2.3,<3.0.0
 six>=1.11.0,<2.0.0
 beautifulsoup4>=4.6.0,<5.0.0
-PyYAML>=3.12,<4.0.0
+PyYAML==5.3.1
 pygogo>=0.12.0,<0.13.0

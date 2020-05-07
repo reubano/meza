@@ -224,7 +224,7 @@ class Andand(object):
     def __getattr__(self, name):
         try:
             item = getattr(self.item, name)
-            return item if name is 'item' else Andand(item)
+            return item if name == 'item' else Andand(item)
         except AttributeError:
             return Andand()
 

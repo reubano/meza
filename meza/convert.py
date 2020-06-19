@@ -791,11 +791,11 @@ def records2csv(records, encoding=ENCODING, bom=False, skip_header=False):
         ...         'species': 'Iris-versicolor',
         ...         'wikipedia_url': 'wikipedia.org/wiki/Iris_versicolor'}]
         ...
-        >>> csv_str = records2csv(records)
-        >>> set(next(csv_str).strip().split(',')) == {
+        >>> csv_obj = records2csv(records)
+        >>> set(next(csv_obj).strip().split(',')) == {
         ...     'usda_id', 'species', 'wikipedia_url'}
         True
-        >>> set(next(csv_str).strip().split(',')) == {
+        >>> set(next(csv_obj).strip().split(',')) == {
         ...     'IRVE2', 'Iris-versicolor',
         ...     'wikipedia.org/wiki/Iris_versicolor'}
         True
@@ -842,7 +842,8 @@ def records2json(records, **kwargs):
         ...     'species': 'Iris-versicolor',
         ...     'wikipedia_url': 'wikipedia.org/wiki/Iris_versicolor'}
         ...
-        >>> json_str = records2json([record]).read()
+        >>> json_obj = records2json([record])
+        >>> json_str = json_obj.read()
         >>> loads(json_str)[0] == record
         True
         >>> json_str = records2json([record], newline=True).readline()

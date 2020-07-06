@@ -6,9 +6,6 @@ tests.test_process
 
 Provides main unit tests.
 """
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
 import nose.tools as nt
 import itertools as it
 
@@ -17,7 +14,6 @@ from functools import partial
 from operator import itemgetter, truediv, eq, is_not, contains
 from collections import defaultdict
 
-from builtins import *
 from meza import process as pr, stats, fntools as ft
 
 

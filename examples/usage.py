@@ -443,8 +443,3 @@ Cookbook
     ...     '"urn:ogc:def:crs:OGC:1.3:CRS84"}}}')
     True
 """
-
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
-from builtins import *

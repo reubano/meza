@@ -19,9 +19,6 @@ Examples:
         >>> next(csv_records)['Some Value'] == '100'
         True
 """
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
 import itertools as it
 import sys
 import hashlib
@@ -38,26 +35,24 @@ from http import client
 from csv import Error as csvError
 from functools import partial
 from codecs import iterdecode, iterencode, StreamReader
-from builtins import *
+from itertools import zip_longest
 
 import yaml
 import xlrd
 import pygogo as gogo
 
-from six.moves import zip_longest
 from bs4 import BeautifulSoup, FeatureNotFound
 from ijson import items
 from chardet.universaldetector import UniversalDetector
 from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
     XL_CELL_ERROR)
+
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from io import StringIO, TextIOBase, BytesIO, open
 
 from . import (
     fntools as ft, process as pr, unicsv as csv, dbf, ENCODING, BOM, DATA_DIR)
-
-from .compat import BYTE_TYPE
 
 # pylint: disable=C0103
 logger = gogo.Gogo(__name__, monolog=True, verbose=True).logger
@@ -219,7 +214,7 @@ class Reencoder(StreamReader):
         """
         self.fileno = f.fileno
         first_line = next(f)
-        bytes_mode = isinstance(first_line, BYTE_TYPE)
+        bytes_mode = isinstance(first_line, bytes)
         decode = kwargs.get('decode')
         rencode = not decode
 

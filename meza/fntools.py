@@ -27,9 +27,6 @@ Attributes:
     SQLITE_TYPE (dict): Python to sqlite type lookup table
     ARRAY_NULL_TYPE (dict): None to array.array type lookup table
 """
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
 import sys
 import itertools as it
 import operator
@@ -39,11 +36,10 @@ from functools import partial, reduce
 from collections import defaultdict
 from json import JSONEncoder
 from os import path as p
+from itertools import zip_longest, filterfalse
 
 import pygogo as gogo
 
-from builtins import *
-from six.moves import filterfalse
 from slugify import slugify
 
 from . import CURRENCIES, ENCODING
@@ -224,7 +220,7 @@ class Andand(object):
     def __getattr__(self, name):
         try:
             item = getattr(self.item, name)
-            return item if name is 'item' else Andand(item)
+            return item if name == 'item' else Andand(item)
         except AttributeError:
             return Andand()
 
@@ -242,7 +238,7 @@ class CustomEncoder(JSONEncoder):
             encoded = str(obj)
         elif hasattr(obj, 'union'):
             encoded = tuple(obj)
-        elif set(['next', '__next__', 'append']).intersection(dir(obj)):
+        elif set(['next', 'append']).intersection(dir(obj)):
             encoded = list(obj)
         else:
             encoded = super(CustomEncoder, self).default(obj)
@@ -695,9 +691,8 @@ def get_values(narray):
 
     Examples:
         >>> from array import array
-        >>> from .compat import get_native_str
         >>>
-        >>> u, i = get_native_str('u'), get_native_str('i')
+        >>> u, i = 'u', 'i'
         >>> narray_0 = array(i, [2, 3])
         >>> narray_1 = [array(u, 'alpha'), array(u, 'beta')]
         >>> narray_2 = [array(u, 'aa'), [array(i, [9])]]
@@ -1114,7 +1109,7 @@ def listize(item):
     if hasattr(item, 'keys'):
         listlike = False
     else:
-        attrs = {'append', '__next__', 'next', '__reversed__'}
+        attrs = {'append', 'next', '__reversed__'}
         listlike = attrs.intersection(dir(item))
 
     return item if listlike else [item]

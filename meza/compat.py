@@ -6,7 +6,7 @@
 meza.compat
 ~~~~~~~~~~~~
 
-Provides methods for py2/3 compatibility
+Provides methods for encoding/decoding content
 
 Examples:
     basic usage::
@@ -16,9 +16,6 @@ Examples:
         >>> encode('some text') == b'some text'
         True
 """
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
 import codecs
 import sys
 
@@ -26,11 +23,10 @@ from . import ENCODING
 
 DECODER = lambda encoding: codecs.getincrementaldecoder(encoding)()
 ENCODER = lambda encoding: codecs.getincrementalencoder(encoding)()
-BYTE_TYPE = bytes if sys.version_info.major > 2 else str
 
 
 def decode(content, encoding=ENCODING):
-    """Decode bytes (py2-str) into unicode text
+    """Decode bytes into unicode text
 
     Args:
         content (scalar): the content to analyze
@@ -57,7 +53,7 @@ def decode(content, encoding=ENCODING):
 
 
 def encode(content, encoding=ENCODING):
-    """Encodes unicode (or ints) into bytes (py2-str)
+    """Encodes unicode (or ints) into bytes
 
     Args:
         content (scalar): A string or int
@@ -79,14 +75,7 @@ def encode(content, encoding=ENCODING):
         except AttributeError:
             encoded = content
         else:
-            try:
-                encoded = content.to_bytes(length, byteorder='big')
-            except AttributeError:
-                # Backport py3 to_bytes for py2
-                # http://stackoverflow.com/a/20793663/408556
-                _hex = '%x' % content
-                zeros = '0' * (len(_hex) % 2) + _hex
-                encoded = codecs.decode(zeros.zfill(length * 2), 'hex')
+            encoded = content.to_bytes(length, byteorder='big')
     elif hasattr(content, 'encode'):
         try:
             encoded = ENCODER(encoding).encode(content)
@@ -94,20 +83,5 @@ def encode(content, encoding=ENCODING):
             encoded = content
     else:
         encoded = content
-
-    return encoded
-
-
-def get_native_str(text):
-    """Encode py2-unicode into bytes (py2-str) but leave py3 text as is
-    """
-    # dtype bug https://github.com/numpy/numpy/issues/2407
-    if sys.version_info.major < 3:
-        try:
-            encoded = text.encode('ascii')
-        except AttributeError:
-            encoded = text
-    else:
-        encoded = text
 
     return encoded

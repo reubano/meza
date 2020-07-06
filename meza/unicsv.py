@@ -6,22 +6,12 @@
 meza.unicsv
 ~~~~~~~~~~~
 
-Provides py2 compatible methods for reading and writing unicode csv data in
-a py3 futurized codebase.
+Provides methods for reading and writing unicode csv data
 """
-
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
 
 import csv
 import codecs
-
-try:
-    import cStringIO
-    PY2, PY3 = True, False
-except ImportError:
-    import io as cStringIO
-    PY2, PY3 = False, True
+import io as cStringIO
 
 from . import ENCODING
 from .compat import encode, decode
@@ -43,20 +33,13 @@ def encode_all(f=None, **kwargs):
     Encode unicode into bytes (str)
     """
     names = kwargs.pop('fieldnames', None)
-    encoding = kwargs.pop('encoding', None) if f else False
-
-    if PY2:
-        decoded = codecs.iterdecode(f, encoding) if encoding else f
-        ekwargs = {encode(k): encode(v) for k, v in kwargs.items()}
-    else:
-        decoded, ekwargs = f, kwargs
 
     res = {
-        'f': codecs.iterencode(decoded, ENCODING) if f and PY2 else decoded,
-        'fieldnames': [encode(x) for x in names] if names and PY2 else names,
-        'drkwargs': use_keys_from(ekwargs, READER_KEYS),
-        'dwkwargs': use_keys_from(ekwargs, WRITER_KEYS),
-        'fmtparams': use_keys_from(ekwargs, FMTKEYS)}
+        'f': f,
+        'fieldnames': names,
+        'drkwargs': use_keys_from(kwargs, READER_KEYS),
+        'dwkwargs': use_keys_from(kwargs, WRITER_KEYS),
+        'fmtparams': use_keys_from(kwargs, FMTKEYS)}
 
     return res
 
@@ -82,10 +65,9 @@ class UnicodeWriter(object):
         Args:
             row (Iter[scalar]): Sequence of content to write.
         """
-        encoded = [encode(r) for r in row] if PY2 else row
-        self.writer.writerow(encoded)
+        self.writer.writerow(row)
         data = self.queue.getvalue()
-        decoded = decode(data) if PY2 else data.lstrip('\x00')
+        decoded = data.lstrip('\x00')
         self.f.write(decoded)
         self.queue.truncate(0)
 
@@ -117,9 +99,7 @@ def reader(f, dialect='excel', **kwargs):
     True
     """
     res = encode_all(f, **kwargs)
-
-    for row in csv.reader(res['f'], dialect, **res['fmtparams']):
-        yield [decode(r) for r in row] if PY2 else row
+    yield from csv.reader(res['f'], dialect, **res['fmtparams'])
 
 
 def writer(f, dialect='excel', **kwargs):
@@ -182,24 +162,6 @@ class DictReader(csv.DictReader):
         args = (self, res['f'], res['fieldnames'])
         csv.DictReader.__init__(*args, **res['drkwargs'])
         self.restkey = res['drkwargs'].get('restkey')
-
-    # pylint: disable=next-method-defined
-    def next(self):
-        """
-        Return the upcoming row
-        """
-        try:
-            row = csv.DictReader.next(self)
-        except AttributeError:
-            row = csv.DictReader.__next__(self)
-
-        if self.restkey and PY2:
-            row[self.restkey] = [decode(x) for x in row[self.restkey]]
-
-        if PY2:
-            row = {decode(k): decode(v) for k, v in row.items()}
-
-        return row
 
 
 class DictWriter(csv.DictWriter):

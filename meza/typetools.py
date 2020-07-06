@@ -20,12 +20,8 @@ Attributes:
     NULL_YEAR (int): Year to be consider null
     NULL_TIME (str): ISO format time to be consider null
 """
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
 from functools import partial
 
-from builtins import *
 from . import fntools as ft, convert as cv
 
 NULL_YEAR = 9999

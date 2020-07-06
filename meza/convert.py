@@ -16,9 +16,6 @@ Examples:
         >>> to_decimal('$123.45')
         Decimal('123.45')
 """
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
 import itertools as it
 import pygogo as gogo
 
@@ -30,12 +27,10 @@ from collections import OrderedDict
 from operator import itemgetter
 from functools import partial
 from array import array
+from itertools import zip_longest, filterfalse
 
-from builtins import *
-from six.moves import filterfalse, zip_longest
 from dateutil.parser import parse
 from . import fntools as ft, unicsv as csv, ENCODING, DEFAULT_DATETIME, BOM
-from .compat import get_native_str
 
 try:
     import numpy as np
@@ -545,7 +540,7 @@ def array2records(data, native=False):
         >>> next(array2records(data, native)) == {
         ...     'column_1': 1, 'column_2': 2, 'column_3': 3}
         True
-        >>> i, f, u = [get_native_str(x) for x in ['i', 'f', 'u']]
+        >>> i, f, u = ['i', 'f', 'u']
         >>> data = [
         ...     array(i, [1, 2, 3]),
         ...     array(f, [1.0, 2.0, 3.0]),
@@ -649,7 +644,7 @@ def records2array(records, types, native=False, silent=False):
         ...     {'id': 'alpha', 'type': 'text'}, {'id': 'beta', 'type': 'int'}]
         >>>
         >>> arr = records2array(records, types, silent=True)
-        >>> u, i = get_native_str('u'), get_native_str('i')
+        >>> u, i = 'u', 'i'
         >>> native_resp = [
         ...     [array(u, 'alpha'), array(u, 'beta')],
         ...     [array(u, 'aa'), array(u, 'bee')],
@@ -671,12 +666,11 @@ def records2array(records, types, native=False, silent=False):
     numpy = np and not native
     dialect = 'numpy' if numpy else 'array'
     zipped = [(ft.get_dtype(t1['type'], dialect), t1['id']) for t1 in types]
-    _dtype, ids = list(zip(*zipped))
-    dtype = list(map(get_native_str, _dtype))
+    dtype, ids = list(zip(*zipped))
 
     if numpy:
         data = [tuple(r.get(id_) for id_ in ids) for r in records]
-        ndtype = [tuple(map(get_native_str, z)) for z in zip(ids, dtype)]
+        ndtype = [tuple(z) for z in zip(ids, dtype)]
         ndarray = np.array(data, dtype=ndtype)
         converted = ndarray.view(np.recarray)
     else:
@@ -687,7 +681,7 @@ def records2array(records, types, native=False, silent=False):
 
             logger.warning(msg)
 
-        header = [array(get_native_str('u'), t2['id']) for t2 in types]
+        header = [array('u', t2['id']) for t2 in types]
         data = (zip_longest(*([r.get(i) for i in ids] for r in records)))
 
         # array.array can't have nulls, so convert to an appropriate equivalent
@@ -730,7 +724,7 @@ def records2df(records, types, native=False, silent=False):
         ...     {'id': 'col_1', 'type': 'text'},
         ...     {'id': 'col_2', 'type': 'float'}]
         >>> df = records2df(records, types, silent=True)
-        >>> u, f = get_native_str('u'), get_native_str('f')
+        >>> u, f = 'u', 'f'
         >>>
         >>> native_resp = [
         ...     [array(u, 'col_1'), array(u, 'col_2')],

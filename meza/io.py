@@ -47,6 +47,7 @@ from chardet.universaldetector import UniversalDetector
 from xlrd import (
     XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
     XL_CELL_ERROR)
+
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from io import StringIO, TextIOBase, BytesIO, open
 

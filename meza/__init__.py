@@ -15,13 +15,10 @@ Attributes:
     DEFAULT_DATETIME (obj): Default datetime object
 """
 
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
 from datetime import datetime as dt
 from os import path as p
 
-__version__ = '0.41.1'
+__version__ = '0.42.0'
 __title__ = 'meza'
 __package_name__ = 'meza'
 __author__ = 'Reuben Cummings'

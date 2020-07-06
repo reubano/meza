@@ -23,12 +23,8 @@ Attributes:
     ENCODING (str): Default file encoding.
 """
 
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
 from os import path as p
 from datetime import date
-from builtins import *
 
 from dbfread import DBF
 from dbfread.dbf import expand_year

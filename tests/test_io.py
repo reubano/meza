@@ -6,9 +6,6 @@ tests.test_io
 
 Provides main unit tests.
 """
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
 import itertools as it
 
 from os import path as p
@@ -16,9 +13,8 @@ from json import loads
 from tempfile import TemporaryFile
 from io import StringIO, BytesIO, open
 from decimal import Decimal
-from six.moves.urllib.request import urlopen  # pylint: disable=import-error
+from urllib.request import urlopen
 from contextlib import closing
-from builtins import *
 
 import requests
 import responses

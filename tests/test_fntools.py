@@ -6,9 +6,6 @@ tests.test_fntools
 
 Provides main unit tests.
 """
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
 import nose.tools as nt
 import itertools as it
 import requests
@@ -16,7 +13,6 @@ import responses
 
 from io import StringIO
 from operator import itemgetter
-from builtins import *
 
 from meza import fntools as ft, io, stats
 

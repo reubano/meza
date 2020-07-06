@@ -22,9 +22,6 @@ Attributes:
     CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
         strings.
 """
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals)
-
 import itertools as it
 import hashlib
 
@@ -35,8 +32,6 @@ from math import log1p
 from json import dumps, loads
 from collections import deque
 
-from builtins import *
-from six import iteritems
 from . import convert as cv, fntools as ft, typetools as tt, ENCODING
 
 sort = lambda records, key: iter(sorted(records, key=itemgetter(key)))
@@ -112,8 +107,7 @@ def type_cast(records, types=None, warn=False, **kwargs):
     field_types = {t['id']: t['type'] for t in types}
 
     for row in records:
-        items = iteritems(row)
-        tups = ((k, field_types.get(k, 'iden'), v) for k, v in items)
+        tups = ((k, field_types.get(k, 'iden'), v) for k, v in row.items())
         yield {k: switch.get(t)(v, warn=warn) for k, t, v in tups}
 
 
@@ -157,7 +151,7 @@ def json_recode(records):
     encoder = partial(dumps, cls=ft.CustomEncoder, ensure_ascii=False)
 
     for record in records:
-        yield {k: loads(encoder(v)) for k, v in iteritems(record)}
+        yield {k: loads(encoder(v)) for k, v in record.items()}
 
 
 def gen_confidences(tally, types, a=1):
@@ -256,7 +250,7 @@ def gen_types(tally):
 
         return _type
 
-    for field, tcount in iteritems(tally):
+    for field, tcount in tally.items():
         _type = gct(tcount) if len(tcount) > 1 else next(iter(tcount))
         yield {'id': field, 'type': _type}
 
@@ -497,13 +491,13 @@ def merge(records, **kwargs):
     """
     def reducer(x, y):
         _merge = partial(ft.combine, x, y, **kwargs)
-        new_y = ((k, _merge(k, v)) for k, v in iteritems(y))
-        return dict(it.chain(iteritems(x), new_y))
+        new_y = ((k, _merge(k, v)) for k, v in y.items())
+        return dict(it.chain(x.items(), new_y))
 
     if kwargs.get('pred') and kwargs.get('op'):
         record = reduce(reducer, records)
     else:
-        items = map(iteritems, records)
+        items = (r.items() for r in records)
         record = dict(it.chain.from_iterable(items))
 
     return record
@@ -549,7 +543,7 @@ def aggregate(records, key, op, default=0):
     first = next(records)
     values = (r.get(key, default) for r in it.chain([first], records))
     value = op([x for x in values if x is not None])
-    return dict(it.chain(iteritems(first), [(key, value)]))
+    return dict(it.chain(first.items(), [(key, value)]))
 
 
 def group(records, keyfunc, tupled=True, aggregator=list, **kwargs):
@@ -726,7 +720,7 @@ def pivot(records, data, column, op=sum, **kwargs):
     def gen_raw(grouped):
         for key, _group in grouped:
             r = aggregate(_group, data, op)
-            filtered = filter(filterer, iteritems(r))
+            filtered = filter(filterer, r.items())
             yield dict(it.chain([(r[column], r.get(data))], filtered))
 
     if dropna:
@@ -775,7 +769,7 @@ def normalize(records, data='', column='', rows=None, invert=False):
     """
     for r in records:
         nrows = set(r.keys()).difference(rows) if invert else rows
-        filtered = [x for x in iteritems(r) if x[0] not in nrows]
+        filtered = [x for x in r.items() if x[0] not in nrows]
 
         for row in nrows:
             yield dict(it.chain([(column, row), (data, r.get(row))], filtered))
@@ -888,7 +882,7 @@ def unique(records, fields=None, pred=None, bufsize=4096):
     for r in records:
         if not pred:
             unique = set(fields or r.keys())
-            items = (sorted((k, v) for k, v in iteritems(r) if k in unique))
+            items = (sorted((k, v) for k, v in r.items() if k in unique))
 
         entry = pred(r) if pred else tuple(items)
 
@@ -1065,5 +1059,5 @@ def hash(records, fields=None, algo='md5'):
     to_hash = set(fields or [])
 
     for row in records:
-        items = iteritems(row)
+        items = row.items()
         yield {k: hash_func(v) if k in to_hash else v for k, v in items}

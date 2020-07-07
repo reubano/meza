@@ -13,7 +13,8 @@ BASEDIR = p.dirname(__file__)
 
 def upload_():
     """Upload distribution files"""
-    check_call(['twine', 'upload', p.join(BASEDIR, 'dist', '*')])
+    command = 'twine upload --repository-url https://upload.pypi.org/legacy/ {0}'
+    check_call(command.format(p.join(BASEDIR, 'dist', '*')).split(' '))
 
 
 def sdist_():

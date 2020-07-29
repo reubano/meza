@@ -1106,10 +1106,28 @@ def remove_keys(record, *args):
 
 
 def listize(item):
+    """ Create a listlike object from an item
+
+    Args:
+        item (dict): The object to convert
+
+    Returns:
+        Seq: Item as a listlike object
+
+    Examples:
+    >>> listize(x for x in range(3))  # doctest: +ELLIPSIS
+    <generator object <genexpr> at 0x...>
+    >>> listize([x for x in range(3)])
+    [0, 1, 2]
+    >>> listize(iter(x for x in range(3)))  # doctest: +ELLIPSIS
+    <generator object <genexpr> at 0x...>
+    >>> listize(range(3))
+    range(0, 3)
+    """
     if hasattr(item, 'keys'):
         listlike = False
     else:
-        attrs = {'append', 'next', '__reversed__'}
+        attrs = {'append', 'next', '__reversed__', '__next__'}
         listlike = attrs.intersection(dir(item))
 
     return item if listlike else [item]

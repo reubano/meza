@@ -706,8 +706,8 @@ def get_values(narray):
     try:
         yield narray.tounicode()
     except ValueError:
-        for l in narray.tolist():
-            yield l
+        for y in narray.tolist():
+            yield y
     except AttributeError:
         for n in narray:
             for x in get_values(n):

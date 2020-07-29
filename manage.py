@@ -9,6 +9,7 @@ from manager import Manager
 
 manager = Manager()
 BASEDIR = p.dirname(__file__)
+DEF_WHERE = ["meza", "tests", "setup.py", "manage.py"]
 
 
 def upload_():
@@ -38,17 +39,23 @@ def check():
     exit(call(p.join(BASEDIR, 'helpers', 'check-stage')))
 
 
-@manager.arg('where', 'w', help='Modules to check')
+@manager.arg('where', 'w', help='Modules to check', default='meza')
 @manager.arg('strict', 's', help='Check with pylint')
+@manager.arg('compatibility', 'c', help='Check with pylint porting checker')
 @manager.command
-def lint(where=None, strict=False):
+def lint(where=None, strict=False, compatibility=False):
     """Check style with linters"""
-    args = 'pylint --rcfile=tests/standard.rc -rn -fparseable meza'
+    _where = where or ' '.join(DEF_WHERE)
+    command = f"pylint --rcfile=tests/standard.rc -rn -fparseable {_where}"
 
     try:
-        check_call(['flake8', where] if where else 'flake8')
-        check_call(args.split(' ') + ['--py3k'])
-        check_call(args.split(' ')) if strict else None
+        check_call(['flake8'] + _where.split(' '))
+
+        if strict:
+            check_call(command, shell=True)
+
+        if compatibility:
+            check_call(f"{command} --py3k", shell=True)
     except CalledProcessError as e:
         exit(e.returncode)
 
@@ -163,6 +170,7 @@ def clean():
         clean_()
     except CalledProcessError as e:
         exit(e.returncode)
+
 
 if __name__ == '__main__':
     manager.main()

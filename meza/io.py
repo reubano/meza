@@ -293,6 +293,7 @@ def patch_http_response_read(func):
 
     return inner
 
+
 client.HTTPResponse.read = patch_http_response_read(client.HTTPResponse.read)
 
 

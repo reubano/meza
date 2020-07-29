@@ -37,7 +37,7 @@ def setup_module():
 
 class TestReader:
     def func(filepath):
-        reader = lambda f, **kw: (l.strip().split(',') for l in f)
+        reader = lambda f, **kw: (x.strip().split(',') for x in f)
         next(io.read_any(filepath, reader, 'rU'))
 
 

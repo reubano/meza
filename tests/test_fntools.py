@@ -45,6 +45,13 @@ class TestIterStringIO:
         nt.assert_false(ft.is_numeric(None))
         nt.assert_false(ft.is_numeric(''))
 
+    def test_is_numeric_currency_zero_value(self):
+        """Regression test for https://github.com/reubano/meza/issues/36
+        """
+        for sym in ft.CURRENCIES:
+            nt.assert_true(ft.is_numeric(f'0{sym}'))
+            nt.assert_true(ft.is_numeric(f'{sym}0'))
+
     def test_is_int(self):
         nt.assert_false(ft.is_int('5/4/82'))
 

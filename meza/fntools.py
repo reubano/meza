@@ -486,7 +486,10 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
         passed = bool(floated) or zero_point
 
         if s.startswith('0') and not (kwargs.get('strip_zeros') or zero_point):
-            passed = int(content) == 0
+            try:
+                passed = int(stripped) == 0
+            except ValueError:
+                passed = False
 
     return passed
 

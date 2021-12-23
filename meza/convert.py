@@ -99,7 +99,7 @@ def order_dict(content, order):
     return OrderedDict(sorted(content.items(), key=keyfunc))
 
 
-def to_bool(content, trues=None, falses=None, warn=False):
+def to_bool(content, trues=None, falses=None, warn=False, **kwargs):
     """Formats strings into bool.
 
     Args:
@@ -158,7 +158,7 @@ def to_bool(content, trues=None, falses=None, warn=False):
     return value
 
 
-def to_int(content, thousand_sep=',', decimal_sep='.', warn=False):
+def to_int(content, thousand_sep=",", decimal_sep=".", warn=False, **kwargs):
     """Formats strings into integers.
 
     Args:
@@ -209,7 +209,7 @@ def to_int(content, thousand_sep=',', decimal_sep='.', warn=False):
     return value
 
 
-def to_float(content, thousand_sep=',', decimal_sep='.', warn=False):
+def to_float(content, thousand_sep=",", decimal_sep=".", warn=False, **kwargs):
     """Formats strings into floats.
 
     Args:
@@ -253,7 +253,7 @@ def to_float(content, thousand_sep=',', decimal_sep='.', warn=False):
     return value
 
 
-def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
+def to_decimal(content, thousand_sep=",", decimal_sep=".", **kwargs):
     """Formats strings into decimals
 
     Args:
@@ -314,7 +314,7 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
     return decimalized.quantize(Decimal(precision), rounding=rounding)
 
 
-def _to_datetime(content):
+def _to_datetime(content, **kwargs):
     """Parses and formats strings into datetimes.
 
     Args:
@@ -326,13 +326,15 @@ def _to_datetime(content):
     Examples:
         >>> _to_datetime('5/4/82')
         (datetime.datetime(1982, 5, 4, 0, 0), False)
+        >>> _to_datetime('5/4/82', dayfirst=True)
+        (datetime.datetime(1982, 4, 5, 0, 0), False)
         >>> _to_datetime('2/32/82') == ('2/32/82', True)
         True
         >>> _to_datetime('spam')
         (datetime.datetime(9999, 12, 31, 0, 0), False)
     """
     try:
-        value = parse(content, default=DEFAULT_DATETIME)
+        value = parse(content, default=DEFAULT_DATETIME, **kwargs)
     except ValueError as e:
         # impossible date, e.g., 2/31/15
         retry = any(x in str(e) for x in ('out of range', 'day must be in'))
@@ -343,7 +345,34 @@ def _to_datetime(content):
     return (value, retry)
 
 
-def to_datetime(content, dt_format=None, warn=False):
+def _gen_fixed_datetimes(*args, **kwargs):
+    """Fix impossible dates, e.g., 2/31/15
+
+    Args:
+        content (str): The date to parse.
+
+    Returns:
+        [tuple(str, bool)]: Tuple of the formatted date string and retry value.
+
+    Examples:
+        >>> next(_gen_fixed_datetimes('5/4/82'))
+        datetime.datetime(1982, 5, 4, 0, 0)
+        >>> next(_gen_fixed_datetimes('5/4/82', dayfirst=True))
+        datetime.datetime(1982, 4, 5, 0, 0)
+        >>> next(_gen_fixed_datetimes('2/32/82'))
+        Traceback (most recent call last):
+        StopIteration
+        >>> next(_gen_fixed_datetimes('spam'))
+        datetime.datetime(9999, 12, 31, 0, 0)
+    """
+    for opt in args:
+        value, retry = _to_datetime(opt, **kwargs)
+
+        if not retry:
+            yield value
+
+
+def to_datetime(content, dt_format=None, warn=False, **kwargs):
     """Parses and formats strings into datetimes.
 
     Args:
@@ -365,10 +394,12 @@ def to_datetime(content, dt_format=None, warn=False):
         >>> fmt = '%Y-%m-%d %H:%M:%S'
         >>> to_datetime('5/4/82 2:00 pm')
         datetime.datetime(1982, 5, 4, 14, 0)
-        >>> to_datetime('5/4/82 10:00', fmt) == '1982-05-04 10:00:00'
-        True
-        >>> to_datetime('2/32/82 12:15', fmt) == '1982-02-28 12:15:00'
-        True
+        >>> to_datetime('5/4/82 2:00 pm', dayfirst=True)
+        datetime.datetime(1982, 4, 5, 14, 0)
+        >>> to_datetime('5/4/82 10:00', fmt)
+        '1982-05-04 10:00:00'
+        >>> to_datetime('2/32/82 12:15', fmt)
+        '1982-02-28 12:15:00'
         >>> to_datetime('spam')
         datetime.datetime(9999, 12, 31, 0, 0)
         >>> to_datetime('spam', warn=True)
@@ -389,9 +420,10 @@ def to_datetime(content, dt_format=None, warn=False):
         possibilities = (content.replace(bad_num, x) for x in good_nums)
         options = it.chain([content], possibilities)
 
-    # Fix impossible dates, e.g., 2/31/15
-    results = filterfalse(lambda x: x[1], map(_to_datetime, options))
-    value = next(results)[0]
+    try:
+        value = next(_gen_fixed_datetimes(*options, **kwargs))
+    except StopIteration:
+        value = DEFAULT_DATETIME
 
     if warn and value == DEFAULT_DATETIME:
         raise ValueError('Invalid datetime value: `{}`.'.format(content))
@@ -401,7 +433,7 @@ def to_datetime(content, dt_format=None, warn=False):
     return datetime
 
 
-def to_date(content, date_format=None, warn=False):
+def to_date(content, date_format=None, warn=False, **kwargs):
     """Parses and formats strings into dates.
 
     Args:
@@ -421,10 +453,12 @@ def to_date(content, date_format=None, warn=False):
     Examples:
         >>> to_date('5/4/82')
         datetime.date(1982, 5, 4)
-        >>> to_date('5/4/82', '%Y-%m-%d') == '1982-05-04'
-        True
-        >>> to_date('2/32/82', '%Y-%m-%d') == '1982-02-28'
-        True
+        >>> to_date('5/4/82', dayfirst=True)
+        datetime.date(1982, 4, 5)
+        >>> to_date('5/4/82', '%Y-%m-%d')
+        '1982-05-04'
+        >>> to_date('2/32/82', '%Y-%m-%d')
+        '1982-02-28'
         >>> to_date('spam')
         datetime.date(9999, 12, 31)
         >>> to_date('spam', warn=True)
@@ -434,11 +468,11 @@ def to_date(content, date_format=None, warn=False):
     Returns:
         date
     """
-    value = to_datetime(content, warn=warn).date()
+    value = to_datetime(content, warn=warn, **kwargs).date()
     return value.strftime(date_format) if date_format else value
 
 
-def to_time(content, time_format=None, warn=False):
+def to_time(content, time_format=None, warn=False, **kwargs):
     """Parses and formats strings into times.
 
     Args:

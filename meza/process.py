@@ -77,7 +77,7 @@ def type_cast(records, types=None, warn=False, **kwargs):
         ...     'time': '2:30',
         ...     'datetime': '5/4/82 2pm',
         ... }
-        >>> types = tt.guess_type_by_value(record)
+        >>> types = list(tt.guess_type_by_value(record))
         >>> next(type_cast([record], types)) == {
         ...     'null': None,
         ...     'bool': False,
@@ -89,18 +89,23 @@ def type_cast(records, types=None, warn=False, **kwargs):
         ...     'datetime': datetime.datetime(1982, 5, 4, 14, 0),
         ... }
         True
+        >>> cast = next(type_cast([record], types, dayfirst=True))
+        >>> cast['date']
+        datetime.date(1982, 4, 5)
+        >>> cast['datetime']
+        datetime.datetime(1982, 4, 5, 14, 0)
     """
     switch = {
-        'int': cv.to_int,
-        'float': cv.to_float,
-        'decimal': cv.to_decimal,
-        'date': cv.to_date,
-        'time': cv.to_time,
-        'datetime': cv.to_datetime,
-        'text': lambda v, warn=None: str(v) if v and v.strip() else '',
-        'null': lambda x, warn=None: None,
-        'bool': cv.to_bool,
-        'iden': lambda x, warn=None: x,
+        "int": cv.to_int,
+        "float": cv.to_float,
+        "decimal": cv.to_decimal,
+        "date": cv.to_date,
+        "time": cv.to_time,
+        "datetime": cv.to_datetime,
+        "text": lambda v, **kw: str(v) if v and v.strip() else "",
+        "null": lambda x, **kw: None,
+        "bool": cv.to_bool,
+        "iden": lambda x, **kw: x,
     }
 
     types = types or []
@@ -108,7 +113,7 @@ def type_cast(records, types=None, warn=False, **kwargs):
 
     for row in records:
         tups = ((k, field_types.get(k, 'iden'), v) for k, v in row.items())
-        yield {k: switch.get(t)(v, warn=warn) for k, t, v in tups}
+        yield {k: switch.get(t)(v, warn=warn, **kwargs) for k, t, v in tups}
 
 
 def json_recode(records):

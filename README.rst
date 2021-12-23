@@ -29,8 +29,8 @@ With meza, you can
 Requirements
 ------------
 
-meza has been tested and is known to work on Python 3.6, 3.7, and 3.8;
-and PyPy 3.6.
+meza has been tested and is known to work on Python 3.8, 3.9, and 3.10;
+and PyPy 3.8.
 
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^

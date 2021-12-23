@@ -1,6 +1,9 @@
 *.py[cod]
+*.DS_Store
 .cookiecutter
 .ipynb_checkpoints/*
+.scripttest/*
+example*.log
 examples/.ipynb_checkpoints/*
 
 # C extensions
@@ -28,6 +31,7 @@ pip-log.txt
 .coverage
 .tox
 .noseids
+htmlcov/*
 nosetests.xml
 
 # Translations

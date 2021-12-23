@@ -45,72 +45,72 @@ from slugify import slugify
 from . import CURRENCIES, ENCODING
 from .compat import encode
 
-DEF_TRUES = ('yes', 'y', 'true', 't')
-DEF_FALSES = ('no', 'n', 'false', 'f')
+DEF_TRUES = ("yes", "y", "true", "t")
+DEF_FALSES = ("no", "n", "false", "f")
 
 NP_TYPE = {
-    'null': 'bool',
-    'bool': 'bool',
-    'int': 'i',
-    'float': 'f',
-    'double': 'd',
-    'decimal': 'd',
-    'datetime': 'datetime64[us]',
-    'time': 'timedelta64[us]',
-    'date': 'datetime64[D]',
-    'text': 'object_'}
+    "null": "bool",
+    "bool": "bool",
+    "int": "i",
+    "float": "f",
+    "double": "d",
+    "decimal": "d",
+    "datetime": "datetime64[us]",
+    "time": "timedelta64[us]",
+    "date": "datetime64[D]",
+    "text": "object_",
+}
 
 ARRAY_TYPE = {
-    'null': 'B',
-    'bool': 'B',
-    'int': 'i',
-    'float': 'f',
-    'double': 'd',
-    'decimal': 'd',
-    'text': 'u'}
+    "null": "B",
+    "bool": "B",
+    "int": "i",
+    "float": "f",
+    "double": "d",
+    "decimal": "d",
+    "text": "u",
+}
 
 POSTGRES_TYPE = {
-    'null': 'boolean',
-    'bool': 'boolean',
-    'int': 'integer',
-    'float': 'real',
-    'double': 'double precision',
-    'decimal': 'decimal',
-    'datetime': 'timestamp',
-    'time': 'time',
-    'date': 'date',
-    'text': 'text'}
+    "null": "boolean",
+    "bool": "boolean",
+    "int": "integer",
+    "float": "real",
+    "double": "double precision",
+    "decimal": "decimal",
+    "datetime": "timestamp",
+    "time": "time",
+    "date": "date",
+    "text": "text",
+}
 
 MYSQL_TYPE = {
-    'null': 'CHAR(0)',
-    'bool': 'BOOL',
-    'int': 'INT',
-    'float': 'FLOAT',
-    'double': 'DOUBLE',
-    'decimal': 'DECIMAL',
-    'datetime': 'DATETIME',
-    'time': 'TIME',
-    'date': 'DATE',
-    'text': 'TEXT'}
+    "null": "CHAR(0)",
+    "bool": "BOOL",
+    "int": "INT",
+    "float": "FLOAT",
+    "double": "DOUBLE",
+    "decimal": "DECIMAL",
+    "datetime": "DATETIME",
+    "time": "TIME",
+    "date": "DATE",
+    "text": "TEXT",
+}
 
 SQLITE_TYPE = {
-    'null': 'INT',
-    'bool': 'INT',
-    'int': 'INT',
-    'float': 'REAL',
-    'double': 'REAL',
-    'decimal': 'REAL',
-    'datetime': 'TEXT',
-    'time': 'TEXT',
-    'date': 'TEXT',
-    'text': 'TEXT'}
+    "null": "INT",
+    "bool": "INT",
+    "int": "INT",
+    "float": "REAL",
+    "double": "REAL",
+    "decimal": "REAL",
+    "datetime": "TEXT",
+    "time": "TEXT",
+    "date": "TEXT",
+    "text": "TEXT",
+}
 
-ARRAY_NULL_TYPE = {
-    'B': False,
-    'i': 0,
-    'f': 0.0,
-    'd': 0.0,
-    'u': ''}
+ARRAY_NULL_TYPE = {"B": False, "i": 0, "f": 0.0, "d": 0.0, "u": ""}
 
 try:
     MAXINT = sys.maxint  # pylint: disable=sys-max-int
@@ -124,8 +124,9 @@ class Objectify(object):
     """Creates an object with dynamically set attributes. Useful
     for accessing the kwargs of a function as attributes.
     """
+
     def __init__(self, kwargs, func=None, **defaults):
-        """ Objectify constructor
+        """Objectify constructor
 
         Args:
             kwargs (dict): The attributes to set
@@ -173,7 +174,7 @@ class Objectify(object):
         return self.data.__setitem__(key, value)
 
     def __setattr__(self, key, value):
-        if key not in {'data', 'func', 'keys', 'values', 'items', 'get'}:
+        if key not in {"data", "func", "keys", "values", "items", "get"}:
             self.data.__setitem__(key, value)
 
         return super(Objectify, self).__setattr__(key, value)
@@ -220,7 +221,7 @@ class Andand(object):
     def __getattr__(self, name):
         try:
             item = getattr(self.item, name)
-            return item if name == 'item' else Andand(item)
+            return item if name == "item" else Andand(item)
         except AttributeError:
             return Andand()
 
@@ -230,15 +231,15 @@ class Andand(object):
 
 class CustomEncoder(JSONEncoder):
     def default(self, obj):
-        if hasattr(obj, 'real'):
+        if hasattr(obj, "real"):
             encoded = float(obj)
-        elif hasattr(obj, 'to_dict'):
+        elif hasattr(obj, "to_dict"):
             encoded = obj.to_dict()
-        elif set(['quantize', 'year', 'hour']).intersection(dir(obj)):
+        elif set(["quantize", "year", "hour"]).intersection(dir(obj)):
             encoded = str(obj)
-        elif hasattr(obj, 'union'):
+        elif hasattr(obj, "union"):
             encoded = tuple(obj)
-        elif set(['next', 'append']).intersection(dir(obj)):
+        elif set(["next", "append"]).intersection(dir(obj)):
             encoded = list(obj)
         else:
             encoded = super(CustomEncoder, self).default(obj)
@@ -250,8 +251,9 @@ class SleepyDict(dict):
     """A dict like object that sleeps for a specified amount of time before
     returning a key or during truth value testing
     """
+
     def __init__(self, *args, **kwargs):
-        self.delay = kwargs.pop('delay', 0)
+        self.delay = kwargs.pop("delay", 0)
         super(SleepyDict, self).__init__(*args, **kwargs)
 
     def __len__(self):
@@ -264,7 +266,7 @@ class SleepyDict(dict):
 
 
 def underscorify(content):
-    """ Slugifies elements of an array with underscores
+    """Slugifies elements of an array with underscores
 
     Args:
         content (Iter[str]): the content to clean
@@ -279,13 +281,13 @@ def underscorify(content):
     """
     for item in content:
         try:
-            yield slugify(item, separator='_')
+            yield slugify(item, separator="_")
         except TypeError:
-            yield slugify(item.encode(ENCODING), separator='_')
+            yield slugify(item.encode(ENCODING), separator="_")
 
 
 def get_ext(path):
-    """ Gets a file (local)
+    """Gets a file (local)
 
     Args:
         content (Iter[str]): the content to dedupe
@@ -297,31 +299,32 @@ def get_ext(path):
         >>> get_ext('file.csv') == 'csv'
         True
     """
-    if 'format=' in path:
-        file_format = path.lower().split('format=')[1]
+    if "format=" in path:
+        file_format = path.lower().split("format=")[1]
 
-        if '&' in file_format:
-            file_format = file_format.split('&')[0]
+        if "&" in file_format:
+            file_format = file_format.split("&")[0]
     else:
-        file_format = p.splitext(path)[1].lstrip('.')
+        file_format = p.splitext(path)[1].lstrip(".")
 
     return file_format
 
 
-def get_dtype(_type, dialect='array'):
+def get_dtype(_type, dialect="array"):
     switch = {
-        'numpy': NP_TYPE,
-        'array': ARRAY_TYPE,
-        'postgres': POSTGRES_TYPE,
-        'mysql': MYSQL_TYPE,
-        'sqlite': SQLITE_TYPE}
+        "numpy": NP_TYPE,
+        "array": ARRAY_TYPE,
+        "postgres": POSTGRES_TYPE,
+        "mysql": MYSQL_TYPE,
+        "sqlite": SQLITE_TYPE,
+    }
 
     converter = switch[dialect]
-    return converter.get(_type, converter['text'])
+    return converter.get(_type, converter["text"])
 
 
 def dedupe(content):
-    """ Deduplicates elements of an array
+    """Deduplicates elements of an array
 
     Args:
         content (Iter[str]): the content to dedupe
@@ -337,13 +340,13 @@ def dedupe(content):
     seen = defaultdict(int)
 
     for f in content:
-        new_field = '%s_%i' % (f, seen[f] + 1) if f in seen else f
+        new_field = "%s_%i" % (f, seen[f] + 1) if f in seen else f
         seen[f] += 1
         yield new_field
 
 
 def mreplace(content, replacements):
-    """ Performs multiple string replacements on content
+    """Performs multiple string replacements on content
 
     Args:
         content (str): the content to perform replacements on
@@ -362,7 +365,7 @@ def mreplace(content, replacements):
 
 
 def rreplace(content, needle, replace):
-    """ Recursively replaces all occurrences of needle with replace
+    """Recursively replaces all occurrences of needle with replace
 
     Args:
         content (Iter[str]): An iterable of strings on which to perform the
@@ -390,7 +393,7 @@ def rreplace(content, needle, replace):
 
 
 def find_type(_type, content, n=0):
-    """ Searches content for the nth (zero based) occurrence of a given type
+    """Searches content for the nth (zero based) occurrence of a given type
     and returns the corresponding key if successful.
 
     Args:
@@ -410,7 +413,7 @@ def find_type(_type, content, n=0):
         >>> find_type('numeric', ('one', 2, 3), 1)
         2
     """
-    switch = {'numeric': 'real', 'string': 'upper'}
+    switch = {"numeric": "real", "string": "upper"}
     func = lambda x: hasattr(x, switch[_type])
 
     try:
@@ -421,7 +424,7 @@ def find_type(_type, content, n=0):
         return content.index(found)
 
 
-def strip(value, thousand_sep=',', decimal_sep='.'):
+def strip(value, thousand_sep=",", decimal_sep="."):
     """Strips a string of all non-numeric characters.
 
     Args:
@@ -438,8 +441,8 @@ def strip(value, thousand_sep=',', decimal_sep='.'):
     Returns:
         str: The stripped value
     """
-    currencies = zip(CURRENCIES, it.repeat(''))
-    separators = [(thousand_sep, ''), (decimal_sep, '.')]
+    currencies = zip(CURRENCIES, it.repeat(""))
+    separators = [(thousand_sep, ""), (decimal_sep, ".")]
 
     try:
         stripped = mreplace(value, it.chain(currencies, separators))
@@ -449,8 +452,8 @@ def strip(value, thousand_sep=',', decimal_sep='.'):
     return stripped
 
 
-def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
-    """ Determines whether or not content can be converted into a number
+def is_numeric(content, thousand_sep=",", decimal_sep=".", **kwargs):
+    """Determines whether or not content can be converted into a number
 
     Args:
         content (scalar): the content to analyze
@@ -482,10 +485,10 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
         passed = False
     else:
         s = str(stripped)
-        zero_point = s.startswith('0.')
+        zero_point = s.startswith("0.")
         passed = bool(floated) or zero_point
 
-        if s.startswith('0') and not (kwargs.get('strip_zeros') or zero_point):
+        if s.startswith("0") and not (kwargs.get("strip_zeros") or zero_point):
             try:
                 passed = int(stripped) == 0
             except ValueError:
@@ -494,8 +497,8 @@ def is_numeric(content, thousand_sep=',', decimal_sep='.', **kwargs):
     return passed
 
 
-def is_int(content, strip_zeros=False, thousand_sep=',', decimal_sep='.'):
-    """ Determines whether or not content can be converted into an int
+def is_int(content, strip_zeros=False, thousand_sep=",", decimal_sep="."):
+    """Determines whether or not content can be converted into an int
 
     Args:
         content (scalar): the content to analyze
@@ -520,7 +523,7 @@ def is_int(content, strip_zeros=False, thousand_sep=',', decimal_sep='.'):
 
 
 def is_bool(content, trues=None, falses=None):
-    """ Determines whether or not content can be converted into a bool
+    """Determines whether or not content can be converted into a bool
 
     Args:
         content (scalar): the content to analyze
@@ -550,7 +553,7 @@ def is_bool(content, trues=None, falses=None):
 
 
 def is_null(content, nulls=None, blanks_as_nulls=False):
-    """ Determines whether or not content can be converted into a null
+    """Determines whether or not content can be converted into a null
 
     Args:
         content (scalar): the content to analyze
@@ -563,7 +566,7 @@ def is_null(content, nulls=None, blanks_as_nulls=False):
         >>> is_null(None)
         True
     """
-    def_nulls = ('na', 'n/a', 'none', 'null', '.')
+    def_nulls = ("na", "n/a", "none", "null", ".")
     nulls = set(map(str.lower, nulls) if nulls else def_nulls)
 
     try:
@@ -581,7 +584,7 @@ def is_null(content, nulls=None, blanks_as_nulls=False):
 
 
 def dfilter(content, blacklist=None, inverse=False):
-    """ Filters content
+    """Filters content
 
     Args:
         content (dict): The content to filter
@@ -609,7 +612,7 @@ def dfilter(content, blacklist=None, inverse=False):
 
 
 def byte(content):
-    """ Creates a bytearray from a string or iterable of characters
+    """Creates a bytearray from a string or iterable of characters
 
     Args:
         content (Iter[char]): A string or iterable of characters
@@ -630,7 +633,7 @@ def byte(content):
         # it's a unicode or encoded iterable like ['H', 'e', 'l', 'l', 'o'],
         # ['I', 'ñ', 't', 'ë', 'r', 'n', 'â', 't', 'i', 'ô', 'n'],
         # or [b'I', b'\xc3\xb1', b't', b'\xc3\xab', b'r']
-        bytes_ = b''.join(map(encode, content))
+        bytes_ = b"".join(map(encode, content))
 
     return bytearray(bytes_)
 
@@ -656,7 +659,7 @@ def chunk(content, chunksize=None, start=0, stop=None):
         >>> next(chunk([1, 2, 3, 4, 5, 6], 2))
         [1, 2]
     """
-    if hasattr(content, 'read'):  # it's a file
+    if hasattr(content, "read"):  # it's a file
         content.seek(start) if start else None
         content.truncate(stop) if stop else None
 
@@ -718,7 +721,7 @@ def get_values(narray):
 
 
 def xmlize(content):
-    """ Recursively makes elements of an array xml compliant
+    """Recursively makes elements of an array xml compliant
 
     Args:
         content (Iter[str]): the content to clean
@@ -731,19 +734,24 @@ def xmlize(content):
         True
     """
     replacements = [
-        ('&', '&amp'), ('>', '&gt'), ('<', '&lt'), ('\n', ' '), ('\r\n', ' ')]
+        ("&", "&amp"),
+        (">", "&gt"),
+        ("<", "&lt"),
+        ("\n", " "),
+        ("\r\n", " "),
+    ]
 
     for item in content:
-        if hasattr(item, 'upper'):
+        if hasattr(item, "upper"):
             yield mreplace(item, replacements)
         else:
             try:
                 yield list(xmlize(item))
             except TypeError:
-                yield mreplace(item, replacements) if item else ''
+                yield mreplace(item, replacements) if item else ""
 
 
-def afterish(content, separator=','):
+def afterish(content, separator=","):
     """Calculates the number of digits after a given separator.
 
     Args:
@@ -771,7 +779,7 @@ def afterish(content, separator=','):
     elif numeric:
         after = -1
     else:
-        raise ValueError('Not able to coerce {} to a number'.format(content))
+        raise ValueError("Not able to coerce {} to a number".format(content))
 
     return after
 
@@ -798,7 +806,7 @@ def get_separators(content):
     """
     try:
         after_comma = afterish(content)
-        after_decimal = afterish(content, '.')
+        after_decimal = afterish(content, ".")
     except TypeError:
         # We don't have a string
         after_comma, after_decimal = 0, 0
@@ -807,19 +815,19 @@ def get_separators(content):
         after_comma, after_decimal = None, None
 
     if after_comma in {-1, 0, 3} and after_decimal in {-1, 0, 1, 2}:
-        thousand_sep, decimal_sep = ',', '.'
+        thousand_sep, decimal_sep = ",", "."
     elif after_comma in {-1, 0, 1, 2} and after_decimal in {-1, 0, 3}:
-        thousand_sep, decimal_sep = '.', ','
+        thousand_sep, decimal_sep = ".", ","
     else:
-        logger.debug('after_comma: %s', after_comma)
-        logger.debug('after_decimal: %s', after_decimal)
-        raise ValueError('Invalid number format for `{}`.'.format(content))
+        logger.debug("after_comma: %s", after_comma)
+        logger.debug("after_decimal: %s", after_decimal)
+        raise ValueError("Invalid number format for `{}`.".format(content))
 
-    return {'thousand_sep': thousand_sep, 'decimal_sep': decimal_sep}
+    return {"thousand_sep": thousand_sep, "decimal_sep": decimal_sep}
 
 
 def add_ordinal(num):
-    """ Returns a number with ordinal suffix, e.g., 1st, 2nd, 3rd.
+    """Returns a number with ordinal suffix, e.g., 1st, 2nd, 3rd.
 
     Args:
         num (int): a number
@@ -833,9 +841,9 @@ def add_ordinal(num):
         >>> add_ordinal(132) == '132nd'
         True
     """
-    switch = {1: 'st', 2: 'nd', 3: 'rd'}
-    end = 'th' if (num % 100 in {11, 12, 13}) else switch.get(num % 10, 'th')
-    return '%i%s' % (num, end)
+    switch = {1: "st", 2: "nd", 3: "rd"}
+    end = "th" if (num % 100 in {11, 12, 13}) else switch.get(num % 10, "th")
+    return "%i%s" % (num, end)
 
 
 def _fuzzy_match(needle, haystack, **kwargs):
@@ -851,7 +859,7 @@ def _exact_match(*args, **kwargs):
 
 
 def find(*args, **kwargs):
-    """ Determines if there is any overlap between lists of words
+    """Determines if there is any overlap between lists of words
 
     Args:
         args (Iter[str]): Arguments passed to the search function
@@ -874,9 +882,9 @@ def find(*args, **kwargs):
         >>> find(needle, ['num_days', 'width']) == 'width'
         True
     """
-    method = kwargs.pop('method', 'exact')
-    default = kwargs.pop('default', '')
-    funcs = {'exact': _exact_match, 'fuzzy': _fuzzy_match}
+    method = kwargs.pop("method", "exact")
+    default = kwargs.pop("default", "")
+    funcs = {"exact": _exact_match, "fuzzy": _fuzzy_match}
     func = funcs.get(method, method)
 
     try:
@@ -943,14 +951,14 @@ def fill(previous, current, **kwargs):
         >>> next(filled) == {'column_a': 0, 'column_b': 0, 'column_c': 1}
         True
     """
-    pkwargs = {'blanks_as_nulls': kwargs.get('blanks_as_nulls', True)}
+    pkwargs = {"blanks_as_nulls": kwargs.get("blanks_as_nulls", True)}
     def_pred = partial(is_null, **pkwargs)
-    predicate = kwargs.get('pred', def_pred)
-    value = kwargs.get('value')
-    limit = kwargs.get('limit')
-    fields = kwargs.get('fields')
-    count = kwargs.get('count', {})
-    fill_key = kwargs.get('fill_key')
+    predicate = kwargs.get("pred", def_pred)
+    value = kwargs.get("value")
+    limit = kwargs.get("limit")
+    fields = kwargs.get("fields")
+    count = kwargs.get("count", {})
+    fill_key = kwargs.get("fill_key")
     whitelist = set(fields or current.keys())
 
     for key, entry in current.items():
@@ -1080,7 +1088,7 @@ def flatten(record, prefix=None):
     """
     try:
         for key, value in record.items():
-            newkey = '{}_{}'.format(prefix, key) if prefix else key
+            newkey = "{}_{}".format(prefix, key) if prefix else key
 
             for flattened in flatten(value, newkey):
                 yield flattened
@@ -1089,7 +1097,7 @@ def flatten(record, prefix=None):
 
 
 def remove_keys(record, *args):
-    """ Remove keys from a dict and return new dict
+    """Remove keys from a dict and return new dict
 
     Args:
         record (dict): The dict to remove keys from
@@ -1109,7 +1117,7 @@ def remove_keys(record, *args):
 
 
 def listize(item):
-    """ Create a listlike object from an item
+    """Create a listlike object from an item
 
     Args:
         item (dict): The object to convert
@@ -1127,10 +1135,10 @@ def listize(item):
     >>> listize(range(3))
     range(0, 3)
     """
-    if hasattr(item, 'keys'):
+    if hasattr(item, "keys"):
         listlike = False
     else:
-        attrs = {'append', 'next', '__reversed__', '__next__'}
+        attrs = {"append", "next", "__reversed__", "__next__"}
         listlike = attrs.intersection(dir(item))
 
     return item if listlike else [item]
@@ -1156,7 +1164,7 @@ def def_itemgetter(attr, default=None):
     return lambda obj: obj.get(attr, default)
 
 
-def op_everseen(iterable, key=None, pad=False, op='lt'):
+def op_everseen(iterable, key=None, pad=False, op="lt"):
     """List min/max/equal... elements, preserving order. Remember all
     elements ever seen.
 

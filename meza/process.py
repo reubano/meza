@@ -109,10 +109,10 @@ def type_cast(records, types=None, warn=False, **kwargs):
     }
 
     types = types or []
-    field_types = {t['id']: t['type'] for t in types}
+    field_types = {t["id"]: t["type"] for t in types}
 
     for row in records:
-        tups = ((k, field_types.get(k, 'iden'), v) for k, v in row.items())
+        tups = ((k, field_types.get(k, "iden"), v) for k, v in row.items())
         yield {k: switch.get(t)(v, warn=warn, **kwargs) for k, t, v in tups}
 
 
@@ -198,7 +198,7 @@ def gen_confidences(tally, types, a=1):
     """
     # http://math.stackexchange.com/a/354879
     calc = lambda x: cv.to_decimal(a * x / (1 + a * x))
-    return (calc(log1p(tally[t['id']][t['type']])) for t in types)
+    return (calc(log1p(tally[t["id"]][t["type"]])) for t in types)
 
 
 def gen_types(tally):
@@ -236,12 +236,13 @@ def gen_types(tally):
     """
 
     comp_types = [
-        ({'float', 'int'}, 'float'),
-        ({'date', 'time', 'datetime'}, 'datetime'),
-        ({'bool', 'int'}, 'int')]
+        ({"float", "int"}, "float"),
+        ({"date", "time", "datetime"}, "datetime"),
+        ({"bool", "int"}, "int"),
+    ]
 
     def gct(types):
-        non_null = [t for t in types if t != 'null']
+        non_null = [t for t in types if t != "null"]
 
         if len(non_null) == 1:
             _type = non_null[0]
@@ -251,13 +252,13 @@ def gen_types(tally):
                     _type = v
                     break
             else:
-                _type = 'text'
+                _type = "text"
 
         return _type
 
     for field, tcount in tally.items():
         _type = gct(tcount) if len(tcount) > 1 else next(iter(tcount))
-        yield {'id': field, 'type': _type}
+        yield {"id": field, "type": _type}
 
 
 def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
@@ -318,25 +319,25 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
     consumed = []
 
     if hweight < 1:
-        raise ValueError('`hweight` must be greater than or equal to 1!')
+        raise ValueError("`hweight` must be greater than or equal to 1!")
 
     if min_conf >= 1:
-        raise ValueError('`min_conf must` be less than 1!')
+        raise ValueError("`min_conf must` be less than 1!")
 
     for record in records:
         if not tally:
             # take a first guess using the header
             ftypes = tt.guess_type_by_field(record.keys())
-            tally = {t['id']: defaultdict(int) for t in ftypes}
-            [iadd(tally[t['id']][t['type']], hweight) for t in ftypes]
+            tally = {t["id"]: defaultdict(int) for t in ftypes}
+            [iadd(tally[t["id"]][t["type"]], hweight) for t in ftypes]
 
         # now guess using the values
         for t in tt.guess_type_by_value(record):
             try:
-                tally[t['id']][t['type']] += 1
+                tally[t["id"]][t["type"]] += 1
             except KeyError:
-                tally[t['id']] = defaultdict(int)
-                tally[t['id']][t['type']] = 1
+                tally[t["id"]] = defaultdict(int)
+                tally[t["id"]][t["type"]] = 1
 
         types = list(gen_types(tally))
         confidence = min(gen_confidences(tally, types, hweight))
@@ -349,10 +350,11 @@ def detect_types(records, min_conf=0.95, hweight=6, max_iter=100):
     records = it.chain(consumed, records)
 
     result = {
-        'confidence': confidence,
-        'types': types,
-        'count': count,
-        'accurate': confidence >= min_conf}
+        "confidence": confidence,
+        "types": types,
+        "count": count,
+        "accurate": confidence >= min_conf,
+    }
 
     return records, result
 
@@ -394,19 +396,19 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
         True
     """
     if method and value is not None:
-        raise Exception('You can not specify both a `value` and `method`.')
+        raise Exception("You can not specify both a `value` and `method`.")
     elif not method and value is None:
-        raise Exception('You must specify either a `value` or `method`.')
-    elif method == 'back':
+        raise Exception("You must specify either a `value` or `method`.")
+    elif method == "back":
         content = reversed(records)
     else:
         content = records
 
     kwargs = {
-        'value': value,
-        'limit': limit,
-        'fields': fields,
-        'fill_key': method if method not in {'front', 'back'} else None
+        "value": value,
+        "limit": limit,
+        "fields": fields,
+        "fill_key": method if method not in {"front", "back"} else None,
     }
 
     prev_row = {}
@@ -420,12 +422,12 @@ def fillempty(records, value=None, method=None, limit=None, fields=None):
         prev_row = dict(it.islice(filled, length))
         count = next(filled)
 
-        if method == 'back':
+        if method == "back":
             result.append(prev_row)
         else:
             yield prev_row
 
-    if method == 'back':
+    if method == "back":
         for row in reversed(result):
             yield row
 
@@ -494,12 +496,13 @@ def merge(records, **kwargs):
         >>> merge(records) == {'a': 1, 'b': 7, 'c': 3, 'd': 4}
         True
     """
+
     def reducer(x, y):
         _merge = partial(ft.combine, x, y, **kwargs)
         new_y = ((k, _merge(k, v)) for k, v in y.items())
         return dict(it.chain(x.items(), new_y))
 
-    if kwargs.get('pred') and kwargs.get('op'):
+    if kwargs.get("pred") and kwargs.get("op"):
         record = reduce(reducer, records)
     else:
         items = (r.items() for r in records)
@@ -715,9 +718,9 @@ def pivot(records, data, column, op=sum, **kwargs):
     chained = it.chain([first], records)
 
     keys = set(first.keys())
-    rows = kwargs.get('rows', keys.difference([data, column]))
-    fill_value = kwargs.get('fill_value')
-    dropna = kwargs.get('dropna', True)
+    rows = kwargs.get("rows", keys.difference([data, column]))
+    fill_value = kwargs.get("fill_value")
+    dropna = kwargs.get("dropna", True)
     filterer = lambda x: x[0] in rows
     keyfunc = lambda r: tuple(map(r.get, it.chain(rows, [column])))
     grouped = group(chained, keyfunc)
@@ -743,7 +746,7 @@ def pivot(records, data, column, op=sum, **kwargs):
         yield merge(_group)
 
 
-def normalize(records, data='', column='', rows=None, invert=False):
+def normalize(records, data="", column="", rows=None, invert=False):
     """Yields normalized records from a spreadsheet-style pivot table.
 
     Args:
@@ -887,7 +890,7 @@ def unique(records, fields=None, pred=None, bufsize=4096):
     for r in records:
         if not pred:
             unique = set(fields or r.keys())
-            items = (sorted((k, v) for k, v in r.items() if k in unique))
+            items = sorted((k, v) for k, v in r.items() if k in unique)
 
         entry = pred(r) if pred else tuple(items)
 
@@ -933,22 +936,21 @@ def cut(records, fields=None, exclude=False, prune=False):
 
 
 def get_suffix(cpos, pos, k=None, count=None, chunksize=None):
-    """Determines the suffix based on a subchunk's position
-    """
-    subchunks = count and count < (chunksize or float('inf'))
+    """Determines the suffix based on a subchunk's position"""
+    subchunks = count and count < (chunksize or float("inf"))
 
     if subchunks and k is None:
         args = (cpos + 1, pos + 1)
-        suffix = '{0:02d}_{1:03d}'.format(*args)
+        suffix = "{0:02d}_{1:03d}".format(*args)
     elif subchunks:
         args = (k, cpos + 1, pos + 1)
-        suffix = '{0}_{1:02d}_{2:03d}'.format(*args)
+        suffix = "{0}_{1:02d}_{2:03d}".format(*args)
     elif chunksize and k is None:
-        suffix = '{0:03d}'.format(cpos + 1)
+        suffix = "{0:03d}".format(cpos + 1)
     elif chunksize:
-        suffix = '{0}_{1:03d}'.format(k, cpos + 1)
+        suffix = "{0}_{1:03d}".format(k, cpos + 1)
     else:
-        suffix = '' if k is None else k
+        suffix = "" if k is None else k
 
     return suffix
 
@@ -1012,13 +1014,14 @@ def grep(records, rules, fields=None, any_match=False, inverse=False):
         >>> next(grep(records, rules, ['name']))['name'] == 'jane'
         True
     """
+
     def predicate(record):
         def_fields = fields or record.keys()
 
         for rule in rules:
-            for field in rule.get('fields', def_fields):
+            for field in rule.get("fields", def_fields):
                 value = record[field]
-                p = rule['pattern']
+                p = rule["pattern"]
 
                 try:
                     passed = p.match(value)
@@ -1033,8 +1036,8 @@ def grep(records, rules, fields=None, any_match=False, inverse=False):
     return filter(predicate, records)
 
 
-def hash(records, fields=None, algo='md5'):
-    """ Yields rows whose value of the given field(s) are hashed
+def hash(records, fields=None, algo="md5"):
+    """Yields rows whose value of the given field(s) are hashed
 
     Args:
         records (Iter[dict]): Rows of data whose keys are the field names.

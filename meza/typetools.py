@@ -25,18 +25,18 @@ from functools import partial
 from . import fntools as ft, convert as cv
 
 NULL_YEAR = 9999
-NULL_TIME = '00:00:00'
+NULL_TIME = "00:00:00"
 
 
 def type_test(test, _type, key, value):
     try:
         passed = test(value)
     except AttributeError:
-        replacements = [('type', ''), ('datetime.', '')]
+        replacements = [("type", ""), ("datetime.", "")]
         real_type = ft.mreplace(str(type(value)), replacements).strip(" '<>")
-        result = {'id': key, 'type': real_type}
+        result = {"id": key, "type": real_type}
     else:
-        result = {'id': key, 'type': _type} if passed else None
+        result = {"id": key, "type": _type} if passed else None
 
     return result
 
@@ -68,22 +68,22 @@ def guess_type_by_field(content):
         ...
         True
     """
-    floats = ('value', 'length', 'width', 'days')
-    float_func = lambda x: ft.find(floats, [x], method='fuzzy')
-    datetime_func = lambda x: ('date' in x) and ('time' in x)
+    floats = ("value", "length", "width", "days")
+    float_func = lambda x: ft.find(floats, [x], method="fuzzy")
+    datetime_func = lambda x: ("date" in x) and ("time" in x)
 
     guess_funcs = [
-        {'type': 'datetime', 'func': datetime_func},
-        {'type': 'date', 'func': lambda x: 'date' in x},
-        {'type': 'time', 'func': lambda x: 'time' in x},
-        {'type': 'float', 'func': float_func},
-        {'type': 'int', 'func': lambda x: 'count' in x},
-        {'type': 'text', 'func': lambda x: True},
+        {"type": "datetime", "func": datetime_func},
+        {"type": "date", "func": lambda x: "date" in x},
+        {"type": "time", "func": lambda x: "time" in x},
+        {"type": "float", "func": float_func},
+        {"type": "int", "func": lambda x: "count" in x},
+        {"type": "text", "func": lambda x: True},
     ]
 
     for item in content:
         for g in guess_funcs:
-            result = type_test(g['func'], g['type'], item, item)
+            result = type_test(g["func"], g["type"], item, item)
 
             if result:
                 yield result
@@ -158,18 +158,19 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
     float_func = partial(ft.is_numeric, strip_zeros=strip_zeros)
 
     guess_funcs = [
-        {'type': 'null', 'func': null_func},
-        {'type': 'bool', 'func': ft.is_bool},
-        {'type': 'int', 'func': int_func},
-        {'type': 'float', 'func': float_func},
-        {'type': 'datetime', 'func': is_datetime},
-        {'type': 'time', 'func': is_time},
-        {'type': 'date', 'func': is_date},
-        {'type': 'text', 'func': lambda x: hasattr(x, 'lower')}]
+        {"type": "null", "func": null_func},
+        {"type": "bool", "func": ft.is_bool},
+        {"type": "int", "func": int_func},
+        {"type": "float", "func": float_func},
+        {"type": "datetime", "func": is_datetime},
+        {"type": "time", "func": is_time},
+        {"type": "date", "func": is_date},
+        {"type": "text", "func": lambda x: hasattr(x, "lower")},
+    ]
 
     for key, value in record.items():
         for g in guess_funcs:
-            result = type_test(g['func'], g['type'], key, value)
+            result = type_test(g["func"], g["type"], key, value)
 
             if result:
                 yield result
@@ -179,7 +180,7 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
 
 
 def is_date(content):
-    """ Determines whether or not content can be converted into a date
+    """Determines whether or not content can be converted into a date
 
     Args:
         content (scalar): the content to analyze
@@ -208,7 +209,7 @@ def is_date(content):
     try:
         the_year = converted.date().year
     except AttributeError:
-        if hasattr(converted, 'timetuple'):
+        if hasattr(converted, "timetuple"):
             the_year = converted.year  # it's a date
         else:
             the_year = NULL_YEAR  # it's a time
@@ -217,7 +218,7 @@ def is_date(content):
 
 
 def is_time(content):
-    """ Determines whether or not content can be converted into a time
+    """Determines whether or not content can be converted into a time
 
     Args:
         content (scalar): the content to analyze
@@ -246,7 +247,7 @@ def is_time(content):
     try:
         the_time = converted.time().isoformat()
     except AttributeError:
-        if hasattr(converted, 'timetuple'):
+        if hasattr(converted, "timetuple"):
             the_time = NULL_TIME  # it's a date
         else:
             the_time = converted.isoformat()  # it's a time
@@ -255,7 +256,7 @@ def is_time(content):
 
 
 def is_datetime(content):
-    """ Determines whether or not content can be converted into a datetime
+    """Determines whether or not content can be converted into a datetime
 
     Args:
         content (scalar): the content to analyze

@@ -34,8 +34,8 @@ from dbfread.ifiles import ifind
 
 
 class DBF2(DBF):
-    """Reads DBF tables (dBase, Visual FoxPro, or FoxBase+ files)
-    """
+    """Reads DBF tables (dBase, Visual FoxPro, or FoxBase+ files)"""
+
     def __init__(self, filepath, **kwargs):
         """DBF2 constructor
 
@@ -56,13 +56,12 @@ class DBF2(DBF):
                 exceptions (default: False).
         """
         try:
-            kwargs['recfactory'] = dict
+            kwargs["recfactory"] = dict
             return super(DBF2, self).__init__(filepath, **kwargs)
         except (AttributeError, TypeError):
             filename = filepath.name
 
-        defaults = {
-            'ignorecase': True, 'parserclass': FieldParser, 'recfactory': dict}
+        defaults = {"ignorecase": True, "parserclass": FieldParser, "recfactory": dict}
 
         [kwargs.setdefault(k1, v1) for k1, v1 in defaults.items()]
         [self.__setattr__(k2, v2) for k2, v2 in kwargs.items()]
@@ -70,7 +69,7 @@ class DBF2(DBF):
         self.filename = ifind(filename) if self.ignorecase else filename
 
         if not self.filename:
-            raise DBFNotFound('could not find file {!r}'.format(filename))
+            raise DBFNotFound("could not find file {!r}".format(filename))
 
         self.fields = []
         self.field_names = []

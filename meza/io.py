@@ -45,14 +45,17 @@ from bs4 import BeautifulSoup, FeatureNotFound
 from ijson import items
 from chardet.universaldetector import UniversalDetector
 from xlrd import (
-    XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
-    XL_CELL_ERROR)
+    XL_CELL_DATE,
+    XL_CELL_EMPTY,
+    XL_CELL_NUMBER,
+    XL_CELL_BOOLEAN,
+    XL_CELL_ERROR,
+)
 
 from xlrd.xldate import xldate_as_datetime as xl2dt
 from io import StringIO, TextIOBase, BytesIO, open
 
-from . import (
-    fntools as ft, process as pr, unicsv as csv, dbf, ENCODING, BOM, DATA_DIR)
+from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING, BOM, DATA_DIR
 
 # pylint: disable=C0103
 logger = gogo.Gogo(__name__, monolog=True, verbose=True).logger
@@ -61,7 +64,7 @@ logger = gogo.Gogo(__name__, monolog=True, verbose=True).logger
 encode = lambda iterable: (s.encode(ENCODING) for s in iterable)
 chain = lambda iterable: it.chain.from_iterable(iterable or [])
 
-NEWLINES = {b'\n', b'\r', b'\r\n', '\n', '\r', '\r\n'}
+NEWLINES = {b"\n", b"\r", b"\r\n", "\n", "\r", "\r\n"}
 
 
 def groupby_line(iterable):
@@ -74,9 +77,10 @@ class IterStringIO(TextIOBase):
     https://stackoverflow.com/a/32020108/408556
     https://stackoverflow.com/a/20260030/408556
     """
+
     # pylint: disable=super-init-not-called
     def __init__(self, iterable=None, bufsize=4096, decode=False, **kwargs):
-        """ IterStringIO constructor
+        """IterStringIO constructor
 
         Args:
             iterable (Seq[str]): Iterable of strings or bytes
@@ -126,7 +130,7 @@ class IterStringIO(TextIOBase):
         self.pos += num or len(byte)
 
         if newline:
-            self.last.append('\n')
+            self.last.append("\n")
 
         return byte.decode(ENCODING) if self.decode else bytes(byte)
 
@@ -174,10 +178,10 @@ class IterStringIO(TextIOBase):
 
 
 class Reencoder(StreamReader):
-    """Recodes a file like object from one encoding to another.
-    """
+    """Recodes a file like object from one encoding to another."""
+
     def __init__(self, f, fromenc=ENCODING, toenc=ENCODING, **kwargs):
-        """ Reencoder constructor
+        """Reencoder constructor
 
         Args:
             f (obj): File-like object
@@ -215,10 +219,10 @@ class Reencoder(StreamReader):
         self.fileno = f.fileno
         first_line = next(f)
         bytes_mode = isinstance(first_line, bytes)
-        decode = kwargs.get('decode')
+        decode = kwargs.get("decode")
         rencode = not decode
 
-        if kwargs.get('remove_BOM'):
+        if kwargs.get("remove_BOM"):
             strip = BOM.encode(fromenc) if bytes_mode else BOM
             first_line = first_line.lstrip(strip)
 
@@ -247,9 +251,9 @@ class Reencoder(StreamReader):
             groups = groupby_line(next(stream))
 
             if self.binary:
-                self.stream = (b''.join(g) for k, g in groups if k)
+                self.stream = (b"".join(g) for k, g in groups if k)
             else:
-                self.stream = (''.join(g) for k, g in groups if k)
+                self.stream = ("".join(g) for k, g in groups if k)
 
     def __next__(self):
         return next(self.stream)
@@ -259,7 +263,7 @@ class Reencoder(StreamReader):
 
     def read(self, n=None):
         stream = it.islice(self.stream, n) if n else self.stream
-        return b''.join(stream) if self.binary else ''.join(stream)
+        return b"".join(stream) if self.binary else "".join(stream)
 
     def readline(self, n=None, keepends=True):
         line = next(self.stream)
@@ -284,6 +288,7 @@ def patch_http_response_read(func):
 
     https://stackoverflow.com/a/14206036/408556
     """
+
     def inner(*args):
         """inner"""
         try:
@@ -335,10 +340,10 @@ def _remove_bom_from_scalar(row, bom):
 
 def is_listlike(item):
     """Determine if a scalar is listlike"""
-    if hasattr(item, 'keys'):
+    if hasattr(item, "keys"):
         listlike = False
     else:
-        listlike = {'append', 'next', '__reversed__'}.intersection(dir(item))
+        listlike = {"append", "next", "__reversed__"}.intersection(dir(item))
 
     return listlike
 
@@ -363,21 +368,21 @@ def get_encoding(filepath):
         >>> get_encoding(p.join(DATA_DIR, 'utf16_big.csv')) == 'UTF-16'
         True
     """
-    with open(filepath, 'rb') as f:
-        encoding = detect_encoding(f)['encoding']
+    with open(filepath, "rb") as f:
+        encoding = detect_encoding(f)["encoding"]
 
     return encoding
 
 
 def get_file_encoding(f, encoding=None, bytes_error=False):
     """Detects a file's encoding"""
-    if not encoding and hasattr(f, 'encoding'):
+    if not encoding and hasattr(f, "encoding"):
         encoding = f.encoding
 
     if not bytes_error:
         # Set the encoding to None so that we can detect the correct one.
-        extra = (' ({})'.format(encoding)) if encoding else ''
-        logger.warning('%s was opened with the wrong encoding%s', f, extra)
+        extra = (" ({})".format(encoding)) if encoding else ""
+        logger.warning("%s was opened with the wrong encoding%s", f, extra)
         encoding = None
 
     if not encoding:
@@ -388,31 +393,31 @@ def get_file_encoding(f, encoding=None, bytes_error=False):
         else:
             try:
                 # See if we have bytes to avoid reopening the file
-                encoding = detect_encoding(f)['encoding']
+                encoding = detect_encoding(f)["encoding"]
             except UnicodeDecodeError:
-                msg = 'Incorrectly encoded file, reopening with bytes to detect'
-                msg += ' encoding'
+                msg = "Incorrectly encoded file, reopening with bytes to detect"
+                msg += " encoding"
                 logger.warning(msg)
                 f.close()
                 encoding = get_encoding(f.name)
         finally:
-            if hasattr(f, 'name'):  # otherwise we can't reopen it
+            if hasattr(f, "name"):  # otherwise we can't reopen it
                 f.close()
 
     if encoding:
-        logger.debug('detected encoding: %s', encoding)
+        logger.debug("detected encoding: %s", encoding)
 
     return encoding
 
 
 def sanitize_file_encoding(encoding):
-    if encoding == 'Windows-1252' and os.name == 'posix':
+    if encoding == "Windows-1252" and os.name == "posix":
         # based on my testing, when excel for mac saves a csv file as
         # 'Windows-1252', you have to open with 'mac-roman' in order
         # to properly read it
-        new_encoding = 'mac-roman'
-        msg = 'Detected a `Windows-1252` encoded file on a %s machine.'
-        msg += ' Setting encoding to `%s` instead.'
+        new_encoding = "mac-roman"
+        msg = "Detected a `Windows-1252` encoded file on a %s machine."
+        msg += " Setting encoding to `%s` instead."
         logger.warning(msg, sys.platform, new_encoding)
     else:
         new_encoding = encoding
@@ -422,7 +427,7 @@ def sanitize_file_encoding(encoding):
 
 def is_binary(f):
     try:
-        result = 'b' in f.mode
+        result = "b" in f.mode
     except AttributeError:
         result = isinstance(f, BytesIO)
 
@@ -431,7 +436,7 @@ def is_binary(f):
 
 def reopen(f, encoding):
     sanitized_encoding = sanitize_file_encoding(encoding)
-    logger.debug('Reopening %s with encoding: %s', f, sanitized_encoding)
+    logger.debug("Reopening %s with encoding: %s", f, sanitized_encoding)
 
     try:
         decoded_f = open(f.name, encoding=sanitized_encoding)
@@ -445,7 +450,7 @@ def reopen(f, encoding):
 def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
     """Helper func to read a file or filepath"""
     try:
-        if is_binary(f) and reader.__name__ != 'writer':
+        if is_binary(f) and reader.__name__ != "writer":
             # only allow binary mode for writing files, not reading
             message = "%s was opened in bytes mode but isn't being written to"
             raise BytesError(message % f)
@@ -456,21 +461,21 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
                 pos += 1
     except (UnicodeDecodeError, csvError, BytesError) as err:
         logger.warning(err)
-        encoding = kwargs.pop('encoding', None)
-        bytes_error = type(err).__name__ == 'BytesError'
+        encoding = kwargs.pop("encoding", None)
+        bytes_error = type(err).__name__ == "BytesError"
 
         if not recursed:
-            ekwargs = {'encoding': encoding, 'bytes_error': bytes_error}
+            ekwargs = {"encoding": encoding, "bytes_error": bytes_error}
             encoding = get_file_encoding(f, **ekwargs)
 
         if recursed or not encoding:
-            logger.error('Unable to detect proper file encoding')
+            logger.error("Unable to detect proper file encoding")
             return
 
         decoded_f = reopen(f, encoding)
 
         try:
-            rkwargs = pr.merge([kwargs, {'pos': pos, 'recursed': True}])
+            rkwargs = pr.merge([kwargs, {"pos": pos, "recursed": True}])
 
             for line in _read_any(decoded_f, reader, args, **rkwargs):
                 yield line
@@ -478,7 +483,7 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
             decoded_f.close()
 
 
-def read_any(filepath, reader, mode='r', *args, **kwargs):
+def read_any(filepath, reader, mode="r", *args, **kwargs):
     """Reads a file or filepath
 
     Args:
@@ -509,16 +514,16 @@ def read_any(filepath, reader, mode='r', *args, **kwargs):
         ...     'Some Date', 'Sparse Data', 'Some Value', 'Unicode Test', '']
         True
     """
-    if hasattr(filepath, 'read'):
+    if hasattr(filepath, "read"):
         if is_binary(filepath):
-            kwargs.setdefault('encoding', ENCODING)
+            kwargs.setdefault("encoding", ENCODING)
         else:
-            kwargs.pop('encoding', None)
+            kwargs.pop("encoding", None)
 
         for line in _read_any(filepath, reader, args, **kwargs):
             yield remove_bom(line, BOM)
     else:
-        encoding = None if 'b' in mode else kwargs.pop('encoding', ENCODING)
+        encoding = None if "b" in mode else kwargs.pop("encoding", ENCODING)
 
         with open(filepath, mode, encoding=encoding) as f:
             for line in _read_any(f, reader, args, **kwargs):
@@ -552,14 +557,14 @@ def _read_csv(f, header=None, has_header=True, **kwargs):
         ...         ('Unicode Test', 'Ādam')]
         True
     """
-    first_col = kwargs.pop('first_col', 0)
+    first_col = kwargs.pop("first_col", 0)
 
     if header and has_header:
         next(f)
     elif not (header or has_header):
-        raise ValueError('Either `header` or `has_header` must be specified.')
+        raise ValueError("Either `header` or `has_header` must be specified.")
 
-    header = (list(it.repeat('', first_col)) + header) if first_col else header
+    header = (list(it.repeat("", first_col)) + header) if first_col else header
     reader = csv.DictReader(f, header, **kwargs)
 
     # Remove empty keys
@@ -612,35 +617,36 @@ def read_mdb(filepath, table=None, **kwargs):
         >>> (expected == first_row) if first_row else True
         True
     """
-    args = ['mdb-tables', '-1', filepath]
+    args = ["mdb-tables", "-1", filepath]
 
     # Check if 'mdb-tools' is installed on system
     try:
         check_output(args)
     except OSError:
         logger.error(
-            'You must install [mdbtools]'
-            '(http://sourceforge.net/projects/mdbtools/) in order to use '
-            'this function')
+            "You must install [mdbtools]"
+            "(http://sourceforge.net/projects/mdbtools/) in order to use "
+            "this function"
+        )
         yield
         return
     except CalledProcessError:
-        raise TypeError('{} is not readable by mdbtools'.format(filepath))
+        raise TypeError("{} is not readable by mdbtools".format(filepath))
 
-    sanitize = kwargs.pop('sanitize', None)
-    dedupe = kwargs.pop('dedupe', False)
+    sanitize = kwargs.pop("sanitize", None)
+    dedupe = kwargs.pop("dedupe", False)
     table = table or check_output(args).splitlines()[0]
-    pkwargs = {'stdout': PIPE, 'bufsize': 1, 'universal_newlines': True}
+    pkwargs = {"stdout": PIPE, "bufsize": 1, "universal_newlines": True}
 
     # https://stackoverflow.com/a/2813530/408556
     # https://stackoverflow.com/a/17698359/408556
-    with Popen(['mdb-export', filepath, table], **pkwargs).stdout as pipe:
+    with Popen(["mdb-export", filepath, table], **pkwargs).stdout as pipe:
         first_line = StringIO(str(pipe.readline()))
         names = next(csv.reader(first_line, **kwargs))
         uscored = ft.underscorify(names) if sanitize else names
         header = list(ft.dedupe(uscored) if dedupe else uscored)
 
-        for line in iter(pipe.readline, b''):
+        for line in iter(pipe.readline, b""):
             next_line = StringIO(str(line))
             values = next(csv.reader(next_line, **kwargs))
             yield dict(zip(header, values))
@@ -690,7 +696,7 @@ def read_dbf(filepath, **kwargs):
         ...      'intptlon10': '-092.9323194'}
         True
     """
-    kwargs['lowernames'] = kwargs.pop('sanitize', None)
+    kwargs["lowernames"] = kwargs.pop("sanitize", None)
     return iter(dbf.DBF2(filepath, **kwargs))
 
 
@@ -728,11 +734,11 @@ def read_sqlite(filepath, table=None):
     if not table or table not in set(cursor.fetchall()):
         table = cursor.fetchone()[0]
 
-    cursor.execute('SELECT * FROM {}'.format(table))
+    cursor.execute("SELECT * FROM {}".format(table))
     return map(dict, cursor)
 
 
-def read_csv(filepath, mode='r', **kwargs):
+def read_csv(filepath, mode="r", **kwargs):
     """Reads a csv file.
 
     Args:
@@ -773,14 +779,15 @@ def read_csv(filepath, mode='r', **kwargs):
         ...     'unicode_test': 'Ādam'}
         True
     """
+
     def reader(f, **kwargs):
         """File reader"""
-        first_row = kwargs.pop('first_row', 0)
-        first_col = kwargs.pop('first_col', 0)
-        sanitize = kwargs.pop('sanitize', False)
-        dedupe = kwargs.pop('dedupe', False)
-        has_header = kwargs.pop('has_header', True)
-        custom_header = kwargs.pop('custom_header', None)
+        first_row = kwargs.pop("first_row", 0)
+        first_col = kwargs.pop("first_col", 0)
+        sanitize = kwargs.pop("sanitize", False)
+        dedupe = kwargs.pop("dedupe", False)
+        has_header = kwargs.pop("has_header", True)
+        custom_header = kwargs.pop("custom_header", None)
 
         # position file pointer at the first row
         list(it.islice(f, first_row))
@@ -798,22 +805,22 @@ def read_csv(filepath, mode='r', **kwargs):
             try:
                 f.seek(0)
             except AttributeError:
-                msg = 'Non seekable files must have either a specified or'
-                msg += 'custom header.'
+                msg = "Non seekable files must have either a specified or"
+                msg += "custom header."
                 logger.error(msg)
                 raise
 
             list(it.islice(f, first_row))
 
         if not (has_header or custom_header):
-            header = ['column_%i' % (n + 1) for n in range(len(names))]
+            header = ["column_%i" % (n + 1) for n in range(len(names))]
 
         return _read_csv(f, header, False, first_col=first_col, **kwargs)
 
     return read_any(filepath, reader, mode, **kwargs)
 
 
-def read_tsv(filepath, mode='r', **kwargs):
+def read_tsv(filepath, mode="r", **kwargs):
     """Reads a csv file.
 
     Args:
@@ -851,10 +858,10 @@ def read_tsv(filepath, mode='r', **kwargs):
         ...     'unicode_test': 'Ādam'}
         True
     """
-    return read_csv(filepath, mode, dialect='excel-tab', **kwargs)
+    return read_csv(filepath, mode, dialect="excel-tab", **kwargs)
 
 
-def read_fixed_fmt(filepath, widths=None, mode='r', **kwargs):
+def read_fixed_fmt(filepath, widths=None, mode="r", **kwargs):
     """Reads a fixed-width csv file.
 
     Args:
@@ -894,12 +901,13 @@ def read_fixed_fmt(filepath, widths=None, mode='r', **kwargs):
         ...     'column_6': '04:14:001971-01-01T04:14:00'}
         True
     """
+
     def reader(f, **kwargs):
         """File reader"""
-        sanitize = kwargs.get('sanitize')
-        dedupe = kwargs.pop('dedupe', False)
-        has_header = kwargs.get('has_header')
-        first_row = kwargs.get('first_row', 0)
+        sanitize = kwargs.get("sanitize")
+        dedupe = kwargs.pop("dedupe", False)
+        has_header = kwargs.get("has_header")
+        first_row = kwargs.get("first_row", 0)
         schema = tuple(zip_longest(widths, widths[1:]))
         [next(f) for _ in range(first_row)]
 
@@ -909,10 +917,9 @@ def read_fixed_fmt(filepath, widths=None, mode='r', **kwargs):
             uscored = ft.underscorify(names) if sanitize else names
             header = list(ft.dedupe(uscored) if dedupe else uscored)
         else:
-            header = ['column_%i' % (n + 1) for n in range(len(widths))]
+            header = ["column_%i" % (n + 1) for n in range(len(widths))]
 
         zipped = zip(header, schema)
-
         get_row = lambda line: {k: line[v[0]:v[1]].strip() for k, v in zipped}
         return map(get_row, f)
 
@@ -949,9 +956,9 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
         ...     '1982-05-04', 'Iñtërnâtiônàližætiøn', '234.0', 'Ādam', ' ']
         True
     """
-    date_format = kwargs.get('date_format', '%Y-%m-%d')
-    dt_format = kwargs.get('dt_format', '%Y-%m-%d %H:%M:%S')
-    time_format = kwargs.get('time_format', '%H:%M:%S')
+    date_format = kwargs.get("date_format", "%Y-%m-%d")
+    dt_format = kwargs.get("dt_format", "%Y-%m-%d %H:%M:%S")
+    time_format = kwargs.get("time_format", "%H:%M:%S")
 
     def time_func(value):
         """Converts an excel time into python time"""
@@ -960,9 +967,9 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
 
     switch = {
         XL_CELL_DATE: lambda v: xl2dt(v, mode).strftime(date_format),
-        'datetime': lambda v: xl2dt(v, mode).strftime(dt_format),
-        'time': time_func,
-        XL_CELL_EMPTY: lambda v: '',
+        "datetime": lambda v: xl2dt(v, mode).strftime(dt_format),
+        "time": time_func,
+        XL_CELL_EMPTY: lambda v: "",
         XL_CELL_NUMBER: str,
         XL_CELL_BOOLEAN: lambda v: str(bool(v)),
         XL_CELL_ERROR: lambda v: xlrd.error_text_from_code[v],
@@ -974,9 +981,9 @@ def sanitize_sheet(sheet, mode, first_col=0, **kwargs):
 
         for _type, value in zip(types, values):
             if _type == XL_CELL_DATE and value < 1:
-                _type = 'time'
+                _type = "time"
             elif _type == XL_CELL_DATE and not value.is_integer:
-                _type = 'datetime'
+                _type = "datetime"
 
             yield (i, switch.get(_type, lambda v: v)(value))
 
@@ -1036,13 +1043,13 @@ def read_xls(filepath, **kwargs):
         ...     'unicode_test': 'Ādam'}
         True
     """
-    has_header = kwargs.get('has_header', True)
-    first_row = kwargs.get('first_row', 0)
+    has_header = kwargs.get("has_header", True)
+    first_row = kwargs.get("first_row", 0)
 
     xlrd_kwargs = {
-        'on_demand': kwargs.get('on_demand'),
-        'ragged_rows': not kwargs.get('pad_rows'),
-        'encoding_override': kwargs.get('encoding', True)
+        "on_demand": kwargs.get("on_demand"),
+        "ragged_rows": not kwargs.get("pad_rows"),
+        "encoding_override": kwargs.get("encoding", True),
     }
 
     try:
@@ -1051,14 +1058,14 @@ def read_xls(filepath, **kwargs):
     except AttributeError:
         book = xlrd.open_workbook(filepath, **xlrd_kwargs)
 
-    sheet = book.sheet_by_index(kwargs.pop('sheet', 0))
+    sheet = book.sheet_by_index(kwargs.pop("sheet", 0))
 
     # Get header row and remove empty columns
-    names = sheet.row_values(first_row)[kwargs.get('first_col', 0):]
+    names = sheet.row_values(first_row)[kwargs.get("first_col", 0):]
     if has_header:
-        header = get_header(names, kwargs.pop('dedupe', False), **kwargs)
+        header = get_header(names, kwargs.pop("dedupe", False), **kwargs)
     else:
-        header = ['column_%i' % (n + 1) for n in range(len(names))]
+        header = ["column_%i" % (n + 1) for n in range(len(names))]
 
     # Convert to strings
     sanitized = sanitize_sheet(sheet, book.datemode, **kwargs)
@@ -1074,7 +1081,7 @@ def read_xls(filepath, **kwargs):
             yield dict(zip(header, values))
 
 
-def read_json(filepath, mode='r', path='item', newline=False):
+def read_json(filepath, mode="r", path="item", newline=False):
     """Reads a json file (both regular and newline-delimited)
 
     Args:
@@ -1125,26 +1132,26 @@ def get_point(coords, lat_first):
 
 def gen_records(_type, record, coords, properties, **kwargs):
     """GeoJSON record generator"""
-    lat_first = kwargs.get('lat_first')
+    lat_first = kwargs.get("lat_first")
 
-    if _type == 'Point':
-        record['lon'], record['lat'] = get_point(coords, lat_first)
+    if _type == "Point":
+        record["lon"], record["lat"] = get_point(coords, lat_first)
         yield pr.merge([record, properties])
-    elif _type == 'LineString':
+    elif _type == "LineString":
         for point in coords:
-            record['lon'], record['lat'] = get_point(point, lat_first)
+            record["lon"], record["lat"] = get_point(point, lat_first)
             yield pr.merge([record, properties])
-    elif _type == 'Polygon':
+    elif _type == "Polygon":
         for pos, poly in enumerate(coords):
             for point in poly:
-                record['lon'], record['lat'] = get_point(point, lat_first)
-                record['pos'] = pos
+                record["lon"], record["lat"] = get_point(point, lat_first)
+                record["pos"] = pos
                 yield pr.merge([record, properties])
     else:
-        raise TypeError('Invalid geometry type {}.'.format(_type))
+        raise TypeError("Invalid geometry type {}.".format(_type))
 
 
-def read_geojson(filepath, key='id', mode='r', **kwargs):
+def read_geojson(filepath, key="id", mode="r", **kwargs):
     """Reads a geojson file
 
     Args:
@@ -1183,20 +1190,22 @@ def read_geojson(filepath, key='id', mode='r', **kwargs):
         ...     'lat': Decimal('12.637499976568533')}
         True
     """
+
     def reader(f, **kwargs):
         """File reader"""
         try:
-            features = items(f, 'features.item')
+            features = items(f, "features.item")
         except KeyError:
-            raise TypeError('Only GeoJSON with features are supported.')
+            raise TypeError("Only GeoJSON with features are supported.")
         else:
             for feature in features:
-                _type = feature['geometry']['type']
-                properties = feature.get('properties') or {}
-                coords = feature['geometry']['coordinates']
+                _type = feature["geometry"]["type"]
+                properties = feature.get("properties") or {}
+                coords = feature["geometry"]["coordinates"]
                 record = {
-                    'id': feature.get(key, properties.get(key)),
-                    'type': feature['geometry']['type']}
+                    "id": feature.get(key, properties.get(key)),
+                    "type": feature["geometry"]["type"],
+                }
 
                 args = (record, coords, properties)
 
@@ -1206,7 +1215,7 @@ def read_geojson(filepath, key='id', mode='r', **kwargs):
     return read_any(filepath, reader, mode, **kwargs)
 
 
-def read_yaml(filepath, mode='r', **kwargs):
+def read_yaml(filepath, mode="r", **kwargs):
     """Reads a YAML file
 
     TODO: convert to a streaming parser
@@ -1246,13 +1255,13 @@ def get_text(element):
     if element and element.text:
         text = element.text.strip()
     else:
-        text = ''
+        text = ""
 
     if not text and element and element.string:
         text = element.string.strip()
 
     if not text and element and element.a:
-        text = element.a.text or element.a.href or ''
+        text = element.a.text or element.a.href or ""
         text = text.strip()
 
     return text
@@ -1261,7 +1270,7 @@ def get_text(element):
 def _find_table(soup, pos=0):
     if pos:
         try:
-            table = soup.find_all('table')[pos]
+            table = soup.find_all("table")[pos]
         except IndexError:
             table = None
     else:
@@ -1273,7 +1282,7 @@ def _find_table(soup, pos=0):
 def _gen_from_rows(rows, header, vertical=False):
     if vertical:
         # nested_tds = [('one', 'two'), ('uno', 'dos'), ('un', 'deux')]
-        nested_tds = (tr.find_all('td') for tr in rows)
+        nested_tds = (tr.find_all("td") for tr in rows)
 
         # tds = ('one', 'uno', 'un')
         for tds in zip(*nested_tds):
@@ -1281,11 +1290,11 @@ def _gen_from_rows(rows, header, vertical=False):
             yield dict(zip(header, row))
     else:
         for tr in rows:  # pylint: disable=C0103
-            row = map(get_text, tr.find_all('td'))
+            row = map(get_text, tr.find_all("td"))
             yield dict(zip(header, row))
 
 
-def read_html(filepath, table=0, mode='r', **kwargs):
+def read_html(filepath, table=0, mode="r", **kwargs):
     """Reads tables from an html file
 
     TODO: convert to lxml.etree.iterparse
@@ -1293,6 +1302,11 @@ def read_html(filepath, table=0, mode='r', **kwargs):
 
     Args:
         filepath (str): The html file path or file like object.
+            If you have a url, use the following pattern:
+
+            r = requests.get('http://example.com', stream=True)
+            records = read_html(r.raw, sanitize=True)
+
         table (int): Zero indexed table to open (default: 0)
         mode (Optional[str]): The file open mode (default: 'r').
         kwargs (dict): Keyword arguments
@@ -1333,30 +1347,31 @@ def read_html(filepath, table=0, mode='r', **kwargs):
         ...     'total_to_date': '3,760'}
         True
     """
+
     def reader(f, **kwargs):
         """File reader"""
         try:
-            soup = BeautifulSoup(f, 'lxml-xml')
+            soup = BeautifulSoup(f, "lxml-xml")
         except FeatureNotFound:
-            soup = BeautifulSoup(f, 'html.parser')
+            soup = BeautifulSoup(f, "html.parser")
 
-        sanitize = kwargs.get('sanitize')
-        dedupe = kwargs.get('dedupe')
-        vertical = kwargs.get('vertical')
-        first_row_as_header = kwargs.get('first_row_as_header')
+        sanitize = kwargs.get("sanitize")
+        dedupe = kwargs.get("dedupe")
+        vertical = kwargs.get("vertical")
+        first_row_as_header = kwargs.get("first_row_as_header")
         tbl = _find_table(soup, table)
 
         if tbl:
-            rows = tbl.find_all('tr')
+            rows = tbl.find_all("tr")
 
             for num, first_row in enumerate(rows):
-                if first_row.find('th'):
+                if first_row.find("th"):
                     break
 
-            ths = first_row.find_all('th')
+            ths = first_row.find_all("th")
 
             if first_row_as_header and not ths:
-                ths = rows[0].find_all('td')
+                ths = rows[0].find_all("td")
 
             if vertical or len(ths) == 1:
                 # the headers are vertical instead of horizontal
@@ -1367,7 +1382,7 @@ def read_html(filepath, table=0, mode='r', **kwargs):
                 names = map(get_text, ths)
             else:
                 col_nums = range(len(first_row))
-                names = ['column_{}'.format(i) for i in col_nums]
+                names = ["column_{}".format(i) for i in col_nums]
 
             uscored = ft.underscorify(names) if sanitize else names
             header = list(ft.dedupe(uscored) if dedupe else uscored)
@@ -1380,7 +1395,7 @@ def read_html(filepath, table=0, mode='r', **kwargs):
     return read_any(filepath, reader, mode, **kwargs)
 
 
-def write(filepath, content, mode='wb+', **kwargs):
+def write(filepath, content, mode="wb+", **kwargs):
     """Writes content to a file path or file like object.
 
     Args:
@@ -1416,16 +1431,17 @@ def write(filepath, content, mode='wb+', **kwargs):
         >>> write(StringIO(), content)
         28
     """
+
     def writer(f, content, **kwargs):
         """File writer"""
-        chunksize = kwargs.get('chunksize')
-        length = int(kwargs.get('length') or 0)
-        bar_len = kwargs.get('bar_len', 50)
-        encoding = kwargs.get('encoding', ENCODING)
+        chunksize = kwargs.get("chunksize")
+        length = int(kwargs.get("length") or 0)
+        bar_len = kwargs.get("bar_len", 50)
+        encoding = kwargs.get("encoding", ENCODING)
         progress = 0
 
         for chunk in ft.chunk(content, chunksize):
-            text = ft.byte(chunk) if hasattr(chunk, 'sort') else chunk
+            text = ft.byte(chunk) if hasattr(chunk, "sort") else chunk
 
             try:
                 f.write(text)
@@ -1441,7 +1457,7 @@ def write(filepath, content, mode='wb+', **kwargs):
 
             if length:
                 bars = min(int(bar_len * progress / length), bar_len)
-                logger.debug('\r[%s%s]', '=' * bars, ' ' * (bar_len - bars))
+                logger.debug("\r[%s%s]", "=" * bars, " " * (bar_len - bars))
                 sys.stdout.flush()
 
         yield progress
@@ -1449,7 +1465,7 @@ def write(filepath, content, mode='wb+', **kwargs):
     return sum(read_any(filepath, writer, mode, content, **kwargs))
 
 
-def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
+def hash_file(filepath, algo="sha1", chunksize=0, verbose=False):
     """Hashes a file path or file like object.
     https://stackoverflow.com/a/1131255/408556
 
@@ -1475,6 +1491,7 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
         >>> hash_file(TemporaryFile()) == resp
         True
     """
+
     def writer(f, hasher, **kwargs):  # pylint: disable=W0613
         """File writer"""
         if chunksize:
@@ -1490,10 +1507,10 @@ def hash_file(filepath, algo='sha1', chunksize=0, verbose=False):
         yield hasher.hexdigest()
 
     args = [getattr(hashlib, algo)()]
-    file_hash = next(read_any(filepath, writer, 'rb', *args))
+    file_hash = next(read_any(filepath, writer, "rb", *args))
 
     if verbose:
-        logger.debug('File %s hash is %s.', filepath, file_hash)
+        logger.debug("File %s hash is %s.", filepath, file_hash)
 
     return file_hash
 
@@ -1556,7 +1573,7 @@ def detect_encoding(f, verbose=False):
     f.seek(pos)
 
     if verbose:
-        logger.debug('result %s', detector.result)
+        logger.debug("result %s", detector.result)
 
     return detector.result
 
@@ -1581,26 +1598,26 @@ def get_reader(extension):
         <function read_xls at 0x...>
     """
     switch = {
-        'csv': read_csv,
-        'xls': read_xls,
-        'xlsx': read_xls,
-        'mdb': read_mdb,
-        'json': read_json,
-        'geojson': read_geojson,
-        'geojson.json': read_geojson,
-        'sqlite': read_sqlite,
-        'dbf': read_dbf,
-        'tsv': read_tsv,
-        'yaml': read_yaml,
-        'yml': read_yaml,
-        'html': read_html,
-        'fixed': read_fixed_fmt,
+        "csv": read_csv,
+        "xls": read_xls,
+        "xlsx": read_xls,
+        "mdb": read_mdb,
+        "json": read_json,
+        "geojson": read_geojson,
+        "geojson.json": read_geojson,
+        "sqlite": read_sqlite,
+        "dbf": read_dbf,
+        "tsv": read_tsv,
+        "yaml": read_yaml,
+        "yml": read_yaml,
+        "html": read_html,
+        "fixed": read_fixed_fmt,
     }
 
     try:
-        return switch[extension.lstrip('.').lower()]
+        return switch[extension.lstrip(".").lower()]
     except IndexError:
-        msg = 'Reader for extension `{}` not found!'
+        msg = "Reader for extension `{}` not found!"
         raise TypeError(msg.format(extension))
 
 

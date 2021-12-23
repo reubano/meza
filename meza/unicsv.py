@@ -17,8 +17,8 @@ from . import ENCODING
 from .compat import encode, decode
 
 FMTKEYS = set(dir(csv.Dialect))
-READER_KEYS = FMTKEYS.union(['fieldnames', 'restkey', 'restval', 'dialect'])
-WRITER_KEYS = FMTKEYS.union(['restval', 'extrasaction', 'dialect'])
+READER_KEYS = FMTKEYS.union(["fieldnames", "restkey", "restval", "dialect"])
+WRITER_KEYS = FMTKEYS.union(["restval", "extrasaction", "dialect"])
 
 
 def use_keys_from(src, template):
@@ -32,14 +32,15 @@ def encode_all(f=None, **kwargs):
     """
     Encode unicode into bytes (str)
     """
-    names = kwargs.pop('fieldnames', None)
+    names = kwargs.pop("fieldnames", None)
 
     res = {
-        'f': f,
-        'fieldnames': names,
-        'drkwargs': use_keys_from(kwargs, READER_KEYS),
-        'dwkwargs': use_keys_from(kwargs, WRITER_KEYS),
-        'fmtparams': use_keys_from(kwargs, FMTKEYS)}
+        "f": f,
+        "fieldnames": names,
+        "drkwargs": use_keys_from(kwargs, READER_KEYS),
+        "dwkwargs": use_keys_from(kwargs, WRITER_KEYS),
+        "fmtparams": use_keys_from(kwargs, FMTKEYS),
+    }
 
     return res
 
@@ -54,7 +55,8 @@ class UnicodeWriter(object):
     >>> f.getvalue().strip() == 'é,ñ'
     True
     """
-    def __init__(self, f, dialect='excel', **fmtparams):
+
+    def __init__(self, f, dialect="excel", **fmtparams):
         self.queue = cStringIO.StringIO()
         self.writer = csv.writer(self.queue, dialect, **fmtparams)
         self.f = f
@@ -67,7 +69,7 @@ class UnicodeWriter(object):
         """
         self.writer.writerow(row)
         data = self.queue.getvalue()
-        decoded = data.lstrip('\x00')
+        decoded = data.lstrip("\x00")
         self.f.write(decoded)
         self.queue.truncate(0)
 
@@ -80,7 +82,7 @@ class UnicodeWriter(object):
         [self.writerow(row) for row in rows]
 
 
-def reader(f, dialect='excel', **kwargs):
+def reader(f, dialect="excel", **kwargs):
     """
     >>> from io import StringIO
     >>>
@@ -99,10 +101,10 @@ def reader(f, dialect='excel', **kwargs):
     True
     """
     res = encode_all(f, **kwargs)
-    yield from csv.reader(res['f'], dialect, **res['fmtparams'])
+    yield from csv.reader(res["f"], dialect, **res["fmtparams"])
 
 
-def writer(f, dialect='excel', **kwargs):
+def writer(f, dialect="excel", **kwargs):
     """
     >>> from io import StringIO
     >>>
@@ -118,7 +120,7 @@ def writer(f, dialect='excel', **kwargs):
     True
     """
     res = encode_all(**kwargs)
-    return UnicodeWriter(f, dialect, **res['fmtparams'])
+    return UnicodeWriter(f, dialect, **res["fmtparams"])
 
 
 class DictReader(csv.DictReader):
@@ -157,11 +159,12 @@ class DictReader(csv.DictReader):
     >>> next(r) == {'name': 'Nâthâñ Brillstøñé', 'place': 'Løndøn'}
     True
     """
+
     def __init__(self, f, fieldnames=None, **kwargs):
         res = encode_all(f, fieldnames=fieldnames, **kwargs)
-        args = (self, res['f'], res['fieldnames'])
-        csv.DictReader.__init__(*args, **res['drkwargs'])
-        self.restkey = res['drkwargs'].get('restkey')
+        args = (self, res["f"], res["fieldnames"])
+        csv.DictReader.__init__(*args, **res["drkwargs"])
+        self.restkey = res["drkwargs"].get("restkey")
 
 
 class DictWriter(csv.DictWriter):
@@ -193,8 +196,9 @@ class DictWriter(csv.DictWriter):
     >>> text[2] == 'Nâthâñ Brillstøñé,Løndøn'
     True
     """
+
     def __init__(self, f, fieldnames=None, **kwargs):
         res = encode_all(fieldnames=fieldnames, **kwargs)
         args = (self, f, fieldnames)
-        csv.DictWriter.__init__(*args, **res['dwkwargs'])
-        self.writer = UnicodeWriter(f, **res['fmtparams'])
+        csv.DictWriter.__init__(*args, **res["dwkwargs"])
+        self.writer = UnicodeWriter(f, **res["fmtparams"])

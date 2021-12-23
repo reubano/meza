@@ -1096,12 +1096,15 @@ def flatten(record, prefix=None):
         yield (prefix, record)
 
 
-def remove_keys(record, *args):
+def remove_keys(record, *args, whitelist=False):
     """Remove keys from a dict and return new dict
 
     Args:
         record (dict): The dict to remove keys from
         args (List[str]): The keys to remove
+
+    Kwargs:
+        whitelist (bool): Select keys instead of removing them
 
     Returns:
         dict: New dict with specified keys removed
@@ -1112,8 +1115,19 @@ def remove_keys(record, *args):
         True
         >>> remove_keys(Objectify(record), 'remove') == {'keep': 1}
         True
+        >>> remove_keys(record, 'keep', whitelist=True) == {'keep': 1}
+        True
+        >>> remove_keys(Objectify(record), 'keep', whitelist=True) == {'keep': 1}
+        True
     """
-    return {k: v for k, v in record.items() if k not in args}
+    args = set(args)
+
+    if whitelist:
+        removed = {k: v for k, v in record.items() if k in args}
+    else:
+        removed = {k: v for k, v in record.items() if k not in args}
+
+    return removed
 
 
 def listize(item):

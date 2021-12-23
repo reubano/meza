@@ -772,11 +772,16 @@ def read_csv(filepath, mode="r", **kwargs):
     Examples:
         >>> filepath = p.join(DATA_DIR, 'test.csv')
         >>> records = read_csv(filepath, sanitize=True)
-        >>> next(records) == {
+        >>> expected = {
         ...     'sparse_data': 'Iñtërnâtiônàližætiøn',
         ...     'some_date': '05/04/82',
         ...     'some_value': '234',
         ...     'unicode_test': 'Ādam'}
+        >>> next(records) == expected
+        True
+        >>> filepath = p.join(DATA_DIR, 'test.tsv')
+        >>> records = read_csv(filepath, sanitize=True, dialect='excel-tab')
+        >>> next(records) == expected
         True
     """
 

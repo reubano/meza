@@ -64,19 +64,19 @@ def ctype2ext(content_type=None):
         True
     """
     try:
-        ctype = content_type.split('/')[1].split(';')[0]
+        ctype = content_type.split("/")[1].split(";")[0]
     except (AttributeError, IndexError):
         ctype = None
 
-    xlsx_type = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    switch = {'xls': 'xls', 'csv': 'csv'}
-    switch[xlsx_type] = 'xlsx'
+    xlsx_type = "vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    switch = {"xls": "xls", "csv": "csv"}
+    switch[xlsx_type] = "xlsx"
 
     if ctype not in switch:
-        msg = 'Content-Type %s not found in dictionary. Using default value.'
+        msg = "Content-Type %s not found in dictionary. Using default value."
         logger.warning(msg, ctype)
 
-    return switch.get(ctype, 'csv')
+    return switch.get(ctype, "csv")
 
 
 def order_dict(content, order):
@@ -99,7 +99,7 @@ def order_dict(content, order):
     return OrderedDict(sorted(content.items(), key=keyfunc))
 
 
-def to_bool(content, trues=None, falses=None, warn=False):
+def to_bool(content, trues=None, falses=None, warn=False, **kwargs):
     """Formats strings into bool.
 
     Args:
@@ -151,14 +151,14 @@ def to_bool(content, trues=None, falses=None, warn=False):
         except (TypeError, AttributeError):
             value = bool(content)
     elif warn:
-        raise ValueError('Invalid bool value: `{}`.'.format(content))
+        raise ValueError("Invalid bool value: `{}`.".format(content))
     else:
         value = False
 
     return value
 
 
-def to_int(content, thousand_sep=',', decimal_sep='.', warn=False):
+def to_int(content, thousand_sep=",", decimal_sep=".", warn=False, **kwargs):
     """Formats strings into integers.
 
     Args:
@@ -196,20 +196,20 @@ def to_int(content, thousand_sep=',', decimal_sep='.', warn=False):
         int
     """
     if warn and not ft.is_int(content):
-        raise ValueError('Invalid int value: `{}`.'.format(content))
+        raise ValueError("Invalid int value: `{}`.".format(content))
 
     try:
         value = int(float(ft.strip(content, thousand_sep, decimal_sep)))
     except ValueError:
         if warn:
-            raise ValueError('Invalid int value: `{}`.'.format(content))
+            raise ValueError("Invalid int value: `{}`.".format(content))
         else:
             value = 0
 
     return value
 
 
-def to_float(content, thousand_sep=',', decimal_sep='.', warn=False):
+def to_float(content, thousand_sep=",", decimal_sep=".", warn=False, **kwargs):
     """Formats strings into floats.
 
     Args:
@@ -246,14 +246,14 @@ def to_float(content, thousand_sep=',', decimal_sep='.', warn=False):
     if ft.is_numeric(content):
         value = float(ft.strip(content, thousand_sep, decimal_sep))
     elif warn:
-        raise ValueError('Invalid float value: `{}`.'.format(content))
+        raise ValueError("Invalid float value: `{}`.".format(content))
     else:
         value = 0.0
 
     return value
 
 
-def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
+def to_decimal(content, thousand_sep=",", decimal_sep=".", **kwargs):
     """Formats strings into decimals
 
     Args:
@@ -302,19 +302,19 @@ def to_decimal(content, thousand_sep=',', decimal_sep='.', **kwargs):
     """
     if ft.is_numeric(content):
         decimalized = Decimal(ft.strip(content, thousand_sep, decimal_sep))
-    elif kwargs.get('warn'):
-        raise ValueError('Invalid numeric value: `{}`.'.format(content))
+    elif kwargs.get("warn"):
+        raise ValueError("Invalid numeric value: `{}`.".format(content))
     else:
         decimalized = Decimal(0)
 
-    roundup = kwargs.get('roundup', True)
+    roundup = kwargs.get("roundup", True)
     rounding = ROUND_HALF_UP if roundup else ROUND_HALF_DOWN
-    places = int(kwargs.get('places', 2))
-    precision = '.{}1'.format(''.join(it.repeat('0', places - 1)))
+    places = int(kwargs.get("places", 2))
+    precision = ".{}1".format("".join(it.repeat("0", places - 1)))
     return decimalized.quantize(Decimal(precision), rounding=rounding)
 
 
-def _to_datetime(content):
+def _to_datetime(content, **kwargs):
     """Parses and formats strings into datetimes.
 
     Args:
@@ -326,16 +326,18 @@ def _to_datetime(content):
     Examples:
         >>> _to_datetime('5/4/82')
         (datetime.datetime(1982, 5, 4, 0, 0), False)
+        >>> _to_datetime('5/4/82', dayfirst=True)
+        (datetime.datetime(1982, 4, 5, 0, 0), False)
         >>> _to_datetime('2/32/82') == ('2/32/82', True)
         True
         >>> _to_datetime('spam')
         (datetime.datetime(9999, 12, 31, 0, 0), False)
     """
     try:
-        value = parse(content, default=DEFAULT_DATETIME)
+        value = parse(content, default=DEFAULT_DATETIME, **kwargs)
     except ValueError as e:
         # impossible date, e.g., 2/31/15
-        retry = any(x in str(e) for x in ('out of range', 'day must be in'))
+        retry = any(x in str(e) for x in ("out of range", "day must be in"))
         value = content if retry else DEFAULT_DATETIME
     else:
         retry = False
@@ -343,7 +345,34 @@ def _to_datetime(content):
     return (value, retry)
 
 
-def to_datetime(content, dt_format=None, warn=False):
+def _gen_fixed_datetimes(*args, **kwargs):
+    """Fix impossible dates, e.g., 2/31/15
+
+    Args:
+        content (str): The date to parse.
+
+    Returns:
+        [tuple(str, bool)]: Tuple of the formatted date string and retry value.
+
+    Examples:
+        >>> next(_gen_fixed_datetimes('5/4/82'))
+        datetime.datetime(1982, 5, 4, 0, 0)
+        >>> next(_gen_fixed_datetimes('5/4/82', dayfirst=True))
+        datetime.datetime(1982, 4, 5, 0, 0)
+        >>> next(_gen_fixed_datetimes('2/32/82'))
+        Traceback (most recent call last):
+        StopIteration
+        >>> next(_gen_fixed_datetimes('spam'))
+        datetime.datetime(9999, 12, 31, 0, 0)
+    """
+    for opt in args:
+        value, retry = _to_datetime(opt, **kwargs)
+
+        if not retry:
+            yield value
+
+
+def to_datetime(content, dt_format=None, warn=False, **kwargs):
     """Parses and formats strings into datetimes.
 
     Args:
@@ -365,10 +394,12 @@ def to_datetime(content, dt_format=None, warn=False):
         >>> fmt = '%Y-%m-%d %H:%M:%S'
         >>> to_datetime('5/4/82 2:00 pm')
         datetime.datetime(1982, 5, 4, 14, 0)
-        >>> to_datetime('5/4/82 10:00', fmt) == '1982-05-04 10:00:00'
-        True
-        >>> to_datetime('2/32/82 12:15', fmt) == '1982-02-28 12:15:00'
-        True
+        >>> to_datetime('5/4/82 2:00 pm', dayfirst=True)
+        datetime.datetime(1982, 4, 5, 14, 0)
+        >>> to_datetime('5/4/82 10:00', fmt)
+        '1982-05-04 10:00:00'
+        >>> to_datetime('2/32/82 12:15', fmt)
+        '1982-02-28 12:15:00'
         >>> to_datetime('spam')
         datetime.datetime(9999, 12, 31, 0, 0)
         >>> to_datetime('spam', warn=True)
@@ -389,19 +420,20 @@ def to_datetime(content, dt_format=None, warn=False):
         possibilities = (content.replace(bad_num, x) for x in good_nums)
         options = it.chain([content], possibilities)
 
-    # Fix impossible dates, e.g., 2/31/15
-    results = filterfalse(lambda x: x[1], map(_to_datetime, options))
-    value = next(results)[0]
+    try:
+        value = next(_gen_fixed_datetimes(*options, **kwargs))
+    except StopIteration:
+        value = DEFAULT_DATETIME
 
     if warn and value == DEFAULT_DATETIME:
-        raise ValueError('Invalid datetime value: `{}`.'.format(content))
+        raise ValueError("Invalid datetime value: `{}`.".format(content))
     else:
         datetime = value.strftime(dt_format) if dt_format else value
 
     return datetime
 
 
-def to_date(content, date_format=None, warn=False):
+def to_date(content, date_format=None, warn=False, **kwargs):
     """Parses and formats strings into dates.
 
     Args:
@@ -421,10 +453,12 @@ def to_date(content, date_format=None, warn=False):
     Examples:
         >>> to_date('5/4/82')
         datetime.date(1982, 5, 4)
-        >>> to_date('5/4/82', '%Y-%m-%d') == '1982-05-04'
-        True
-        >>> to_date('2/32/82', '%Y-%m-%d') == '1982-02-28'
-        True
+        >>> to_date('5/4/82', dayfirst=True)
+        datetime.date(1982, 4, 5)
+        >>> to_date('5/4/82', '%Y-%m-%d')
+        '1982-05-04'
+        >>> to_date('2/32/82', '%Y-%m-%d')
+        '1982-02-28'
         >>> to_date('spam')
         datetime.date(9999, 12, 31)
         >>> to_date('spam', warn=True)
@@ -434,11 +468,11 @@ def to_date(content, date_format=None, warn=False):
     Returns:
         date
     """
-    value = to_datetime(content, warn=warn).date()
+    value = to_datetime(content, warn=warn, **kwargs).date()
     return value.strftime(date_format) if date_format else value
 
 
-def to_time(content, time_format=None, warn=False):
+def to_time(content, time_format=None, warn=False, **kwargs):
     """Parses and formats strings into times.
 
     Args:
@@ -456,10 +490,10 @@ def to_time(content, time_format=None, warn=False):
     Examples:
         >>> to_time('2:00 pm')
         datetime.time(14, 0)
-        >>> to_time('10:00', '%H:%M:%S') == '10:00:00'
-        True
-        >>> to_time('2/32/82 12:15', '%H:%M:%S') == '12:15:00'
-        True
+        >>> to_time('10:00', '%H:%M:%S')
+        '10:00:00'
+        >>> to_time('2/32/82 12:15', '%H:%M:%S')
+        '12:15:00'
         >>> to_time('spam')
         datetime.time(0, 0)
         >>> to_time('spam', warn=True)
@@ -491,30 +525,30 @@ def to_filepath(filepath, **kwargs):
         str: filepath
 
     Examples:
-        >>> to_filepath('file.csv') == 'file.csv'
-        True
-        >>> to_filepath('.', resource_id='rid') == './rid.csv'
-        True
+        >>> to_filepath('file.csv')
+        'file.csv'
+        >>> to_filepath('.', resource_id='rid')
+        './rid.csv'
     """
     isdir = p.isdir(filepath)
-    headers = kwargs.get('headers') or {}
-    name_from_id = kwargs.get('name_from_id')
-    resource_id = kwargs.get('resource_id')
+    headers = kwargs.get("headers") or {}
+    name_from_id = kwargs.get("name_from_id")
+    resource_id = kwargs.get("resource_id")
 
     if isdir and not name_from_id:
         try:
-            disposition = headers.get('content-disposition', '')
-            filename = disposition.split('=')[1].split('"')[1]
+            disposition = headers.get("content-disposition", "")
+            filename = disposition.split("=")[1].split('"')[1]
         except (KeyError, IndexError):
             filename = resource_id
     elif isdir or name_from_id:
         filename = resource_id
 
-    if isdir and filename.startswith('export?format='):
-        filename = '{}.{}'.format(resource_id, filename.split('=')[1])
-    elif isdir and '.' not in filename:
-        ctype = headers.get('content-type')
-        filename = '{}.{}'.format(filename, ctype2ext(ctype))
+    if isdir and filename.startswith("export?format="):
+        filename = "{}.{}".format(resource_id, filename.split("=")[1])
+    elif isdir and "." not in filename:
+        ctype = headers.get("content-type")
+        filename = "{}.{}".format(filename, ctype2ext(ctype))
 
     return p.join(filepath, filename) if isdir else filepath
 
@@ -549,10 +583,10 @@ def array2records(data, native=False):
         ...     'column_1': 1, 'column_2': 1.0, 'column_3': 'one'}
         True
     """
-    textify = lambda x: x.tounicode() if x.typecode == 'u' else x.tostring()
-    datify = lambda x: x.tolist() if hasattr(x, 'tolist') else map(textify, x)
+    textify = lambda x: x.tounicode() if x.typecode == "u" else x.tostring()
+    datify = lambda x: x.tolist() if hasattr(x, "tolist") else map(textify, x)
 
-    if native and hasattr(data[0], 'typecode'):
+    if native and hasattr(data[0], "typecode"):
         header = None
         data = zip(*map(datify, data))
     elif native:
@@ -570,7 +604,7 @@ def array2records(data, native=False):
             size = len(first_row)
             data = it.chain([first_row], data)
 
-        header = ['column_%i' % (n + 1) for n in range(size)]
+        header = ["column_%i" % (n + 1) for n in range(size)]
 
     return (dict(zip(header, row)) for row in data)
 
@@ -664,8 +698,8 @@ def records2array(records, types, native=False, silent=False):
         True
     """
     numpy = np and not native
-    dialect = 'numpy' if numpy else 'array'
-    zipped = [(ft.get_dtype(t1['type'], dialect), t1['id']) for t1 in types]
+    dialect = "numpy" if numpy else "array"
+    zipped = [(ft.get_dtype(t1["type"], dialect), t1["id"]) for t1 in types]
     dtype, ids = list(zip(*zipped))
 
     if numpy:
@@ -677,20 +711,22 @@ def records2array(records, types, native=False, silent=False):
         if not (native or silent):
             msg = (
                 "It looks like you don't have numpy installed. This function"
-                " will return a native array instead.")
+                " will return a native array instead."
+            )
 
             logger.warning(msg)
 
-        header = [array('u', t2['id']) for t2 in types]
-        data = (zip_longest(*([r.get(i) for i in ids] for r in records)))
+        header = [array("u", t2["id"]) for t2 in types]
+        data = zip_longest(*([r.get(i) for i in ids] for r in records))
 
         # array.array can't have nulls, so convert to an appropriate equivalent
         clean = lambda t, d: (x if x else ft.ARRAY_NULL_TYPE[t] for x in d)
-        cleaned = (it.starmap(clean, zip(dtype, data)))
+        cleaned = it.starmap(clean, zip(dtype, data))
 
         values = [
-            [array(d, x) for x in c] if d in {'c', 'u'} else array(d, c)
-            for d, c in zip(dtype, cleaned)]
+            [array(d, x) for x in c] if d in {"c", "u"} else array(d, c)
+            for d, c in zip(dtype, cleaned)
+        ]
 
         converted = [header] + values
 
@@ -755,7 +791,8 @@ def records2df(records, types, native=False, silent=False):
         if not (native or silent):
             msg = (
                 "It looks like you don't have pandas installed. This function"
-                " will return a native array instead.")
+                " will return a native array instead."
+            )
 
             logger.warning(msg)
 
@@ -844,11 +881,11 @@ def records2json(records, **kwargs):
         >>> loads(json_str) == record
         True
     """
-    defaults = {'sort_keys': True, 'ensure_ascii': False}
+    defaults = {"sort_keys": True, "ensure_ascii": False}
     [kwargs.setdefault(k, v) for k, v in defaults.items()]
-    newline = kwargs.pop('newline', False)
+    newline = kwargs.pop("newline", False)
     jd = partial(dumps, cls=ft.CustomEncoder, **kwargs)
-    json = '\n'.join(map(jd, records)) if newline else jd(records)
+    json = "\n".join(map(jd, records)) if newline else jd(records)
     return StringIO(str(json))
 
 
@@ -886,23 +923,24 @@ def gen_features(subresults, kw):
         ...     'properties': {'id': 'gid', 'p1': 'prop'}}
         True
     """
-    black_list = {'type', kw.lon, kw.lat}
+    black_list = {"type", kw.lon, kw.lat}
 
     for coordinates, row in subresults:
         properties = dict(x for x in row.items() if x[0] not in black_list)
-        geometry = {'type': row['type'], 'coordinates': coordinates}
+        geometry = {"type": row["type"], "coordinates": coordinates}
 
         if kw.sort_keys:
-            geometry = order_dict(geometry, ['type', 'coordinates'])
+            geometry = order_dict(geometry, ["type", "coordinates"])
 
         feature = {
-            'type': 'Feature',
-            'id': row.get(kw.key),
-            'geometry': geometry,
-            'properties': properties}
+            "type": "Feature",
+            "id": row.get(kw.key),
+            "geometry": geometry,
+            "properties": properties,
+        }
 
         if kw.sort_keys:
-            feature_order = ['type', 'id', 'geometry', 'properties']
+            feature_order = ["type", "id", "geometry", "properties"]
             feature = order_dict(feature, feature_order)
 
         yield feature
@@ -938,20 +976,20 @@ def gen_subresults(records, kw):
     """
     for id_, group in it.groupby(records, ft.def_itemgetter(kw.key)):
         first_row = next(group)
-        _type = first_row['type']
+        _type = first_row["type"]
         sub_records = it.chain([first_row], group)
 
-        if _type == 'Point':
+        if _type == "Point":
             for row in sub_records:
                 yield ((row[kw.lon], row[kw.lat]), row)
-        elif _type == 'LineString':
+        elif _type == "LineString":
             yield ([(r[kw.lon], r[kw.lat]) for r in sub_records], first_row)
-        elif _type == 'Polygon':
-            groups = it.groupby(sub_records, itemgetter('pos'))
+        elif _type == "Polygon":
+            groups = it.groupby(sub_records, itemgetter("pos"))
             polygon = [[(r[kw.lon], r[kw.lat]) for r in g[1]] for g in groups]
             yield (polygon, first_row)
         else:
-            raise TypeError('Invalid type: {}'.format(_type))
+            raise TypeError("Invalid type: {}".format(_type))
 
 
 def records2geojson(records, **kwargs):
@@ -1004,15 +1042,20 @@ def records2geojson(records, **kwargs):
         True
     """
     defaults = {
-        'key': 'id', 'lon': 'lon', 'lat': 'lat', 'indent': 2, 'sort_keys': True,
-        'crs': 'urn:ogc:def:crs:OGC:1.3:CRS84'}
+        "key": "id",
+        "lon": "lon",
+        "lat": "lat",
+        "indent": 2,
+        "sort_keys": True,
+        "crs": "urn:ogc:def:crs:OGC:1.3:CRS84",
+    }
 
     kw = ft.Objectify(kwargs, **defaults)
-    crs = {'type': 'name', 'properties': {'name': kw.crs}}
+    crs = {"type": "name", "properties": {"name": kw.crs}}
 
     subresults = gen_subresults(records, kw)
     features = list(gen_features(subresults, kw))
-    coords = [f['geometry']['coordinates'] for f in features]
+    coords = [f["geometry"]["coordinates"] for f in features]
     get_lon = lambda x: map(itemgetter(0), x)
     get_lat = lambda x: map(itemgetter(1), x)
 
@@ -1035,18 +1078,19 @@ def records2geojson(records, **kwargs):
         lats = set(it.chain.from_iterable(chained))
 
     if kw.sort_keys:
-        crs = order_dict(crs, ['type', 'properties'])
+        crs = order_dict(crs, ["type", "properties"])
 
     output = {
-        'type': 'FeatureCollection',
-        'bbox': [min(lons), min(lats), max(lons), max(lats)],
-        'features': features,
-        'crs': crs}
+        "type": "FeatureCollection",
+        "bbox": [min(lons), min(lats), max(lons), max(lats)],
+        "features": features,
+        "crs": crs,
+    }
 
     if kw.sort_keys:
-        output_order = ['type', 'bbox', 'features', 'crs']
+        output_order = ["type", "bbox", "features", "crs"]
         output = order_dict(output, output_order)
 
-    dkwargs = ft.dfilter(kwargs, ['indent', 'sort_keys'], True)
+    dkwargs = ft.dfilter(kwargs, ["indent", "sort_keys"], True)
     json = dumps(output, cls=ft.CustomEncoder, **dkwargs)
     return StringIO(str(json))

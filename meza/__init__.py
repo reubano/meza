@@ -18,18 +18,18 @@ Attributes:
 from datetime import datetime as dt
 from os import path as p
 
-__version__ = '0.42.5'
-__title__ = 'meza'
-__package_name__ = 'meza'
-__author__ = 'Reuben Cummings'
-__description__ = 'A Python toolkit for processing tabular data'
-__email__ = 'reubano@gmail.com'
-__license__ = 'MIT'
-__copyright__ = 'Copyright 2015 Reuben Cummings'
+__version__ = "0.43.0"
+__title__ = "meza"
+__package_name__ = "meza"
+__author__ = "Reuben Cummings"
+__description__ = "A Python toolkit for processing tabular data"
+__email__ = "reubano@gmail.com"
+__license__ = "MIT"
+__copyright__ = "Copyright 2015 Reuben Cummings"
 
-CURRENCIES = ('$', '£', '€')
-ENCODING = 'utf-8'
+CURRENCIES = ("$", "£", "€")
+ENCODING = "utf-8"
 DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
-BOM = '\ufeff'
+BOM = "\ufeff"
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
-DATA_DIR = p.join(PARENT_DIR, 'data', 'test')
+DATA_DIR = p.join(PARENT_DIR, "data", "test")

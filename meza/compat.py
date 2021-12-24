@@ -69,14 +69,14 @@ def encode(content, encoding=ENCODING):
         >>> encode(content.encode('utf-8')) == content.encode('utf-8')
         True
     """
-    if hasattr(content, 'real'):
+    if hasattr(content, "real"):
         try:
             length = (content.bit_length() // 8) + 1
         except AttributeError:
             encoded = content
         else:
-            encoded = content.to_bytes(length, byteorder='big')
-    elif hasattr(content, 'encode'):
+            encoded = content.to_bytes(length, byteorder="big")
+    elif hasattr(content, "encode"):
         try:
             encoded = ENCODER(encoding).encode(content)
         except UnicodeDecodeError:

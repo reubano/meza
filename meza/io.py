@@ -105,6 +105,9 @@ class IterStringIO(TextIOBase):
         self.iter = encode(chained)
         self.decode = decode
         self.bufsize = bufsize
+
+        # Not sure why I used bytearray here... maybe it was to be able to read
+        # by `num` of bytes??
         self.last = deque(bytearray(), self.bufsize)
         self.pos = 0
 
@@ -130,7 +133,7 @@ class IterStringIO(TextIOBase):
         self.pos += num or len(byte)
 
         if newline:
-            self.last.append("\n")
+            self.last.append(os.linesep)
 
         return byte.decode(ENCODING) if self.decode else bytes(byte)
 
@@ -240,20 +243,23 @@ class Reencoder(StreamReader):
         stream = iterencode(decoded, toenc) if rencode else decoded
 
         if proper_newline:
+            self.join_char = b"" if self.binary else ""
             self.stream = stream
         else:
             # TODO: make sure the read methods are consistent with
             #       proper_newline, e.g., `keepends`.
             #
-            # TODO: since the newline isn't recognized, `stream` is contains
-            #       just one (very long) line. we pass in this line to iterate
-            #       over the chars
+            # since the newline isn't recognized, `stream` just contains
+            # one (very long) line. we pass in this line to iterate over the
+            # chars
             groups = groupby_line(next(stream))
 
             if self.binary:
-                self.stream = (b"".join(g) for k, g in groups if k)
+                self.join_char = os.linesep.encode(fromenc)
             else:
-                self.stream = ("".join(g) for k, g in groups if k)
+                self.join_char = os.linesep
+
+            self.stream = (self.join_char.join(g) for k, g in groups if k)
 
     def __next__(self):
         return next(self.stream)
@@ -263,7 +269,7 @@ class Reencoder(StreamReader):
 
     def read(self, n=None):
         stream = it.islice(self.stream, n) if n else self.stream
-        return b"".join(stream) if self.binary else "".join(stream)
+        return self.join_char.join(stream)
 
     def readline(self, n=None, keepends=True):
         line = next(self.stream)

@@ -141,7 +141,7 @@ class IterStringIO(TextIOBase):
 
     def read(self, num=None):
         """Read the content"""
-        return self._read(self.iter, num, False)
+        return self._read(self.iter, num, newline=False)
 
     def readline(self, num=None):
         """Read a line of content"""

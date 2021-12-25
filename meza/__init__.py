@@ -12,13 +12,15 @@ Attributes:
     CURRENCIES [tuple(unicode)]: Currency symbols to remove from decimal
         strings.
     ENCODING (str): Default file encoding.
-    DEFAULT_DATETIME (obj): Default datetime object
+    NULL_YEAR (int): Year to be consider null
+    NULL_TIME (str): ISO format time to be consider null
+    NULL_DATETIME (obj): Default datetime object
 """
 
 from datetime import datetime as dt
 from os import path as p
 
-__version__ = "0.43.0"
+__version__ = "0.44.0"
 __title__ = "meza"
 __package_name__ = "meza"
 __author__ = "Reuben Cummings"
@@ -29,7 +31,9 @@ __copyright__ = "Copyright 2015 Reuben Cummings"
 
 CURRENCIES = ("$", "£", "€")
 ENCODING = "utf-8"
-DEFAULT_DATETIME = dt(9999, 12, 31, 0, 0, 0)
+NULL_YEAR = 9999
+NULL_TIME = "00:00:00"
+NULL_DATETIME = dt(NULL_YEAR, 12, 31, 0, 0, 0)
 BOM = "\ufeff"
 PARENT_DIR = p.abspath(p.dirname(p.dirname(__file__)))
 DATA_DIR = p.join(PARENT_DIR, "data", "test")

@@ -20,6 +20,8 @@ env:
     - PYTHONHASHSEED=94967295
 
 matrix:
+  allow_failures:
+  - python: pypy3
   exclude:
   - python: pypy3
     env: OPTIONAL=true

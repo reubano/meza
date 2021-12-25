@@ -628,7 +628,7 @@ License
 meza is distributed under the `MIT License`_.
 
 .. |travis| image:: https://img.shields.io/travis/reubano/meza/master.svg
-    :target: https://travis-ci.org/reubano/meza
+    :target: https://app.travis-ci.com/github/reubano/meza
 
 .. |versions| image:: https://img.shields.io/pypi/pyversions/meza.svg
     :target: https://pypi.python.org/pypi/meza

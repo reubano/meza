@@ -29,8 +29,8 @@ With meza, you can
 Requirements
 ------------
 
-meza has been tested and is known to work on Python 3.6, 3.7, and 3.8;
-and PyPy 3.6.
+meza has been tested and is known to work on Python 3.8, 3.9, and 3.10;
+and PyPy 3.8.
 
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^
@@ -628,7 +628,7 @@ License
 meza is distributed under the `MIT License`_.
 
 .. |travis| image:: https://img.shields.io/travis/reubano/meza/master.svg
-    :target: https://travis-ci.org/reubano/meza
+    :target: https://app.travis-ci.com/github/reubano/meza
 
 .. |versions| image:: https://img.shields.io/pypi/pyversions/meza.svg
     :target: https://pypi.python.org/pypi/meza

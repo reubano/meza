@@ -12,23 +12,25 @@ BASEDIR = p.dirname(__file__)
 DEF_WHERE = ["meza", "tests", "examples", "setup.py", "manage.py"]
 
 
-def upload_():
+def _upload():
     """Upload distribution files"""
-    command = "twine upload --repository-url https://upload.pypi.org/legacy/ {0}"
-    check_call(command.format(p.join(BASEDIR, "dist", "*")).split(" "))
+    # check_call(['twine', 'upload', p.join(BASEDIR, 'dist', '*')])
+    _uploaddir = p.join(BASEDIR, "dist", "*")
+    url = "https://upload.pypi.org/legacy/"
+    check_call(f"twine upload --repository-url {url} {_uploaddir}", shell=True)
 
 
-def sdist_():
+def _sdist():
     """Create a source distribution package"""
     check_call(p.join(BASEDIR, "helpers", "srcdist"))
 
 
-def wheel_():
+def _wheel():
     """Create a wheel package"""
     check_call(p.join(BASEDIR, "helpers", "wheel"))
 
 
-def clean_():
+def _clean():
     """Remove Python file and build artifacts"""
     check_call(p.join(BASEDIR, "helpers", "clean"))
 
@@ -69,19 +71,12 @@ def prettify(where=None):
 
 
 @manager.command
-def pipme():
-    """Install requirements.txt"""
-    exit(call("pip install -r requirements.txt".split(" ")))
-
-
-@manager.command
 def require():
     """Create requirements.txt"""
     cmd = "pip freeze -l | grep -vxFf dev-requirements.txt > requirements.txt"
-    exit(call(cmd.split(" ")))
+    exit(call(cmd, shell=True))
 
 
-@manager.arg("source", "s", help="the tests to run", default=None)
 @manager.arg("where", "w", help="test path", default=None)
 @manager.arg("stop", "x", help="Stop after first error", type=bool, default=False)
 @manager.arg("failed", "f", help="Run failed tests", type=bool, default=False)
@@ -98,7 +93,7 @@ def require():
 )
 @manager.arg("debug", "D", help="Use nose.loader debugger", type=bool, default=False)
 @manager.command
-def test(source=None, where=None, stop=False, **kwargs):
+def test(where=None, stop=None, **kwargs):
     """Run nose, tox, and script tests"""
     opts = "-xv" if stop else "-v"
     opts += " --with-coverage" if kwargs.get("cover") else ""
@@ -106,8 +101,7 @@ def test(source=None, where=None, stop=False, **kwargs):
     opts += " --processes=-1" if kwargs.get("parallel") else ""
     opts += " --detailed-errors" if kwargs.get("verbose") else ""
     opts += " --debug=nose.loader" if kwargs.get("debug") else ""
-    opts += " -w {}".format(where) if where else ""
-    opts += " {}".format(source) if source else ""
+    opts += " -w %s" % where if where else ""
 
     try:
         if kwargs.get("tox"):
@@ -115,19 +109,25 @@ def test(source=None, where=None, stop=False, **kwargs):
         elif kwargs.get("detox"):
             check_call("detox")
         else:
-            check_call(("nosetests {}".format(opts)).split(" "))
+            check_call(("nosetests %s" % opts).split(" "))
     except CalledProcessError as e:
         exit(e.returncode)
+
+
+@manager.command
+def register():
+    """Register package with PyPI"""
+    exit(call("python", p.join(BASEDIR, "setup.py"), "register"))
 
 
 @manager.command
 def release():
     """Package and upload a release"""
     try:
-        clean_()
-        sdist_()
-        wheel_()
-        upload_()
+        _clean()
+        _sdist()
+        _wheel()
+        _upload()
     except CalledProcessError as e:
         exit(e.returncode)
 
@@ -136,9 +136,9 @@ def release():
 def build():
     """Create a source distribution and wheel package"""
     try:
-        clean_()
-        sdist_()
-        wheel_()
+        _clean()
+        _sdist()
+        _wheel()
     except CalledProcessError as e:
         exit(e.returncode)
 
@@ -147,7 +147,7 @@ def build():
 def upload():
     """Upload distribution files"""
     try:
-        upload_()
+        _upload()
     except CalledProcessError as e:
         exit(e.returncode)
 
@@ -156,7 +156,7 @@ def upload():
 def sdist():
     """Create a source distribution package"""
     try:
-        sdist_()
+        _sdist()
     except CalledProcessError as e:
         exit(e.returncode)
 
@@ -165,7 +165,7 @@ def sdist():
 def wheel():
     """Create a wheel package"""
     try:
-        wheel_()
+        _wheel()
     except CalledProcessError as e:
         exit(e.returncode)
 
@@ -174,7 +174,7 @@ def wheel():
 def clean():
     """Remove Python file and build artifacts"""
     try:
-        clean_()
+        _clean()
     except CalledProcessError as e:
         exit(e.returncode)
 

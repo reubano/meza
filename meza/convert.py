@@ -30,7 +30,7 @@ from array import array
 from itertools import zip_longest, filterfalse
 
 from dateutil.parser import parse
-from . import fntools as ft, unicsv as csv, ENCODING, DEFAULT_DATETIME, BOM
+from . import fntools as ft, unicsv as csv, ENCODING, NULL_DATETIME, BOM
 
 try:
     import numpy as np
@@ -334,11 +334,11 @@ def _to_datetime(content, **kwargs):
         (datetime.datetime(9999, 12, 31, 0, 0), False)
     """
     try:
-        value = parse(content, default=DEFAULT_DATETIME, **kwargs)
+        value = parse(content, default=NULL_DATETIME, **kwargs)
     except ValueError as e:
         # impossible date, e.g., 2/31/15
         retry = any(x in str(e) for x in ("out of range", "day must be in"))
-        value = content if retry else DEFAULT_DATETIME
+        value = content if retry else NULL_DATETIME
     else:
         retry = False
 
@@ -387,6 +387,10 @@ def to_datetime(content, dt_format=None, warn=False, **kwargs):
     Returns:
         obj: The datetime object or formatted datetime string.
 
+    Raise:
+        ValueError: if passed an invalid string
+        TypeError: if passed a date/time object
+
     See also:
         `meza.process.type_cast`
 
@@ -423,9 +427,9 @@ def to_datetime(content, dt_format=None, warn=False, **kwargs):
     try:
         value = next(_gen_fixed_datetimes(*options, **kwargs))
     except StopIteration:
-        value = DEFAULT_DATETIME
+        value = NULL_DATETIME
 
-    if warn and value == DEFAULT_DATETIME:
+    if warn and value == NULL_DATETIME:
         raise ValueError("Invalid datetime value: `{}`.".format(content))
     else:
         datetime = value.strftime(dt_format) if dt_format else value

@@ -77,6 +77,11 @@ class Test:
         nt.assert_equal(Decimal("0.87"), result["confidence"])
         nt.assert_false(result["accurate"])
 
+    def test_detect_types_datetimes_midnight(self):
+        records = it.repeat({"foo": "2000-01-01 00:00:00"})
+        records, result = pr.detect_types(records)
+        nt.assert_equal(result["types"], [{"id": "foo", "type": "datetime"}])
+
     def test_fillempty(self):
         records = [
             {"a": "1", "b": "27", "c": ""},

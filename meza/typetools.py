@@ -15,17 +15,10 @@ Examples:
         >>>
         >>> is_date('5/4/82 2pm')
         True
-
-Attributes:
-    NULL_YEAR (int): Year to be consider null
-    NULL_TIME (str): ISO format time to be consider null
 """
 from functools import partial
 
-from . import fntools as ft, convert as cv
-
-NULL_YEAR = 9999
-NULL_TIME = "00:00:00"
+from . import fntools as ft, convert as cv, NULL_TIME, NULL_YEAR
 
 
 def type_test(test, _type, key, value):
@@ -109,7 +102,7 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
 
     Examples:
         >>> from datetime import datetime as dt, date, time
-
+        >>>
         >>> record = {
         ...     'null': 'None',
         ...     'bool': 'false',
@@ -187,7 +180,7 @@ def is_date(content):
 
     Examples:
         >>> from datetime import datetime as dt, date, time
-
+        >>>
         >>> is_date('5/4/82 2pm')
         True
         >>> is_date('5/4/82')
@@ -209,9 +202,10 @@ def is_date(content):
     try:
         the_year = converted.date().year
     except AttributeError:
-        if hasattr(converted, "timetuple"):
-            the_year = converted.year  # it's a date
-        else:
+        try:
+            # see if it's a date (it could have a NULL_YEAR)
+            the_year = converted.year
+        except AttributeError:
             the_year = NULL_YEAR  # it's a time
 
     return converted and the_year != NULL_YEAR
@@ -225,12 +219,20 @@ def is_time(content):
 
     Examples:
         >>> from datetime import datetime as dt, date, time
-
+        >>>
         >>> is_time('5/4/82 2pm')
+        True
+        >>> is_time('2000-01-01 14:00:00')
+        True
+        >>> is_time('2000-01-01 00:00:00')
         True
         >>> is_time('5/4/82')
         False
         >>> is_time('2pm')
+        True
+        >>> is_time('14:00:00')
+        True
+        >>> is_time('00:00:00')
         True
         >>> is_time(dt(1982, 5, 4, 2))
         True
@@ -240,19 +242,17 @@ def is_time(content):
         True
     """
     try:
-        converted = cv.to_datetime(content)
+        has_time = any(x in content for x in [":", "T", "+", "am", "pm"])
     except TypeError:
-        converted = content
+        try:
+            has_time = content.time
+        except AttributeError:
+            try:
+                has_time = content.minute
+            except AttributeError:
+                has_time = False
 
-    try:
-        the_time = converted.time().isoformat()
-    except AttributeError:
-        if hasattr(converted, "timetuple"):
-            the_time = NULL_TIME  # it's a date
-        else:
-            the_time = converted.isoformat()  # it's a time
-
-    return converted and the_time != NULL_TIME
+    return bool(has_time)
 
 
 def is_datetime(content):
@@ -263,7 +263,7 @@ def is_datetime(content):
 
     Examples:
         >>> from datetime import datetime as dt, date, time
-
+        >>>
         >>> is_datetime('5/4/82 2pm')
         True
         >>> is_datetime('5/4/82')
@@ -277,21 +277,4 @@ def is_datetime(content):
         >>> is_datetime(time(2, 30))
         False
     """
-    try:
-        converted = cv.to_datetime(content)
-    except TypeError:
-        converted = content
-
-    try:
-        the_year = converted.date().year
-    except AttributeError:
-        the_year = NULL_YEAR
-
-    try:
-        the_time = converted.time().isoformat()
-    except AttributeError:
-        the_time = NULL_TIME
-
-    has_date = converted and the_year != NULL_YEAR
-    has_time = converted and the_time != NULL_TIME
-    return has_date and has_time
+    return is_date(content) and is_time(content)

@@ -20,7 +20,7 @@ Attributes:
 from datetime import datetime as dt
 from os import path as p
 
-__version__ = "0.45.3"
+__version__ = "0.45.4"
 __title__ = "meza"
 __package_name__ = "meza"
 __author__ = "Reuben Cummings"

@@ -66,11 +66,11 @@ def guess_type_by_field(content):
     datetime_func = lambda x: ("date" in x) and ("time" in x)
 
     guess_funcs = [
-        {"type": "datetime", "func": datetime_func},
-        {"type": "date", "func": lambda x: "date" in x},
-        {"type": "time", "func": lambda x: "time" in x},
-        {"type": "float", "func": float_func},
         {"type": "int", "func": lambda x: "count" in x},
+        {"type": "float", "func": float_func},
+        {"type": "datetime", "func": datetime_func},
+        {"type": "time", "func": lambda x: "time" in x},
+        {"type": "date", "func": lambda x: "date" in x},
         {"type": "text", "func": lambda x: True},
     ]
 

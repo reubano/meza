@@ -89,7 +89,7 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
     Args:
         record (dict): The row to guess.
         blanks_as_nulls (bool): Treat empty strings as null (default: True).
-        strip_zero (bool):
+        strip_zeros (bool): Remove leading zeros (default: False)
 
     Yields:
         dict: Field type. The parsed field and its type.

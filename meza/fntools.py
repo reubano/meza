@@ -509,6 +509,8 @@ def is_int(content, strip_zeros=False, thousand_sep=",", decimal_sep="."):
     Examples:
         >>> is_int('$123.45')
         False
+        >>> is_int('1.00')
+        True
         >>> is_int('123')
         True
     """
@@ -539,6 +541,8 @@ def is_bool(content, trues=None, falses=None):
         True
         >>> is_bool(1)
         True
+        >>> is_bool('1')
+        False
     """
     trues = set(map(str.lower, trues) if trues else DEF_TRUES)
     falses = set(map(str.lower, falses) if falses else DEF_FALSES)

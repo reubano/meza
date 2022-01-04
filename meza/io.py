@@ -653,9 +653,12 @@ def read_mdb(filepath, table=None, **kwargs):
         header = list(ft.dedupe(uscored) if dedupe else uscored)
 
         for line in iter(pipe.readline, b""):
-            next_line = StringIO(str(line))
-            values = next(csv.reader(next_line, **kwargs))
-            yield dict(zip(header, values))
+            try:
+                next_line = StringIO(str(line))
+                values = next(csv.reader(next_line, **kwargs))
+                yield dict(zip(header, values))
+            except StopIteration:
+                return None
 
 
 def read_dbf(filepath, **kwargs):

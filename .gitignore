@@ -1,8 +1,11 @@
+# Python
 *.py[cod]
 *.DS_Store
+*.ipynb
+*checkpoint.ipynb
 .cookiecutter
 .ipynb_checkpoints/*
-.scripttest/*
+.idea/
 example*.log
 examples/.ipynb_checkpoints/*
 
@@ -10,9 +13,12 @@ examples/.ipynb_checkpoints/*
 *.so
 
 # Packages
-*.egg
-.eggs
+*.egg*
 *.egg-info
+.eggs
+.installed.cfg
+.installed.cfg
+*-0.*/*
 dist
 build
 eggs
@@ -20,17 +26,25 @@ parts
 var
 sdist
 develop-eggs
-.installed.cfg
 lib
 lib64
+venv
 
 # Installer logs
 pip-log.txt
 
 # Unit test / coverage reports
+*.wpu
+*.rope
+*.noseids
+*.ropeproject
 .coverage
 .tox
 .noseids
+.cache/*
+.scripttest
+coverage.xml
+cover/*
 htmlcov/*
 nosetests.xml
 
@@ -48,3 +62,11 @@ output/*/index.html
 
 # Sphinx
 docs/_build
+build/*
+
+# Misc
+*.pstats
+.vscode
+callgraph.svg
+ttyrecord
+

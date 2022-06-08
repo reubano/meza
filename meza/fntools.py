@@ -804,6 +804,15 @@ def get_separators(content):
         >>> s = get_separators(123.45)
         >>> (s['thousand_sep'], s['decimal_sep']) == (',', '.')
         True
+        >>> s = get_separators('1,234.56')
+        >>> (s['thousand_sep'], s['decimal_sep']) == (',', '.')
+        True
+        >>> s = get_separators('1234,56')
+        >>> (s['thousand_sep'], s['decimal_sep']) == ('.', ',')
+        True
+        >>> s = get_separators('1.234,56')
+        >>> (s['thousand_sep'], s['decimal_sep']) == ('.', ',')
+        True
 
     Returns:
         dict: thousandths and decimal separators

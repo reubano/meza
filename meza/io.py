@@ -552,7 +552,7 @@ def read_any(filepath, reader, mode="r", *args, **kwargs):
                 yield remove_bom(line, BOM)
 
 
-def _read_csv(f, header=None, has_header=True, **kwargs):
+def _read_csv(f, header=None, has_header=True, first_col=0, **kwargs):
     """Helps read a csv file.
 
     Args:
@@ -579,8 +579,6 @@ def _read_csv(f, header=None, has_header=True, **kwargs):
         ...         ('Unicode Test', 'Ādam')]
         True
     """
-    first_col = kwargs.pop("first_col", 0)
-
     if header and has_header:
         next(f)
     elif not (header or has_header):
@@ -822,7 +820,8 @@ def read_csv(filepath, mode="r", **kwargs):
         custom_header = kwargs.pop("custom_header", None)
 
         # position file pointer at the first row
-        list(it.islice(f, first_row))
+        [next(f) for _ in range(first_row)]
+
         first_line = StringIO(str(next(f)))
         names = next(csv.reader(first_line, **kwargs))
 
@@ -842,7 +841,7 @@ def read_csv(filepath, mode="r", **kwargs):
                 logger.error(msg)
                 raise
 
-            list(it.islice(f, first_row))
+            [next(f) for _ in range(first_row)]
 
         if not (has_header or custom_header):
             header = ["column_%i" % (n + 1) for n in range(len(names))]
@@ -956,7 +955,7 @@ def read_fixed_fmt(filepath, widths=None, mode="r", **kwargs):
             header = ["column_%i" % (n + 1) for n in range(len(widths))]
 
         zipped = zip(header, schema)
-        get_row = lambda line: {k: line[v[0]:v[1]].strip() for k, v in zipped}
+        get_row = lambda line: {k: line[v[0] : v[1]].strip() for k, v in zipped}
         return map(get_row, f)
 
     return read_any(filepath, reader, mode, **kwargs)
@@ -1099,7 +1098,8 @@ def read_xls(filepath, **kwargs):
     sheet = book.sheet_by_index(kwargs.pop("sheet", 0))
 
     # Get header row and remove empty columns
-    names = sheet.row_values(first_row)[kwargs.get("first_col", 0):]
+    names = sheet.row_values(first_row)[kwargs.get("first_col", 0) :]
+
     if has_header:
         header = get_header(names, kwargs.pop("dedupe", False), **kwargs)
     else:
@@ -1402,11 +1402,11 @@ def read_html(filepath, table=0, mode="r", **kwargs):
         if tbl:
             rows = tbl.find_all("tr")
 
-            for num, first_row in enumerate(rows):
-                if first_row.find("th"):
+            for num, a_row in enumerate(rows):
+                if a_row.find("th"):
                     break
 
-            ths = first_row.find_all("th")
+            ths = a_row.find_all("th")
 
             if first_row_as_header and not ths:
                 ths = rows[0].find_all("td")
@@ -1419,7 +1419,7 @@ def read_html(filepath, table=0, mode="r", **kwargs):
                 rows = rows[1:]
                 names = map(get_text, ths)
             else:
-                col_nums = range(len(first_row))
+                col_nums = range(len(a_row))
                 names = ["column_{}".format(i) for i in col_nums]
 
             uscored = ft.underscorify(names) if sanitize else names

@@ -283,6 +283,29 @@ class TestInput:
 
         nt.assert_equal(expected, next(records))
 
+    def test_csv_last_row(self):
+        """Test for reading csv files with last_row option"""
+        filepath = p.join(io.DATA_DIR, "iris.csv")
+        expected = {
+            "sepal_width": "3.5",
+            "petal_width": "0.2",
+            "species": "Iris-setosa",
+            "sepal_length": "5.1",
+            "petal_length": "1.4",
+        }
+
+        records = list(io.read_csv(filepath))
+        nt.assert_equal(expected, records[0])
+        nt.assert_equal(150, len(records))
+
+        records = list(io.read_csv(filepath, last_row=10))
+        nt.assert_equal(expected, records[0])
+        nt.assert_equal(10, len(records))
+
+        records = list(io.read_csv(filepath, last_row=-50))
+        nt.assert_equal(expected, records[0])
+        nt.assert_equal(100, len(records))
+
     def test_dbf(self):  # pylint: disable=R0201
         """Test for reading dbf files"""
         filepath = p.join(io.DATA_DIR, "test.dbf")

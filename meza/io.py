@@ -36,6 +36,7 @@ from csv import Error as csvError
 from functools import partial
 from codecs import iterdecode, iterencode, StreamReader
 from itertools import zip_longest
+from math import inf
 
 import yaml
 import xlrd
@@ -455,6 +456,11 @@ def reopen(f, encoding):
 
 def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
     """Helper func to read a file or filepath"""
+    last_row = kwargs.pop("last_row", None) or inf
+
+    # https://github.com/jaraco/csv2ofx/commit/0560beb53d5db94506142298644a226b64c8a95f
+    q = deque()
+
     try:
         if is_binary(f) and reader.__name__ != "writer":
             # only allow binary mode for writing files, not reading
@@ -462,9 +468,17 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
             raise BytesError(message % f)
 
         for num, line in enumerate(reader(f, *args, **kwargs)):
-            if num >= pos:
+            if last_row > num >= pos:
                 yield line
                 pos += 1
+            elif last_row < 0:
+                q.append(line)
+
+                if (num >= abs(last_row)) and (num >= pos):
+                    yield q.popleft()
+
+                pos += 1
+
     except (UnicodeDecodeError, csvError, BytesError) as err:
         logger.warning(err)
         encoding = kwargs.pop("encoding", None)
@@ -500,6 +514,8 @@ def read_any(filepath, reader, mode="r", *args, **kwargs):
 
     Kwargs:
         encoding (str): File encoding.
+        last_row (int): Last row, use a negative value to count from the end
+            (zero based, default: 0).
 
     See also:
         `meza.io.read_csv`
@@ -536,7 +552,7 @@ def read_any(filepath, reader, mode="r", *args, **kwargs):
                 yield remove_bom(line, BOM)
 
 
-def _read_csv(f, header=None, has_header=True, **kwargs):
+def _read_csv(f, header=None, has_header=True, first_col=0, **kwargs):
     """Helps read a csv file.
 
     Args:
@@ -563,8 +579,6 @@ def _read_csv(f, header=None, has_header=True, **kwargs):
         ...         ('Unicode Test', 'Ādam')]
         True
     """
-    first_col = kwargs.pop("first_col", 0)
-
     if header and has_header:
         next(f)
     elif not (header or has_header):
@@ -762,6 +776,8 @@ def read_csv(filepath, mode="r", **kwargs):
         has_header (bool): Has header row (default: True).
         custom_header (List[str]): Custom header names (default: None).
         first_row (int): First row (zero based, default: 0).
+        last_row (int): Last row, use a negative value to count from the end
+            (zero based, default: 0).
         first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
@@ -804,7 +820,8 @@ def read_csv(filepath, mode="r", **kwargs):
         custom_header = kwargs.pop("custom_header", None)
 
         # position file pointer at the first row
-        list(it.islice(f, first_row))
+        [next(f) for _ in range(first_row)]
+
         first_line = StringIO(str(next(f)))
         names = next(csv.reader(first_line, **kwargs))
 
@@ -824,7 +841,7 @@ def read_csv(filepath, mode="r", **kwargs):
                 logger.error(msg)
                 raise
 
-            list(it.islice(f, first_row))
+            [next(f) for _ in range(first_row)]
 
         if not (has_header or custom_header):
             header = ["column_%i" % (n + 1) for n in range(len(names))]
@@ -847,6 +864,8 @@ def read_tsv(filepath, mode="r", **kwargs):
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
         first_row (int): First row (zero based, default: 0).
+        last_row (int): Last row, use a negative value to count from the end
+            (zero based, default: 0).
         first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
@@ -887,6 +906,8 @@ def read_fixed_fmt(filepath, widths=None, mode="r", **kwargs):
     Kwargs:
         has_header (bool): Has header row (default: False).
         first_row (int): First row (zero based, default: 0).
+        last_row (int): Last row, use a negative value to count from the end
+            (zero based, default: 0).
         first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
@@ -934,7 +955,7 @@ def read_fixed_fmt(filepath, widths=None, mode="r", **kwargs):
             header = ["column_%i" % (n + 1) for n in range(len(widths))]
 
         zipped = zip(header, schema)
-        get_row = lambda line: {k: line[v[0]:v[1]].strip() for k, v in zipped}
+        get_row = lambda line: {k: line[v[0] : v[1]].strip() for k, v in zipped}
         return map(get_row, f)
 
     return read_any(filepath, reader, mode, **kwargs)
@@ -1021,6 +1042,8 @@ def read_xls(filepath, **kwargs):
         sheet (int): Zero indexed sheet to open (default: 0)
         has_header (bool): Has header row (default: True).
         first_row (int): First row (zero based, default: 0).
+        last_row (int): Last row, use a negative value to count from the end
+            (zero based, default: 0).
         first_col (int): First column (zero based, default: 0).
         date_format (str): Date format passed to `strftime()` (default:
             '%Y-%m-%d', i.e, 'YYYY-MM-DD').
@@ -1075,7 +1098,8 @@ def read_xls(filepath, **kwargs):
     sheet = book.sheet_by_index(kwargs.pop("sheet", 0))
 
     # Get header row and remove empty columns
-    names = sheet.row_values(first_row)[kwargs.get("first_col", 0):]
+    names = sheet.row_values(first_row)[kwargs.get("first_col", 0) :]
+
     if has_header:
         header = get_header(names, kwargs.pop("dedupe", False), **kwargs)
     else:
@@ -1378,11 +1402,11 @@ def read_html(filepath, table=0, mode="r", **kwargs):
         if tbl:
             rows = tbl.find_all("tr")
 
-            for num, first_row in enumerate(rows):
-                if first_row.find("th"):
+            for num, a_row in enumerate(rows):
+                if a_row.find("th"):
                     break
 
-            ths = first_row.find_all("th")
+            ths = a_row.find_all("th")
 
             if first_row_as_header and not ths:
                 ths = rows[0].find_all("td")
@@ -1395,7 +1419,7 @@ def read_html(filepath, table=0, mode="r", **kwargs):
                 rows = rows[1:]
                 names = map(get_text, ths)
             else:
-                col_nums = range(len(first_row))
+                col_nums = range(len(a_row))
                 names = ["column_{}".format(i) for i in col_nums]
 
             uscored = ft.underscorify(names) if sanitize else names

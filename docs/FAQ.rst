@@ -180,19 +180,20 @@ Kwargs
 While each reader has kwargs specific to itself, the following table outlines
 the most common ones.
 
-==========  ====  =======================================  =======  =====================================================================================================
-kwarg       type  description                              default  implementing readers
-==========  ====  =======================================  =======  =====================================================================================================
-mode        str   File open mode                           rU       read_csv, read_fixed_fmt, read_geojson, read_html, read_json, read_tsv, read_xls, read_yaml
-encoding    str   File encoding                            utf-8    read_csv, read_dbf, read_fixed_fmt, read_geojson, read_html, read_json, read_tsv, read_xls, read_yaml
-has_header  bool  Data has a header row?                   True     read_csv, read_fixed_fmt, read_tsv, read_xls
-first_row   int   First row to read (zero indexed)         0        read_csv, read_fixed_fmt, read_tsv, read_xls
-first_col   int   First column to read (zero indexed)      0        read_csv, read_fixed_fmt, read_tsv, read_xls
-sanitize    bool  Underscorify and lowercase field names?  False    read_csv, read_dbf, read_fixed_fmt, read_html, read_mdb, read_tsv, read_xls
-dedupe      bool  Deduplicate field names?                 False    read_csv, read_fixed_fmt, read_html, read_mdb, read_tsv, read_xls
-sheet       int   Sheet to read (zero indexed)             0        read_xls
-table       int   Table to read (zero indexed)             0        read_dbf, read_html, read_mdb, read_sqlite
-==========  ====  =======================================  =======  =====================================================================================================
+==========  ====  ============================================================  =======  =====================================================================================================
+kwarg       type  description                                                   default  implementing readers
+==========  ====  ============================================================  =======  =====================================================================================================
+mode        str   File open mode                                                rU       read_csv, read_fixed_fmt, read_geojson, read_html, read_json, read_tsv, read_xls, read_yaml
+encoding    str   File encoding                                                 utf-8    read_csv, read_dbf, read_fixed_fmt, read_geojson, read_html, read_json, read_tsv, read_xls, read_yaml
+has_header  bool  Data has a header row?                                        True     read_csv, read_fixed_fmt, read_tsv, read_xls
+first_row   int   First row to read (zero indexed)                              0        read_csv, read_fixed_fmt, read_tsv, read_xls
+last_row    int   Last row to read (zero indexed, negative counts from the end) 0        read_csv, read_fixed_fmt, read_tsv, read_xls
+first_col   int   First column to read (zero indexed)                           0        read_csv, read_fixed_fmt, read_tsv, read_xls
+sanitize    bool  Underscorify and lowercase field names?                       False    read_csv, read_dbf, read_fixed_fmt, read_html, read_mdb, read_tsv, read_xls
+dedupe      bool  Deduplicate field names?                                      False    read_csv, read_fixed_fmt, read_html, read_mdb, read_tsv, read_xls
+sheet       int   Sheet to read (zero indexed)                                  0        read_xls
+table       int   Table to read (zero indexed)                                  0        read_dbf, read_html, read_mdb, read_sqlite
+==========  ====  ============================================================  =======  =====================================================================================================
 
 .. _How does meza compare to pandas: #how-does-meza-compare-to-pandas
 .. _What readers are available: #what-readers-are-available

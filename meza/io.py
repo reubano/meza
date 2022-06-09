@@ -36,6 +36,7 @@ from csv import Error as csvError
 from functools import partial
 from codecs import iterdecode, iterencode, StreamReader
 from itertools import zip_longest
+from math import inf
 
 import yaml
 import xlrd
@@ -455,6 +456,11 @@ def reopen(f, encoding):
 
 def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
     """Helper func to read a file or filepath"""
+    last_row = kwargs.pop("last_row", None) or inf
+
+    # https://github.com/jaraco/csv2ofx/commit/0560beb53d5db94506142298644a226b64c8a95f
+    q = deque()
+
     try:
         if is_binary(f) and reader.__name__ != "writer":
             # only allow binary mode for writing files, not reading
@@ -462,9 +468,17 @@ def _read_any(f, reader, args, pos=0, recursed=False, **kwargs):
             raise BytesError(message % f)
 
         for num, line in enumerate(reader(f, *args, **kwargs)):
-            if num >= pos:
+            if last_row > num >= pos:
                 yield line
                 pos += 1
+            elif last_row < 0:
+                q.append(line)
+
+                if (num >= abs(last_row)) and (num >= pos):
+                    yield q.popleft()
+
+                pos += 1
+
     except (UnicodeDecodeError, csvError, BytesError) as err:
         logger.warning(err)
         encoding = kwargs.pop("encoding", None)
@@ -500,6 +514,8 @@ def read_any(filepath, reader, mode="r", *args, **kwargs):
 
     Kwargs:
         encoding (str): File encoding.
+        last_row (int): Last row, use a negative value to count from the end
+            (zero based, default: 0).
 
     See also:
         `meza.io.read_csv`
@@ -762,6 +778,8 @@ def read_csv(filepath, mode="r", **kwargs):
         has_header (bool): Has header row (default: True).
         custom_header (List[str]): Custom header names (default: None).
         first_row (int): First row (zero based, default: 0).
+        last_row (int): Last row, use a negative value to count from the end
+            (zero based, default: 0).
         first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
@@ -847,6 +865,8 @@ def read_tsv(filepath, mode="r", **kwargs):
         encoding (str): File encoding.
         has_header (bool): Has header row (default: True).
         first_row (int): First row (zero based, default: 0).
+        last_row (int): Last row, use a negative value to count from the end
+            (zero based, default: 0).
         first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
@@ -887,6 +907,8 @@ def read_fixed_fmt(filepath, widths=None, mode="r", **kwargs):
     Kwargs:
         has_header (bool): Has header row (default: False).
         first_row (int): First row (zero based, default: 0).
+        last_row (int): Last row, use a negative value to count from the end
+            (zero based, default: 0).
         first_col (int): First column (zero based, default: 0).
         sanitize (bool): Underscorify and lowercase field names
             (default: False).
@@ -1021,6 +1043,8 @@ def read_xls(filepath, **kwargs):
         sheet (int): Zero indexed sheet to open (default: 0)
         has_header (bool): Has header row (default: True).
         first_row (int): First row (zero based, default: 0).
+        last_row (int): Last row, use a negative value to count from the end
+            (zero based, default: 0).
         first_col (int): First column (zero based, default: 0).
         date_format (str): Date format passed to `strftime()` (default:
             '%Y-%m-%d', i.e, 'YYYY-MM-DD').

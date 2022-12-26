@@ -954,7 +954,7 @@ def read_fixed_fmt(filepath, widths=None, mode="r", **kwargs):
         else:
             header = ["column_%i" % (n + 1) for n in range(len(widths))]
 
-        zipped = zip(header, schema)
+        zipped = tuple(zip(header, schema))
         get_row = lambda line: {k: line[v[0] : v[1]].strip() for k, v in zipped}
         return map(get_row, f)
 

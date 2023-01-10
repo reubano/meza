@@ -635,7 +635,7 @@ meza is distributed under the `MIT License`_.
 .. |pypi| image:: https://img.shields.io/pypi/v/meza.svg
     :target: https://pypi.python.org/pypi/meza
 
-.. _mdbtools: http://sourceforge.net/projects/mdbtools/
+.. _mdbtools: https://github.com/mdbtools/mdbtools
 .. _lxml: http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
 .. _library: #usage
 .. _NumPy: https://github.com/numpy/numpy

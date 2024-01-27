@@ -1286,7 +1286,7 @@ def read_yaml(filepath, mode="r", **kwargs):
         ...     'integer': 40}
         True
     """
-    return read_any(filepath, yaml.load, mode, **kwargs)
+    return read_any(filepath, yaml.safe_load, mode, **kwargs)
 
 
 def get_text(element):

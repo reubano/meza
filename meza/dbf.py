@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 
 """
@@ -57,7 +56,7 @@ class DBF2(DBF):
         """
         try:
             kwargs["recfactory"] = dict
-            return super(DBF2, self).__init__(filepath, **kwargs)
+            return super().__init__(filepath, **kwargs)
         except (AttributeError, TypeError):
             filename = filepath.name
 
@@ -69,7 +68,7 @@ class DBF2(DBF):
         self.filename = ifind(filename) if self.ignorecase else filename
 
         if not self.filename:
-            raise DBFNotFound("could not find file {!r}".format(filename))
+            raise DBFNotFound(f"could not find file {filename!r}")
 
         self.fields = []
         self.field_names = []

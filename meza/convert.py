@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 
 """
@@ -151,7 +150,7 @@ def to_bool(content, trues=None, falses=None, warn=False, **kwargs):
         except (TypeError, AttributeError):
             value = bool(content)
     elif warn:
-        raise ValueError("Invalid bool value: `{}`.".format(content))
+        raise ValueError(f"Invalid bool value: `{content}`.")
     else:
         value = False
 
@@ -196,13 +195,13 @@ def to_int(content, thousand_sep=",", decimal_sep=".", warn=False, **kwargs):
         int
     """
     if warn and not ft.is_int(content):
-        raise ValueError("Invalid int value: `{}`.".format(content))
+        raise ValueError(f"Invalid int value: `{content}`.")
 
     try:
         value = int(float(ft.strip(content, thousand_sep, decimal_sep)))
     except ValueError:
         if warn:
-            raise ValueError("Invalid int value: `{}`.".format(content))
+            raise ValueError(f"Invalid int value: `{content}`.")
         else:
             value = 0
 
@@ -246,7 +245,7 @@ def to_float(content, thousand_sep=",", decimal_sep=".", warn=False, **kwargs):
     if ft.is_numeric(content):
         value = float(ft.strip(content, thousand_sep, decimal_sep))
     elif warn:
-        raise ValueError("Invalid float value: `{}`.".format(content))
+        raise ValueError(f"Invalid float value: `{content}`.")
     else:
         value = 0.0
 
@@ -303,7 +302,7 @@ def to_decimal(content, thousand_sep=",", decimal_sep=".", **kwargs):
     if ft.is_numeric(content):
         decimalized = Decimal(ft.strip(content, thousand_sep, decimal_sep))
     elif kwargs.get("warn"):
-        raise ValueError("Invalid numeric value: `{}`.".format(content))
+        raise ValueError(f"Invalid numeric value: `{content}`.")
     else:
         decimalized = Decimal(0)
 
@@ -430,7 +429,7 @@ def to_datetime(content, dt_format=None, warn=False, **kwargs):
         value = NULL_DATETIME
 
     if warn and value == NULL_DATETIME:
-        raise ValueError("Invalid datetime value: `{}`.".format(content))
+        raise ValueError(f"Invalid datetime value: `{content}`.")
     else:
         datetime = value.strftime(dt_format) if dt_format else value
 
@@ -552,7 +551,7 @@ def to_filepath(filepath, **kwargs):
         filename = "{}.{}".format(resource_id, filename.split("=")[1])
     elif isdir and "." not in filename:
         ctype = headers.get("content-type")
-        filename = "{}.{}".format(filename, ctype2ext(ctype))
+        filename = f"{filename}.{ctype2ext(ctype)}"
 
     return p.join(filepath, filename) if isdir else filepath
 
@@ -993,7 +992,7 @@ def gen_subresults(records, kw):
             polygon = [[(r[kw.lon], r[kw.lat]) for r in g[1]] for g in groups]
             yield (polygon, first_row)
         else:
-            raise TypeError("Invalid type: {}".format(_type))
+            raise TypeError(f"Invalid type: {_type}")
 
 
 def records2geojson(records, **kwargs):

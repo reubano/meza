@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 """
 tests.test_process
@@ -264,6 +263,6 @@ class Test:
         ]
 
         result = list(pr.pivot(records, "D", "C", dropna=False))
-        expected_set = set(tuple(sorted(r.items())) for r in expected)
-        result_set = set(tuple(sorted(r.items())) for r in result)
+        expected_set = {tuple(sorted(r.items())) for r in expected}
+        result_set = {tuple(sorted(r.items())) for r in result}
         assert expected_set == result_set

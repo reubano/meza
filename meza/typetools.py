@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 
 """
@@ -169,7 +168,7 @@ def guess_type_by_value(record, blanks_as_nulls=True, strip_zeros=False):
                 yield result
                 break
         else:
-            raise TypeError("Couldn't guess type of '{}'".format(value))
+            raise TypeError(f"Couldn't guess type of '{value}'")
 
 
 def is_date(content):

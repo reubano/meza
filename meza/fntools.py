@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 
 """
@@ -120,7 +119,7 @@ except AttributeError:
 logger = gogo.Gogo(__name__, monolog=True).logger
 
 
-class Objectify(object):
+class Objectify:
     """Creates an object with dynamically set attributes. Useful
     for accessing the kwargs of a function as attributes.
     """
@@ -177,7 +176,7 @@ class Objectify(object):
         if key not in {"data", "func", "keys", "values", "items", "get"}:
             self.data.__setitem__(key, value)
 
-        return super(Objectify, self).__setattr__(key, value)
+        return super().__setattr__(key, value)
 
     def __getattr__(self, name):
         return self.__getitem__(name)
@@ -195,7 +194,7 @@ class Objectify(object):
         return iter(self.items())
 
 
-class Andand(object):
+class Andand:
     """A Ruby inspired null soaking object
 
     Examples:
@@ -235,14 +234,14 @@ class CustomEncoder(JSONEncoder):
             encoded = float(obj)
         elif hasattr(obj, "to_dict"):
             encoded = obj.to_dict()
-        elif set(["quantize", "year", "hour"]).intersection(dir(obj)):
+        elif {"quantize", "year", "hour"}.intersection(dir(obj)):
             encoded = str(obj)
         elif hasattr(obj, "union"):
             encoded = tuple(obj)
-        elif set(["next", "append"]).intersection(dir(obj)):
+        elif {"next", "append"}.intersection(dir(obj)):
             encoded = list(obj)
         else:
-            encoded = super(CustomEncoder, self).default(obj)
+            encoded = super().default(obj)
 
         return encoded
 
@@ -254,15 +253,15 @@ class SleepyDict(dict):
 
     def __init__(self, *args, **kwargs):
         self.delay = kwargs.pop("delay", 0)
-        super(SleepyDict, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def __len__(self):
         time.sleep(self.delay)
-        return super(SleepyDict, self).__len__()
+        return super().__len__()
 
     def get(self, key, default=None):
         time.sleep(self.delay)
-        return super(SleepyDict, self).get(key, default)
+        return super().get(key, default)
 
 
 def underscorify(content):
@@ -716,12 +715,10 @@ def get_values(narray):
     try:
         yield narray.tounicode()
     except ValueError:
-        for y in narray.tolist():
-            yield y
+        yield from narray.tolist()
     except AttributeError:
         for n in narray:
-            for x in get_values(n):
-                yield x
+            yield from get_values(n)
 
 
 def xmlize(content):
@@ -783,7 +780,7 @@ def afterish(content, separator=","):
     elif numeric:
         after = -1
     else:
-        raise ValueError("Not able to coerce {} to a number".format(content))
+        raise ValueError(f"Not able to coerce {content} to a number")
 
     return after
 
@@ -834,7 +831,7 @@ def get_separators(content):
     else:
         logger.debug("after_comma: %s", after_comma)
         logger.debug("after_decimal: %s", after_decimal)
-        raise ValueError("Invalid number format for `{}`.".format(content))
+        raise ValueError(f"Invalid number format for `{content}`.")
 
     return {"thousand_sep": thousand_sep, "decimal_sep": decimal_sep}
 
@@ -867,7 +864,7 @@ def _fuzzy_match(needle, haystack, **kwargs):
 
 
 def _exact_match(*args, **kwargs):
-    sets = (set(i.lower() for i in arg) for arg in args)
+    sets = ({i.lower() for i in arg} for arg in args)
     return iter(reduce(lambda x, y: x.intersection(y), sets))
 
 
@@ -1101,10 +1098,9 @@ def flatten(record, prefix=None):
     """
     try:
         for key, value in record.items():
-            newkey = "{}_{}".format(prefix, key) if prefix else key
+            newkey = f"{prefix}_{key}" if prefix else key
 
-            for flattened in flatten(value, newkey):
-                yield flattened
+            yield from flatten(value, newkey)
     except AttributeError:
         yield (prefix, record)
 

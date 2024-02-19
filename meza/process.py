@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 
 """
@@ -941,14 +940,14 @@ def get_suffix(cpos, pos, k=None, count=None, chunksize=None):
 
     if subchunks and k is None:
         args = (cpos + 1, pos + 1)
-        suffix = "{0:02d}_{1:03d}".format(*args)
+        suffix = "{:02d}_{:03d}".format(*args)
     elif subchunks:
         args = (k, cpos + 1, pos + 1)
-        suffix = "{0}_{1:02d}_{2:03d}".format(*args)
+        suffix = "{}_{:02d}_{:03d}".format(*args)
     elif chunksize and k is None:
-        suffix = "{0:03d}".format(cpos + 1)
+        suffix = f"{cpos + 1:03d}"
     elif chunksize:
-        suffix = "{0}_{1:03d}".format(k, cpos + 1)
+        suffix = f"{k}_{cpos + 1:03d}"
     else:
         suffix = "" if k is None else k
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 """
 tests.test_fntools
@@ -76,7 +75,7 @@ class TestIterStringIO:
 
     def test_byte_array(self):
         content = "Iñtërnâtiônàližætiøn"
-        expected = bytearray("Iñtërnâtiônàližætiøn".encode("utf-8"))
+        expected = bytearray("Iñtërnâtiônàližætiøn".encode())
         assert expected == ft.byte(content)
         assert expected == ft.byte(iter(content))
         assert expected == ft.byte(list(content))

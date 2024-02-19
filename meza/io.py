@@ -211,7 +211,7 @@ class Reencoder(StreamReader):
             ...     reenc = Reencoder(f, encoding, decode=True)
             ...     reenc.readline(keepends=False) == '\ufeffa,b,c'
             True
-            >>> with open(eff, 'rU', encoding=encoding) as f:
+            >>> with open(eff, encoding=encoding) as f:
             ...     reenc = Reencoder(f, remove_BOM=True)
             ...     reenc.readline(keepends=False) == b'a,b,c'
             ...     reenc.readline() == b'1,2,3\\n'

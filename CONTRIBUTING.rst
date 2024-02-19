@@ -66,22 +66,7 @@ Ready to contribute? Here's how to set up ``meza`` for local development.
     git clone git@github.com:<your_username>/meza.git
     cd meza
 
-2. Setup a new `virtualenv`_ with ``virtualenvwrapper``
-
-.. code-block:: bash
-
-    mkvirtualenv --no-site-packages meza
-    pip install -r dev-requirements.txt
-    python setup.py develop
-
-Or, if you only have ``virtualenv`` installed
-
-.. code-block:: bash
-
-    virtualenv --no-site-packages ~/.venvs/meza
-    source ~/.venvs/meza/bin/activate
-    pip install -r dev-requirements.txt
-    python setup.py develop
+2. `Install tox <https://tox.wiki/en/4.13.0/installation.html>`_
 
 3. Create a branch for local development
 
@@ -93,9 +78,7 @@ Or, if you only have ``virtualenv`` installed
 
 .. code-block:: bash
 
-    manage lint
-    manage test
-    manage tox
+    tox
 
 5. Commit your changes and push your branch to GitHub
 

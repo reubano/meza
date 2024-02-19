@@ -511,7 +511,7 @@ def to_time(content, time_format=None, warn=False, **kwargs):
 
 
 def to_filepath(filepath, **kwargs):
-    """Creates a filepath from an online resource, i.e., linked file or
+    r"""Creates a filepath from an online resource, i.e., linked file or
     google sheets export.
 
     Args:
@@ -530,7 +530,7 @@ def to_filepath(filepath, **kwargs):
     Examples:
         >>> to_filepath('file.csv')
         'file.csv'
-        >>> to_filepath('.', resource_id='rid')
+        >>> to_filepath('.', resource_id='rid').replace('\\', '/')
         './rid.csv'
     """
     isdir = p.isdir(filepath)

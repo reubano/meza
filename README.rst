@@ -1,7 +1,7 @@
 meza: A Python toolkit for processing tabular data
 ======================================================
 
-|travis| |GHA| |versions| |pypi|
+|GHA| |versions| |pypi|
 
 Index
 -----
@@ -625,9 +625,6 @@ License
 -------
 
 meza is distributed under the `MIT License`_.
-
-.. |travis| image:: https://img.shields.io/travis/reubano/meza/master.svg
-    :target: https://app.travis-ci.com/github/reubano/meza
 
 .. |GHA| image:: https://github.com/reubano/meza/actions/workflows/main.yml/badge.svg
     :target: https://github.com/reubano/meza/actions?query=workflow%3A%22tests%22

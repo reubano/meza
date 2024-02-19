@@ -44,7 +44,7 @@ class TestReader:
 class TestIterStringIO:
     """Unit tests for IterStringIO"""
 
-    def __init__(self):
+    def setup_method(self):
         self.phrase = io.IterStringIO(iter("Hello World"))
         self.text = io.IterStringIO("line one\nline two\nline three\n")
         self.ints = io.IterStringIO("0123456789", 5)
@@ -104,7 +104,7 @@ class TestIterStringIO:
 class TestUnicodeReader:
     """Unit tests for unicode support"""
 
-    def __init__(self):
+    def setup_method(self):
         self.cls_initialized = False
         self.row1 = {"a": "1", "b": "2", "c": "3"}
         self.row2 = {"a": "4", "b": "5", "c": "©"}
@@ -196,7 +196,7 @@ class TestUnicodeReader:
 class TestInput:
     """Unit tests for reading files"""
 
-    def __init__(self):
+    def setup_method(self):
         self.cls_initialized = False
         self.sheet0 = {
             "sparse_data": "Iñtërnâtiônàližætiøn",
@@ -411,7 +411,7 @@ class TestInput:
 class TestUrlopen:
     """Unit tests for reading files with urlopen"""
 
-    def __init__(self):
+    def setup_method(self):
         self.cls_initialized = False
         self.utf8_row = {"a": "4", "b": "5", "c": "ʤ"}
         self.latin_row = {"a": "4", "b": "5", "c": "©"}
@@ -447,7 +447,7 @@ class TestUrlopen:
 class TestBytes:
     """Unit tests for reading byte streams"""
 
-    def __init__(self):
+    def setup_method(self):
         self.cls_initialized = False
 
         self.row1 = {"a": "1", "b": "2", "c": "3"}
@@ -478,7 +478,7 @@ class TestBytes:
 class TestGeoJSON:
     """Unit tests for reading GeoJSON"""
 
-    def __init__(self):
+    def setup_method(self):
         self.cls_initialized = False
         self.bbox = [
             -70.0624999987871,

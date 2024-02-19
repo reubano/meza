@@ -376,7 +376,7 @@ class TestInput:
         finally:
             f.close()
 
-        f = open(filepath, "rU", newline=None)
+        f = open(filepath, newline=None)
 
         try:
             records = io.read_csv(f, sanitize=True)

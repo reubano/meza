@@ -46,6 +46,8 @@ jobs:
           platform: ubuntu-latest
     runs-on: ${{ matrix.platform }}
     continue-on-error: ${{ matrix.python == '3.13' }}
+    env:
+      TOX_ENV: py
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python

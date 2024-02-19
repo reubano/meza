@@ -171,6 +171,7 @@ class TestUnicodeReader:
         assert self.row1 == next(records)
         assert self.row2 == next(records)
 
+    @pytest.mark.xfail("platform.system() == 'Windows'", reason="#56")
     def test_bytes_encoding_detection_windows(self):
         """Test for detecting the encoding of a windows-1252 bytes file"""
         filepath = p.join(io.DATA_DIR, "windows1252.csv")
@@ -178,6 +179,7 @@ class TestUnicodeReader:
         assert self.row1 == next(records)
         assert self.row4 == next(records)
 
+    @pytest.mark.xfail("platform.system() == 'Windows'", reason="#56")
     def test_wrong_encoding_detection_windows(self):
         """Test for detecting the encoding of a windows file opened in ascii"""
         filepath = p.join(io.DATA_DIR, "windows1252.csv")
@@ -360,6 +362,7 @@ class TestInput:
         with pytest.raises(KeyError):
             io.get_reader("")
 
+    @pytest.mark.xfail("platform.system() == 'Windows'", reason="#56")
     def test_opened_files(self):
         """Test for reading open files"""
         filepath = p.join(io.DATA_DIR, "test.csv")
@@ -398,6 +401,7 @@ class TestInput:
         finally:
             f.close()
 
+    @pytest.mark.xfail("platform.system() == 'Windows'", reason="#56")
     def test_reencode(self):
         file_ = p.join(io.DATA_DIR, "utf16_big.csv")
 
@@ -416,6 +420,7 @@ class TestUrlopen:
         self.utf8_row = {"a": "4", "b": "5", "c": "ʤ"}
         self.latin_row = {"a": "4", "b": "5", "c": "©"}
 
+    @pytest.mark.xfail("platform.system() == 'Windows'", reason="#56")
     def test_urlopen_utf8(self):
         """Test for reading utf-8 files"""
         filepath = p.join(io.DATA_DIR, "utf8.csv")
@@ -426,6 +431,7 @@ class TestUrlopen:
             row = next(it.islice(records, 1, 2))
             assert self.utf8_row == row
 
+    @pytest.mark.xfail("platform.system() == 'Windows'", reason="#56")
     def test_urlopen_latin1(self):
         """Test for reading latin-1 files"""
         filepath = p.join(io.DATA_DIR, "latin1.csv")

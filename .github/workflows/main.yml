@@ -37,6 +37,9 @@ jobs:
         - ubuntu-latest
         - macos-latest
         - windows-latest
+        deps:
+        - ""
+        - "optional"
         include:
         - python: "3.9"
           platform: ubuntu-latest
@@ -47,7 +50,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     continue-on-error: ${{ matrix.python == '3.13' }}
     env:
-      TOX_ENV: py
+      TOX_ENV: py${{ matrix.deps == 'optional' && '-optional' || '' }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python

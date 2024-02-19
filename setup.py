@@ -11,7 +11,6 @@ PARENT_DIR = p.abspath(p.dirname(__file__))
 
 sys.dont_write_bytecode = True
 requirements = list(pkutils.parse_requirements("requirements.txt"))
-dev_requirements = list(pkutils.parse_requirements("dev-requirements.txt"))
 readme = pkutils.read("README.rst")
 changes = pkutils.read(p.join(PARENT_DIR, "docs", "CHANGES.rst"))
 module = pkutils.parse_module(p.join(PARENT_DIR, "meza", "__init__.py"))
@@ -20,9 +19,6 @@ version = module.__version__
 project = module.__title__
 description = module.__description__
 user = "reubano"
-
-# Setup requirements
-setup_require = [r for r in dev_requirements if "pkutils" in r]
 
 setup(
     name=project,
@@ -43,10 +39,6 @@ setup(
         "examples": ["examples/*"],
     },
     install_requires=requirements,
-    setup_requires=setup_require,
-    test_suite="nose.collector",
-    tests_require=dev_requirements,
-    license=license,
     zip_safe=False,
     keywords=[project] + description.split(" "),
     classifiers=[

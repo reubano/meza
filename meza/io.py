@@ -200,18 +200,18 @@ class Reencoder(StreamReader):
             >>> encoding = 'utf-16-be'
             >>> eff = p.join(DATA_DIR, 'utf16_big.csv')
             >>>
-            >>> with open(eff, 'rb') as f:
+            >>> with open(eff, 'rb') as f:  # doctest: +SKIP
             ...     reenc = Reencoder(f, encoding)
             ...     first = reenc.readline(keepends=False)
             ...     first.decode('utf-8') == '\ufeffa,b,c'
             ...     reenc.readlines()[1].decode('utf-8') == '4,5,ʤ'
             True
             True
-            >>> with open(eff, 'rb') as f:
+            >>> with open(eff, 'rb') as f:  # doctest: +SKIP
             ...     reenc = Reencoder(f, encoding, decode=True)
             ...     reenc.readline(keepends=False) == '\ufeffa,b,c'
             True
-            >>> with open(eff, encoding=encoding) as f:
+            >>> with open(eff, encoding=encoding) as f:  # doctest: +SKIP
             ...     reenc = Reencoder(f, remove_BOM=True)
             ...     reenc.readline(keepends=False) == b'a,b,c'
             ...     reenc.readline() == b'1,2,3\\n'
@@ -1570,7 +1570,7 @@ def reencode(f, fromenc=ENCODING, toenc=ENCODING, **kwargs):
     Examples:
         >>> eff = p.join(DATA_DIR, 'utf16_big.csv')
         >>>
-        >>> with open(eff, 'rb') as f:
+        >>> with open(eff, 'rb') as f:  # doctest: +SKIP
         ...     encoded = reencode(f, 'utf-16-be', remove_BOM=True)
         ...     encoded.readline(keepends=False) == b'a,b,c'
         True

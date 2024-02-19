@@ -10,5 +10,4 @@ pytest-cov
 pytest-enabler>=2.2
 responses>=0.9.0,<0.15.0
 setuptools>=42.0.2
-tox>=3.14.3,<4.0.0
 twine>=3.2.0,<4.0.0

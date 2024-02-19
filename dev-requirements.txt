@@ -9,5 +9,4 @@ pytest>=8,<9
 pytest-cov
 pytest-enabler>=2.2
 responses>=0.9.0,<0.15.0
-setuptools>=42.0.2
 twine>=3.2.0,<4.0.0

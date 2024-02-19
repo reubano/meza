@@ -59,5 +59,5 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: Microsoft :: Windows",
     ],
-    platforms=["MacOS X", "Windows", "Linux"],
+    platforms=["macOS", "Windows", "Linux"],
 )

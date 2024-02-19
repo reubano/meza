@@ -10,10 +10,10 @@ import itertools as it
 import requests
 import responses
 
-from nose.tools import assert_true, assert_false, assert_raises, assert_equal
-
 from io import StringIO
 from operator import itemgetter
+
+import pytest
 
 from meza import fntools as ft, io, stats
 
@@ -87,7 +87,7 @@ class TestIterStringIO:
         assert 3 == ft.afterish("2,100,001.00")
         assert 2 == ft.afterish("1,000.00", ".")
 
-        with assert_raises(ValueError):
+        with pytest.raises(ValueError):
             ft.afterish("eggs", ".")
 
     def test_get_separators(self):
@@ -97,7 +97,7 @@ class TestIterStringIO:
         expected = {"thousand_sep": ".", "decimal_sep": ","}
         assert expected == ft.get_separators("2.123,45")
 
-        with assert_raises(ValueError):
+        with pytest.raises(ValueError):
             ft.get_separators("spam")
 
     def test_fill(self):

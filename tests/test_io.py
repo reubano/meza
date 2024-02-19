@@ -19,8 +19,7 @@ from contextlib import closing
 import requests
 import responses
 import pygogo as gogo
-
-from nose.tools import assert_true, assert_raises, assert_equal, assert_less_equal
+import pytest
 
 from meza import io, convert as cv, DATA_DIR
 
@@ -337,7 +336,7 @@ class TestInput:
         assert "See IBM products" == next(records)["Products"]
         records = io.read_html(filepath, vertical=True, table=2)
 
-        with assert_raises(StopIteration):
+        with pytest.raises(StopIteration):
             next(records)
 
     def test_excel_html_export(self):  # pylint: disable=R0201
@@ -358,7 +357,7 @@ class TestInput:
         """Test for reading a file via the reader selector"""
         assert callable(io.get_reader("csv"))
 
-        with assert_raises(KeyError):
+        with pytest.raises(KeyError):
             io.get_reader("")
 
     def test_opened_files(self):

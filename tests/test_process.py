@@ -8,12 +8,12 @@ Provides main unit tests.
 """
 import itertools as it
 
-from nose.tools import assert_true, assert_false, assert_raises, assert_equal
-
 from decimal import Decimal
 from functools import partial
 from operator import itemgetter, truediv, eq, is_not, contains
 from collections import defaultdict
+
+import pytest
 
 from meza import process as pr, stats, fntools as ft
 
@@ -33,7 +33,7 @@ class Test:
         types = [{"id": "float", "type": "bool"}]
         assert {"float": False} == next(pr.type_cast(records, types))
 
-        with assert_raises(ValueError):
+        with pytest.raises(ValueError):
             next(pr.type_cast(records, types, warn=True))
 
     def test_detect_types(self):

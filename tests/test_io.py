@@ -562,12 +562,15 @@ class TestOutput:
         content1 = StringIO("Iñtërnâtiônàližætiøn")
         assert 20 == io.write(StringIO(), content1)
         content1.seek(0)
-        assert 20 == io.write(TemporaryFile(), content1)
+        with TemporaryFile() as tf:
+            assert 20 == io.write(tf, content1)
 
         content2 = io.IterStringIO(iter("Hello World"))
-        assert 12 == io.write(TemporaryFile(), content2, chunksize=2)
+        with TemporaryFile() as tf:
+            assert 12 == io.write(tf, content2, chunksize=2)
 
         # pylint: disable=E1101
         responses.add(responses.GET, url=url, body=body)
         r = requests.get(url, stream=True)  # pylint: disable=C0103
-        assert 55 == io.write(TemporaryFile(), r.iter_content)
+        with TemporaryFile() as tf:
+            assert 55 == io.write(tf, r.iter_content)

@@ -9,4 +9,4 @@ Development Lead
 Contributors
 ------------
 
-None yet. Why not be the first?
+* Jason R. Coombs <jaraco@jaraco.com>

@@ -3,17 +3,11 @@ Installation
 
 (You are using a `virtualenv`_, right?)
 
-At the command line, install meza using either ``pip`` (recommended)
+At the command line, install meza using ``pip``
 
 .. code-block:: bash
 
     pip install meza
-
-or ``easy_install``
-
-.. code-block:: bash
-
-    easy_install meza
 
 Detailed installation instructions
 ----------------------------------

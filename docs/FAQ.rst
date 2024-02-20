@@ -42,7 +42,7 @@ need a special ``records`` constructor. Any iterable of dicts will do just fine.
 PyPy
 ~~~~
 
-``meza`` supports PyPy (targeting Python 2.7 & 3.4+) out of the box.
+``meza`` supports PyPy out of the box.
 
 Convenience
 ~~~~~~~~~~~

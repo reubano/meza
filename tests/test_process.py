@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 """
 tests.test_process
@@ -128,29 +127,29 @@ class Test:
         records = [{"a": 1, "b": 2, "c": 3}, {"b": 4, "c": 5, "d": 6}]
 
         # Combine all keys
-        expected = {u"a": 1, u"c": 8, u"b": 6, u"d": 6}
+        expected = {"a": 1, "c": 8, "b": 6, "d": 6}
         result = pr.merge(records, pred=bool, op=sum)
         nt.assert_equal(expected, result)
 
         first = lambda pair: next(filter(partial(is_not, None), pair))
         kwargs = {"pred": bool, "op": first, "default": None}
-        expected = {u"a": 1, u"b": 2, u"c": 3, u"d": 6}
+        expected = {"a": 1, "b": 2, "c": 3, "d": 6}
         result = pr.merge(records, **kwargs)
         nt.assert_equal(expected, result)
 
         # This will only reliably give the expected result for 2 records
         kwargs = {"pred": bool, "op": stats.mean, "default": None}
-        expected = {u"a": 1, u"b": 3.0, u"c": 4.0, u"d": 6.0}
+        expected = {"a": 1, "b": 3.0, "c": 4.0, "d": 6.0}
         result = pr.merge(records, **kwargs)
         nt.assert_equal(expected, result)
 
         # Only combine key 'b'
-        expected = {u"a": 1, u"b": 6, u"c": 5, u"d": 6}
+        expected = {"a": 1, "b": 6, "c": 5, "d": 6}
         result = pr.merge(records, pred="b", op=sum)
         nt.assert_equal(expected, result)
 
         # Only combine keys that have the same value of 'b'
-        expected = {u"a": 1, u"b": 6, u"c": 5, u"d": 6}
+        expected = {"a": 1, "b": 6, "c": 5, "d": 6}
         result = pr.merge(records, pred=itemgetter("b"), op=sum)
         nt.assert_equal(expected, result)
 
@@ -167,15 +166,15 @@ class Test:
             for k in r.keys():
                 counted[k] += 1
 
-        expected = {u"a": 3, u"b": 3, u"c": 2, u"d": 1}
+        expected = {"a": 3, "b": 3, "c": 2, "d": 1}
         nt.assert_equal(expected, counted)
 
         summed = pr.merge(records, pred=bool, op=sum)
-        expected = {u"a": 6, u"b": 15, u"c": 2, u"d": 7}
+        expected = {"a": 6, "b": 15, "c": 2, "d": 7}
         nt.assert_equal(expected, summed)
 
         kwargs = {"pred": bool, "op": ft.fpartial(truediv)}
-        expected = {u"a": 2.0, u"b": 5.0, u"c": 1.0, u"d": 7.0}
+        expected = {"a": 2.0, "b": 5.0, "c": 1.0, "d": 7.0}
         result = pr.merge([summed, counted], **kwargs)
         nt.assert_equal(expected, result)
 
@@ -263,6 +262,6 @@ class Test:
         ]
 
         result = list(pr.pivot(records, "D", "C", dropna=False))
-        expected_set = set(tuple(sorted(r.items())) for r in expected)
-        result_set = set(tuple(sorted(r.items())) for r in result)
+        expected_set = {tuple(sorted(r.items())) for r in expected}
+        result_set = {tuple(sorted(r.items())) for r in result}
         nt.assert_equal(expected_set, result_set)

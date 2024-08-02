@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 
 """
@@ -54,7 +53,7 @@ from xlrd import (
 )
 
 from xlrd.xldate import xldate_as_datetime as xl2dt
-from io import StringIO, TextIOBase, BytesIO, open
+from io import StringIO, TextIOBase, BytesIO
 
 from . import fntools as ft, process as pr, unicsv as csv, dbf, ENCODING, BOM, DATA_DIR
 
@@ -388,7 +387,7 @@ def get_file_encoding(f, encoding=None, bytes_error=False):
 
     if not bytes_error:
         # Set the encoding to None so that we can detect the correct one.
-        extra = (" ({})".format(encoding)) if encoding else ""
+        extra = (f" ({encoding})") if encoding else ""
         logger.warning("%s was opened with the wrong encoding%s", f, extra)
         encoding = None
 
@@ -651,7 +650,7 @@ def read_mdb(filepath, table=None, **kwargs):
         yield
         return
     except CalledProcessError:
-        raise TypeError("{} is not readable by mdbtools".format(filepath))
+        raise TypeError(f"{filepath} is not readable by mdbtools")
 
     sanitize = kwargs.pop("sanitize", None)
     dedupe = kwargs.pop("dedupe", False)
@@ -757,7 +756,7 @@ def read_sqlite(filepath, table=None):
     if not table or table not in set(cursor.fetchall()):
         table = cursor.fetchone()[0]
 
-    cursor.execute("SELECT * FROM {}".format(table))
+    cursor.execute(f"SELECT * FROM {table}")
     return map(dict, cursor)
 
 
@@ -1186,7 +1185,7 @@ def gen_records(_type, record, coords, properties, **kwargs):
                 record["pos"] = pos
                 yield pr.merge([record, properties])
     else:
-        raise TypeError("Invalid geometry type {}.".format(_type))
+        raise TypeError(f"Invalid geometry type {_type}.")
 
 
 def read_geojson(filepath, key="id", mode="r", **kwargs):
@@ -1247,8 +1246,7 @@ def read_geojson(filepath, key="id", mode="r", **kwargs):
 
                 args = (record, coords, properties)
 
-                for rec in gen_records(_type, *args, **kwargs):
-                    yield rec
+                yield from gen_records(_type, *args, **kwargs)
 
     return read_any(filepath, reader, mode, **kwargs)
 
@@ -1420,7 +1418,7 @@ def read_html(filepath, table=0, mode="r", **kwargs):
                 names = map(get_text, ths)
             else:
                 col_nums = range(len(a_row))
-                names = ["column_{}".format(i) for i in col_nums]
+                names = [f"column_{i}" for i in col_nums]
 
             uscored = ft.underscorify(names) if sanitize else names
             header = list(ft.dedupe(uscored) if dedupe else uscored)

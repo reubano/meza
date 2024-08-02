@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 
 """
@@ -45,7 +44,7 @@ def encode_all(f=None, **kwargs):
     return res
 
 
-class UnicodeWriter(object):
+class UnicodeWriter:
     """
     >>> from io import StringIO
     >>>

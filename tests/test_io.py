@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 """
 tests.test_io
@@ -11,7 +10,7 @@ import itertools as it
 from os import path as p
 from json import loads
 from tempfile import TemporaryFile
-from io import StringIO, BytesIO, open
+from io import StringIO, BytesIO
 from decimal import Decimal
 from urllib.request import urlopen
 from contextlib import closing
@@ -56,7 +55,7 @@ class TestIterStringIO:
         nt.assert_equal(bytearray(b" Worldly"), self.phrase.read(8))
 
         self.phrase.write(": Iñtërnâtiônàližætiøn")
-        expected = bytearray(" person: Iñtërnâtiônàližætiøn".encode("utf-8"))
+        expected = bytearray(" person: Iñtërnâtiônàližætiøn".encode())
         nt.assert_equal(expected, self.phrase.read())
 
         nt.assert_equal(bytearray(b"line one"), self.text.readline())
@@ -376,7 +375,7 @@ class TestInput:
         finally:
             f.close()
 
-        f = open(filepath, "rU", newline=None)
+        f = open(filepath, newline=None)
 
         try:
             records = io.read_csv(f, sanitize=True)
@@ -420,7 +419,7 @@ class TestUrlopen:
         """Test for reading utf-8 files"""
         filepath = p.join(io.DATA_DIR, "utf8.csv")
 
-        with closing(urlopen("file://{}".format(filepath))) as response:
+        with closing(urlopen(f"file://{filepath}")) as response:
             f = response.fp
             records = io.read_csv(f)
             row = next(it.islice(records, 1, 2))
@@ -430,7 +429,7 @@ class TestUrlopen:
         """Test for reading latin-1 files"""
         filepath = p.join(io.DATA_DIR, "latin1.csv")
 
-        with closing(urlopen("file://{}".format(filepath))) as response:
+        with closing(urlopen(f"file://{filepath}")) as response:
             f = response.fp
             records = io.read_csv(f, encoding="latin-1")
             row = next(it.islice(records, 1, 2))

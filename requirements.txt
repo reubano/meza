@@ -4,7 +4,7 @@ python-dateutil>=2.7.2,<3.0.0
 requests>=2.18.4,<3.0.0
 xlrd>=1.1.0,<2.0.0
 dbfread==2.0.4
-ijson>=2.3,<3.0.0
+ijson>=2.3,<4.0.0
 beautifulsoup4>=4.6.0,<5.0.0
 PyYAML>=4.2b1,<7.0.0
 pygogo>=0.13.2,<2.0.0

@@ -336,7 +336,9 @@ def _to_datetime(content, **kwargs):
         value = parse(content, default=NULL_DATETIME, **kwargs)
     except ValueError as e:
         # impossible date, e.g., 2/31/15
-        retry = any(x in str(e) for x in ("out of range", "day must be in"))
+        # Python 3.14 reports "day 31 must be in range 1..28 for month 2 ..."
+        messages = ("out of range", "day must be in", "must be in range")
+        retry = any(x in str(e) for x in messages)
         value = content if retry else NULL_DATETIME
     else:
         retry = False

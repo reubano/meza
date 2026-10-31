@@ -45,7 +45,7 @@ jobs:
           platform: ubuntu-24.04
         - python: "3.10"
           platform: ubuntu-24.04
-        - python: pypy3.10
+        - python: pypy3.11
           platform: ubuntu-24.04
     runs-on: ${{ matrix.platform }}
     continue-on-error: ${{ matrix.python == '3.13' }}

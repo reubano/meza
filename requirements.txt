@@ -1,5 +1,5 @@
 chardet>=3.0.4,<4.0.0
-python-slugify>=1.2.5,<2.0.0
+python-slugify>=8.0.0,<10.0.0
 python-dateutil>=2.7.2,<3.0.0
 requests>=2.18.4,<3.0.0
 xlrd>=1.1.0,<2.0.0

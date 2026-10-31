@@ -34,7 +34,7 @@ jobs:
         - "3.11"
         - "3.12"
         platform:
-        - ubuntu-latest
+        - ubuntu-24.04
         - macos-latest
         - windows-latest
         deps:
@@ -42,11 +42,11 @@ jobs:
         - "optional"
         include:
         - python: "3.9"
-          platform: ubuntu-latest
+          platform: ubuntu-24.04
         - python: "3.10"
-          platform: ubuntu-latest
+          platform: ubuntu-24.04
         - python: pypy3.10
-          platform: ubuntu-latest
+          platform: ubuntu-24.04
     runs-on: ${{ matrix.platform }}
     continue-on-error: ${{ matrix.python == '3.13' }}
     env:
